@@ -1,8 +1,7 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { mockBookings } from "@/lib/data";
 import { format } from "date-fns";
-import { vi } from "date-fns/locale";
 import { Plus, Users, CalendarDays, ClipboardList, PenLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
