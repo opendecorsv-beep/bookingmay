@@ -73,6 +73,7 @@ export default function Dashboard() {
                         <span className="font-medium text-slate-700">Tiến độ Sảnh/Decor:</span>
                         {getStatusBadge(b.floorStatus)}
                       </div>
+                      {isKitchenWarning && <p className="text-xs text-red-500 mt-1">⚠️ Bếp chưa hoàn thành!</p>}
                       {isFloorWarning && <p className="text-xs text-red-500 mt-1">⚠️ Decor chưa hoàn thành!</p>}
                     </div>
                   </div>
