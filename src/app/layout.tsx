@@ -1,13 +1,11 @@
 import type { Metadata } from "next";
-import { Inter, Geist } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import Link from "next/link";
 import { UtensilsCrossed } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
-
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
   title: "BookingMay - Quản lý tiệc",
@@ -20,7 +18,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="vi" className={cn("font-sans", geist.variable)}>
+    <html lang="vi" className={cn("font-sans", inter.variable)}>
       <body className={`${inter.className} bg-slate-50 min-h-screen flex flex-col`}>
         <header className="bg-white border-b sticky top-0 z-10">
           <div className="container mx-auto px-4 h-16 flex items-center justify-between">
