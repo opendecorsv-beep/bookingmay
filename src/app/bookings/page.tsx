@@ -77,7 +77,24 @@ export default async function BookingsPage() {
                     <div className="space-y-2">
                       <div>
                         <h4 className="font-semibold text-sm text-slate-700 mb-1">Yêu cầu Decor:</h4>
-                        <p className="text-sm text-slate-600">{b.decorRequest || "Không có"}</p>
+                        <p className="text-sm text-slate-600">
+                          {(() => {
+                            const raw = b.decorRequest || "Không có";
+                            if (!raw.includes('|PKG:')) return raw;
+                            const parts = raw.split('|');
+                            const occ = parts[0] || "Không có";
+                            const pkgStr = parts.find(p => p.startsWith('PKG:')) || "";
+                            const noteStr = parts.find(p => p.startsWith('NOTE:')) || "";
+                            
+                            const pkg = pkgStr.replace('PKG:', '');
+                            const note = noteStr.replace('NOTE:', '');
+                            
+                            let res = occ;
+                            if (pkg) res += ` - Gói Mây ${pkg}`;
+                            if (note) res += ` - Ghi chú: ${note}`;
+                            return res;
+                          })()}
+                        </p>
                       </div>
                       <div>
                         <h4 className="font-semibold text-sm text-slate-700 mb-1">Tiền cọc:</h4>
