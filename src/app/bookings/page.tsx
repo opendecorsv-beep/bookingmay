@@ -101,7 +101,39 @@ export default async function BookingsPage() {
                         <p className="text-sm font-semibold text-orange-600">
                           {(() => {
                             const match = (b.specialRequest || "").match(/\[Cọc:\s*([^\]]+)\]/);
-                            return match ? match[1] : "Chưa cọc";
+                            if (!match) return "Chưa cọc";
+                            const val = match[1];
+                            const num = parseInt(val.replace(/[^\d]/g, ''));
+                            if (!isNaN(num) && num >= 1000) {
+                              return num.toLocaleString('vi-VN') + " đ";
+                            }
+                            return val;
+                          })()}
+                        </p>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-sm text-slate-700 mb-1">Tổng tiền (Món + Decor):</h4>
+                        <p className="text-sm font-bold text-red-600">
+                          {(() => {
+                            let total = 0;
+                            b.menu.forEach(item => {
+                              const m = item.match(/^(\d+)\s*x\s*(.*?)\s*-\s*(.*)$/);
+                              if (m) {
+                                const qty = parseInt(m[1]);
+                                const priceText = m[3];
+                                const price = parseInt(priceText.replace(/[^\d]/g, ''));
+                                if (!isNaN(price) && price > 0) {
+                                  total += qty * price;
+                                }
+                              }
+                            });
+                            if ((b.decorRequest || "").includes('|PKG:')) {
+                               const pkgStr = b.decorRequest.split('|').find(p => p.startsWith('PKG:'));
+                               if (pkgStr && pkgStr !== 'PKG:') {
+                                 total += 3700000;
+                               }
+                            }
+                            return total > 0 ? total.toLocaleString('vi-VN') + " đ" : "Chưa tính";
                           })()}
                         </p>
                       </div>
