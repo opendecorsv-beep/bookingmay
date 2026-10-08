@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Link from "next/link";
-import { UtensilsCrossed } from "lucide-react";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
@@ -22,9 +22,11 @@ export default function RootLayout({
       <body className={`${inter.className} bg-slate-50 min-h-screen flex flex-col`}>
         <header className="bg-white border-b sticky top-0 z-10">
           <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-2 text-xl font-bold text-slate-800">
-              <UtensilsCrossed className="w-6 h-6 text-orange-600" />
-              <span>BookingMay</span>
+            <Link href="/" className="flex items-center gap-3 text-xl font-bold text-slate-800">
+              <div className="relative w-10 h-10 overflow-hidden rounded-md border border-slate-100 shadow-sm">
+                <Image src="/logo.jpg" alt="Mây Restaurant Logo" fill className="object-cover" />
+              </div>
+              <span className="tracking-tight">Mây Restaurant</span>
             </Link>
             <nav className="flex gap-6 text-sm font-medium text-slate-600">
               <Link href="/" className="hover:text-orange-600">Bảng điều khiển</Link>

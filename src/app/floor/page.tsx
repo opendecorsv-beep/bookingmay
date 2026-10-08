@@ -5,8 +5,11 @@ import { format } from "date-fns";
 import { Sparkles, Users, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export default function FloorPage() {
-  const pendingBookings = mockBookings.filter(b => b.floorStatus !== 'done').sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
+import { setFloorStatus, fetchBookings } from "@/app/actions";
+
+export default async function FloorPage() {
+  const allBookings = await fetchBookings();
+  const pendingBookings = allBookings.filter(b => b.floorStatus !== 'done').sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
 
   return (
     <div className="space-y-6">
@@ -55,11 +58,15 @@ export default function FloorPage() {
 
               <div className="pt-4 flex gap-2 justify-end border-t">
                 {b.floorStatus === 'pending' && (
-                  <Button variant="outline" className="text-purple-600 border-purple-200 hover:bg-purple-50">Bắt đầu Setup</Button>
+                  <form action={setFloorStatus.bind(null, b.id, 'in_progress')}>
+                    <Button type="submit" variant="outline" className="text-purple-600 border-purple-200 hover:bg-purple-50">Bắt đầu Setup</Button>
+                  </form>
                 )}
-                <Button className="bg-purple-600 hover:bg-purple-700">
-                  <CheckCircle className="w-4 h-4 mr-2"/> Hoàn tất Setup
-                </Button>
+                <form action={setFloorStatus.bind(null, b.id, 'done')}>
+                  <Button type="submit" className="bg-purple-600 hover:bg-purple-700">
+                    <CheckCircle className="w-4 h-4 mr-2"/> Hoàn tất Setup
+                  </Button>
+                </form>
               </div>
             </CardContent>
           </Card>

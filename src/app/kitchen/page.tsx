@@ -5,8 +5,11 @@ import { format } from "date-fns";
 import { Clock, ChefHat, CheckSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export default function KitchenPage() {
-  const pendingBookings = mockBookings.filter(b => b.kitchenStatus !== 'done').sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
+import { setKitchenStatus, fetchBookings } from "@/app/actions";
+
+export default async function KitchenPage() {
+  const allBookings = await fetchBookings();
+  const pendingBookings = allBookings.filter(b => b.kitchenStatus !== 'done').sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
 
   return (
     <div className="space-y-6">
@@ -57,12 +60,16 @@ export default function KitchenPage() {
 
               <div className="pt-2 flex gap-2">
                 {b.kitchenStatus === 'pending' && (
-                  <Button className="w-full bg-orange-500 hover:bg-orange-600">Bắt đầu nấu</Button>
+                  <form action={setKitchenStatus.bind(null, b.id, 'in_progress')} className="w-full">
+                    <Button type="submit" className="w-full bg-orange-500 hover:bg-orange-600">Bắt đầu nấu</Button>
+                  </form>
                 )}
                 {b.kitchenStatus === 'in_progress' && (
-                  <Button className="w-full bg-green-600 hover:bg-green-700">
-                    <CheckSquare className="w-4 h-4 mr-2"/> Báo Xong
-                  </Button>
+                  <form action={setKitchenStatus.bind(null, b.id, 'done')} className="w-full">
+                    <Button type="submit" className="w-full bg-green-600 hover:bg-green-700">
+                      <CheckSquare className="w-4 h-4 mr-2"/> Báo Xong
+                    </Button>
+                  </form>
                 )}
               </div>
             </CardContent>

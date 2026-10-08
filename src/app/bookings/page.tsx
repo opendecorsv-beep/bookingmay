@@ -1,22 +1,24 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { mockBookings } from "@/lib/data";
+import { fetchBookings, setBookingStatus } from "@/app/actions";
 import { format } from "date-fns";
-import { Plus, Users, CalendarDays, ClipboardList, PenLine } from "lucide-react";
+import { Users, CalendarDays, ClipboardList, PenLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import AddBookingDialog from "@/components/AddBookingDialog";
 
-export default function BookingsPage() {
+export default async function BookingsPage() {
+  const bookings = await fetchBookings();
+  const sortedBookings = [...bookings].sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-slate-800">Danh Sách Đặt Bàn</h1>
-        <Button className="bg-orange-600 hover:bg-orange-700">
-          <Plus className="w-4 h-4 mr-2" /> Thêm Booking Mới
-        </Button>
+        <AddBookingDialog />
       </div>
       
       <div className="grid grid-cols-1 gap-4">
-        {mockBookings.map((b) => (
+        {sortedBookings.map((b) => (
           <Card key={b.id}>
             <CardContent className="p-6">
               <div className="flex flex-col md:flex-row gap-6 justify-between">
@@ -25,7 +27,9 @@ export default function BookingsPage() {
                     <div>
                       <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                         {b.customerName} - {b.phone}
-                        <Badge variant={b.status === 'confirmed' ? 'default' : 'secondary'}>{b.status === 'confirmed' ? 'Đã chốt' : 'Đang chờ'}</Badge>
+                        <Badge variant={b.status === 'confirmed' ? 'default' : 'secondary'} className={b.status === 'confirmed' ? 'bg-green-600' : ''}>
+                          {b.status === 'confirmed' ? 'Đã chốt' : 'Đang chờ'}
+                        </Badge>
                       </h2>
                       <div className="flex items-center gap-4 text-sm text-slate-600 mt-2">
                         <div className="flex items-center gap-1">
@@ -38,9 +42,13 @@ export default function BookingsPage() {
                         </div>
                       </div>
                     </div>
-                    <Button variant="outline" size="sm">
-                      <PenLine className="w-4 h-4 mr-2" /> Sửa
-                    </Button>
+                    {b.status === 'pending' && (
+                      <form action={setBookingStatus.bind(null, b.id, 'confirmed')}>
+                        <Button type="submit" variant="outline" size="sm" className="text-green-600 border-green-200 hover:bg-green-50">
+                          Xác nhận Tiệc
+                        </Button>
+                      </form>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-md">
@@ -67,7 +75,6 @@ export default function BookingsPage() {
                   </div>
                 </div>
 
-                {/* Status Toggles */}
                 <div className="w-full md:w-64 space-y-3 border-l pl-0 md:pl-6 pt-4 md:pt-0">
                   <h4 className="font-semibold text-sm text-slate-700">Trạng thái công việc</h4>
                   
@@ -80,14 +87,15 @@ export default function BookingsPage() {
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-slate-600">Bếp:</span>
                     <Badge variant={b.kitchenStatus === 'done' ? 'default' : (b.kitchenStatus === 'in_progress' ? 'secondary' : 'outline')} 
-                           className={b.kitchenStatus === 'done' ? 'bg-green-500' : (b.kitchenStatus === 'in_progress' ? 'bg-yellow-500 hover:bg-yellow-600 text-white' : '')}>
+                           className={b.kitchenStatus === 'done' ? 'bg-green-500' : (b.kitchenStatus === 'in_progress' ? 'bg-yellow-500 text-white' : '')}>
                       {b.kitchenStatus === 'done' ? 'Hoàn thành' : (b.kitchenStatus === 'in_progress' ? 'Đang làm' : 'Chờ xử lý')}
                     </Badge>
                   </div>
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-slate-600">Sảnh / Decor:</span>
-                    <Badge variant={b.floorStatus === 'done' ? 'default' : 'outline'} className={b.floorStatus === 'done' ? 'bg-green-500' : ''}>
-                      {b.floorStatus === 'done' ? 'Hoàn thành' : 'Chờ xử lý'}
+                    <Badge variant={b.floorStatus === 'done' ? 'default' : (b.floorStatus === 'in_progress' ? 'secondary' : 'outline')} 
+                           className={b.floorStatus === 'done' ? 'bg-green-500' : (b.floorStatus === 'in_progress' ? 'bg-yellow-500 text-white' : '')}>
+                      {b.floorStatus === 'done' ? 'Hoàn thành' : (b.floorStatus === 'in_progress' ? 'Đang làm' : 'Chờ xử lý')}
                     </Badge>
                   </div>
                 </div>
@@ -95,6 +103,11 @@ export default function BookingsPage() {
             </CardContent>
           </Card>
         ))}
+        {sortedBookings.length === 0 && (
+          <div className="col-span-full py-12 text-center text-slate-500 bg-white rounded-lg border border-dashed">
+            Chưa có dữ liệu đặt tiệc nào.
+          </div>
+        )}
       </div>
     </div>
   );

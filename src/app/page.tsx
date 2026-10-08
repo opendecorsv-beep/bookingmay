@@ -1,16 +1,17 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { mockBookings } from "@/lib/data";
+import { fetchBookings } from "@/app/actions";
 import { format, isBefore, addHours } from "date-fns";
 import { vi } from "date-fns/locale";
 import { AlertCircle, CheckCircle2, Clock, Users } from "lucide-react";
 
-export default function Dashboard() {
-  const now = new Date("2026-10-07T15:42:16+07:00"); // Current time for demo
+export default async function Dashboard() {
+  const allBookings = await fetchBookings();
+  const now = new Date(); // Use real current time
   const next24h = addHours(now, 24);
 
   // Lọc các booking sắp tới
-  const upcomingBookings = mockBookings.filter(b => isBefore(now, new Date(b.dateTime))).sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
+  const upcomingBookings = allBookings.filter(b => isBefore(now, new Date(b.dateTime))).sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
   
   // Các booking khẩn cấp (trong vòng 24h tới)
   const urgentBookings = upcomingBookings.filter(b => isBefore(new Date(b.dateTime), next24h));
