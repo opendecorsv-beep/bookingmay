@@ -45,6 +45,19 @@ export default function EditBookingDialog({ booking }: { booking: Booking }) {
     initialSpecialRequest = initialSpecialRequest.replace(/\[Cọc:\s*[^\]]+\]/, '').trim();
   }
 
+  let initialDecorOccasion = "Không có";
+  let initialDecorPackage = "";
+  let initialDecorNote = "";
+  const decorStr = booking.decorRequest || "";
+  if (decorStr) {
+    const parts = decorStr.split('|');
+    initialDecorOccasion = parts[0];
+    parts.forEach(p => {
+      if (p.startsWith('PKG:')) initialDecorPackage = p.replace('PKG:', '');
+      if (p.startsWith('NOTE:')) initialDecorNote = p.replace('NOTE:', '');
+    });
+  }
+
   async function onSubmit(formData: FormData) {
     const rawMenu = formData.get("menu") as string;
     const menuArray = rawMenu.split('\n').filter(item => item.trim() !== '');
@@ -61,6 +74,12 @@ export default function EditBookingDialog({ booking }: { booking: Booking }) {
       specReq += `\n[Cọc: ${deposit.trim()}]`;
     }
 
+    let finalDecor = formData.get("decorRequest") as string;
+    const decorPkg = formData.get("decorPackage") as string;
+    const decorNote = formData.get("decorNote") as string;
+    if (decorPkg) finalDecor += `|PKG:${decorPkg}`;
+    if (decorNote) finalDecor += `|NOTE:${decorNote}`;
+
     await updateExistingBooking(booking.id, {
       customerName: custName,
       phone: formData.get("phone") as string,
@@ -69,7 +88,7 @@ export default function EditBookingDialog({ booking }: { booking: Booking }) {
       room: formData.get("room") as string || "Chưa chọn",
       menu: menuArray,
       specialRequest: specReq.trim(),
-      decorRequest: formData.get("decorRequest") as string,
+      decorRequest: finalDecor,
     });
     setOpen(false);
   }
@@ -161,19 +180,40 @@ export default function EditBookingDialog({ booking }: { booking: Booking }) {
           
           <div className="space-y-2">
             <Label htmlFor="decorRequest">Dịp / Yêu cầu Decor</Label>
-            <select 
-              id="decorRequest" 
-              name="decorRequest" 
-              defaultValue={booking.decorRequest || "Không có"}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            >
-              <option value="Không có">Không có</option>
-              <option value="Sinh nhật">Sinh nhật</option>
-              <option value="Kỷ niệm">Kỷ niệm</option>
-              <option value="Tiệc Công ty">Tiệc Công ty</option>
-              <option value="Gia đình">Gia đình</option>
-              <option value="Khác">Khác (Ghi chú thêm ở dưới)</option>
-            </select>
+            <div className="grid grid-cols-2 gap-2">
+              <select 
+                id="decorRequest" 
+                name="decorRequest" 
+                defaultValue={initialDecorOccasion}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                <option value="Không có">Không có</option>
+                <option value="Sinh nhật">Sinh nhật</option>
+                <option value="Kỷ niệm">Kỷ niệm</option>
+                <option value="Tiệc Công ty">Tiệc Công ty</option>
+                <option value="Gia đình">Gia đình</option>
+                <option value="Khác">Khác</option>
+              </select>
+              <select 
+                id="decorPackage" 
+                name="decorPackage" 
+                defaultValue={initialDecorPackage}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                <option value="">-- Gói Decor Mây --</option>
+                <option value="1">Gói 1</option>
+                <option value="2">Gói 2</option>
+                <option value="3">Gói 3</option>
+                <option value="4">Gói 4</option>
+                <option value="5">Gói 5</option>
+                <option value="6">Gói 6</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="decorNote">Ghi chú Decor (Dành riêng cho Sảnh/Decor)</Label>
+            <Textarea id="decorNote" name="decorNote" defaultValue={initialDecorNote} placeholder="Vd: Tone hồng, bóng bay..." rows={2}/>
           </div>
 
           <div className="space-y-2">

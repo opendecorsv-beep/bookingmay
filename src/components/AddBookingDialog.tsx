@@ -27,6 +27,13 @@ export default function AddBookingDialog() {
     if (deposit && deposit.trim() !== '') {
       specReq += `\n[Cọc: ${deposit.trim()}]`;
     }
+
+    let finalDecor = formData.get("decorRequest") as string;
+    const decorPkg = formData.get("decorPackage") as string;
+    const decorNote = formData.get("decorNote") as string;
+    
+    if (decorPkg) finalDecor += `|PKG:${decorPkg}`;
+    if (decorNote) finalDecor += `|NOTE:${decorNote}`;
     
     await createNewBooking({
       customerName: custName,
@@ -36,7 +43,7 @@ export default function AddBookingDialog() {
       room: formData.get("room") as string || "Chưa chọn",
       menu: menuArray,
       specialRequest: specReq.trim(),
-      decorRequest: formData.get("decorRequest") as string,
+      decorRequest: finalDecor,
       status: "pending",
       receptionStatus: "pending",
       kitchenStatus: "pending",
@@ -130,18 +137,38 @@ export default function AddBookingDialog() {
           
           <div className="space-y-2">
             <Label htmlFor="decorRequest">Dịp / Yêu cầu Decor</Label>
-            <select 
-              id="decorRequest" 
-              name="decorRequest" 
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            >
-              <option value="Không có">Không có</option>
-              <option value="Sinh nhật">Sinh nhật</option>
-              <option value="Kỷ niệm">Kỷ niệm</option>
-              <option value="Tiệc Công ty">Tiệc Công ty</option>
-              <option value="Gia đình">Gia đình</option>
-              <option value="Khác">Khác (Ghi chú thêm ở dưới)</option>
-            </select>
+            <div className="grid grid-cols-2 gap-2">
+              <select 
+                id="decorRequest" 
+                name="decorRequest" 
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                <option value="Không có">Không có</option>
+                <option value="Sinh nhật">Sinh nhật</option>
+                <option value="Kỷ niệm">Kỷ niệm</option>
+                <option value="Tiệc Công ty">Tiệc Công ty</option>
+                <option value="Gia đình">Gia đình</option>
+                <option value="Khác">Khác</option>
+              </select>
+              <select 
+                id="decorPackage" 
+                name="decorPackage" 
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                <option value="">-- Gói Decor Mây --</option>
+                <option value="1">Gói 1</option>
+                <option value="2">Gói 2</option>
+                <option value="3">Gói 3</option>
+                <option value="4">Gói 4</option>
+                <option value="5">Gói 5</option>
+                <option value="6">Gói 6</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="decorNote">Ghi chú Decor (Dành riêng cho Sảnh/Decor)</Label>
+            <Textarea id="decorNote" name="decorNote" placeholder="Vd: Tone hồng, bóng bay..." rows={2}/>
           </div>
 
           <div className="space-y-2">

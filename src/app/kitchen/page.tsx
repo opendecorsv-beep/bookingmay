@@ -26,12 +26,35 @@ export default async function KitchenPage() {
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {pendingBookings.map((b) => (
-          <Card key={b.id} className={b.kitchenStatus === 'in_progress' ? 'border-orange-300 shadow-md' : ''}>
-            <CardHeader className="pb-3 border-b">
+        {pendingBookings.map((b) => {
+          const isSVIP = b.customerName.includes('[SVIP]');
+          const isVIP = b.customerName.includes('[VIP]');
+          const cleanName = b.customerName.replace(/\[S?VIP\] /g, '');
+          
+          let cardClass = b.kitchenStatus === 'in_progress' ? 'border-orange-300 shadow-md ' : 'border-slate-200 ';
+          let headerClass = "pb-3 border-b ";
+          
+          if (isSVIP) {
+            cardClass += 'border-2 border-yellow-500 shadow-lg shadow-yellow-100';
+            headerClass += 'bg-yellow-50/50';
+          } else if (isVIP) {
+            cardClass += 'border-2 border-fuchsia-500 shadow-lg shadow-fuchsia-100';
+            headerClass += 'bg-fuchsia-50/50';
+          }
+
+          // Filter out the deposit info from specialRequest so kitchen doesn't need to see it
+          const cleanSpecialRequest = b.specialRequest ? b.specialRequest.replace(/\[Cọc:\s*[^\]]+\]/g, '').trim() : '';
+
+          return (
+          <Card key={b.id} className={cardClass}>
+            <CardHeader className={headerClass}>
               <div className="flex justify-between items-start">
                 <CardTitle className="text-lg flex flex-col gap-1">
-                  <span>{b.customerName} - {b.guestsCount} khách</span>
+                  <span className="flex items-center gap-2">
+                    {cleanName} - {b.guestsCount} khách
+                    {isSVIP && <span className="bg-yellow-500 text-white text-[10px] px-1.5 py-0.5 rounded font-black tracking-wider">SVIP</span>}
+                    {isVIP && <span className="bg-fuchsia-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">VIP</span>}
+                  </span>
                   <span className="text-sm font-normal text-slate-500 flex items-center gap-1">
                     <Clock className="w-4 h-4"/> {format(new Date(b.dateTime), "HH:mm - dd/MM")}
                   </span>
@@ -54,9 +77,9 @@ export default async function KitchenPage() {
                 </ul>
               </div>
               
-              {b.specialRequest && (
+              {cleanSpecialRequest && (
                 <div className="bg-red-50 text-red-700 p-3 rounded-md text-sm italic border border-red-100">
-                  <span className="font-bold">Lưu ý Bếp:</span> {b.specialRequest}
+                  <span className="font-bold">Lưu ý Bếp:</span> {cleanSpecialRequest}
                 </div>
               )}
 

@@ -12,6 +12,19 @@ export const dynamic = 'force-dynamic';
 export default async function FloorPage() {
   const allBookings = await fetchBookings();
   const pendingBookings = allBookings.filter(b => b.floorStatus !== 'done').sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
+  
+  let decorBookings = pendingBookings.filter(b => {
+    let occasion = "Không có";
+    let pkg = "";
+    let note = "";
+    const parts = (b.decorRequest || "").split('|');
+    occasion = parts[0] || "Không có";
+    parts.forEach(p => {
+      if (p.startsWith('PKG:')) pkg = p.replace('PKG:', '');
+      if (p.startsWith('NOTE:')) note = p.replace('NOTE:', '');
+    });
+    return occasion !== 'Không có' || pkg !== '' || note !== '';
+  });
 
   return (
     <div className="space-y-6">
@@ -26,12 +39,45 @@ export default async function FloorPage() {
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {pendingBookings.map((b) => (
-          <Card key={b.id} className="border-purple-200">
-            <CardHeader className="pb-3 border-b bg-purple-50/50">
+        {decorBookings.map((b) => {
+          let occasion = "Không có";
+          let pkg = "";
+          let note = "";
+          const parts = (b.decorRequest || "").split('|');
+          occasion = parts[0] || "Không có";
+          parts.forEach(p => {
+            if (p.startsWith('PKG:')) pkg = p.replace('PKG:', '');
+            if (p.startsWith('NOTE:')) note = p.replace('NOTE:', '');
+          });
+
+          const isSVIP = b.customerName.includes('[SVIP]');
+          const isVIP = b.customerName.includes('[VIP]');
+          const cleanName = b.customerName.replace(/\[S?VIP\] /g, '');
+          
+          let cardClass = "border-purple-200 ";
+          let headerClass = "pb-3 border-b bg-purple-50/50 ";
+          
+          if (isSVIP) {
+            cardClass += 'border-2 border-yellow-500 shadow-lg shadow-yellow-100';
+            headerClass += 'bg-yellow-100/50';
+          } else if (isVIP) {
+            cardClass += 'border-2 border-fuchsia-500 shadow-lg shadow-fuchsia-100';
+            headerClass += 'bg-fuchsia-100/50';
+          }
+
+          // Also remove deposit from special request here, decor only needs notes
+          const cleanSpecialRequest = b.specialRequest ? b.specialRequest.replace(/\[Cọc:\s*[^\]]+\]/g, '').trim() : '';
+
+          return (
+          <Card key={b.id} className={cardClass}>
+            <CardHeader className={headerClass}>
               <div className="flex justify-between items-start">
                 <CardTitle className="text-lg flex flex-col gap-1">
-                  <span className="text-purple-900">{b.customerName}</span>
+                  <span className="text-purple-900 font-bold flex items-center gap-2">
+                    {cleanName}
+                    {isSVIP && <span className="bg-yellow-500 text-white text-[10px] px-1.5 py-0.5 rounded font-black tracking-wider">SVIP</span>}
+                    {isVIP && <span className="bg-fuchsia-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">VIP</span>}
+                  </span>
                   <span className="text-sm font-normal text-slate-600 flex items-center gap-1">
                     <Users className="w-4 h-4"/> {b.guestsCount} khách | {format(new Date(b.dateTime), "HH:mm - dd/MM")}
                   </span>
@@ -44,16 +90,32 @@ export default async function FloorPage() {
             <CardContent className="pt-4 space-y-4">
               <div>
                 <h4 className="font-semibold text-sm text-slate-700 mb-1">Yêu cầu Decor:</h4>
-                <p className="text-slate-700 bg-white p-3 rounded border border-slate-200 min-h-[60px]">
-                  {b.decorRequest || "Setup bàn tiêu chuẩn"}
-                </p>
+                <div className="text-slate-700 bg-white p-3 rounded border border-slate-200 min-h-[60px] space-y-2">
+                  <p><strong>Dịp:</strong> {occasion}</p>
+                  {note && <p><strong>Ghi chú Decor:</strong> {note}</p>}
+                </div>
               </div>
+
+              {pkg && (
+                <div>
+                  <h4 className="font-semibold text-sm text-slate-700 mb-1">Gói Decor: Mây {pkg}</h4>
+                  <div className="rounded-lg overflow-hidden border border-slate-200 shadow-sm">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img 
+                      src={`/images/decor/decor${pkg}.jpg`} 
+                      alt={`Gói Decor ${pkg}`} 
+                      className="w-full h-auto object-cover max-h-48"
+                      loading="lazy"
+                    />
+                  </div>
+                </div>
+              )}
               
-              {b.specialRequest && (
+              {cleanSpecialRequest && (
                 <div>
                   <h4 className="font-semibold text-sm text-slate-700 mb-1">Ghi chú riêng:</h4>
                   <p className="text-slate-600 italic bg-yellow-50 p-2 rounded text-sm border border-yellow-100">
-                    {b.specialRequest}
+                    {cleanSpecialRequest}
                   </p>
                 </div>
               )}
@@ -72,10 +134,10 @@ export default async function FloorPage() {
               </div>
             </CardContent>
           </Card>
-        ))}
-        {pendingBookings.length === 0 && (
+        )})}
+        {decorBookings.length === 0 && (
           <div className="col-span-full py-12 text-center text-slate-500 bg-white rounded-lg border border-dashed">
-            Mọi không gian đã được setup hoàn tất!
+            Không có đơn tiệc nào yêu cầu Decor đang chờ!
           </div>
         )}
       </div>
