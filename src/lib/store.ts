@@ -67,11 +67,23 @@ let globalBookings: Booking[] = [
 export async function getBookings() {
   try {
     const { data, error } = await supabase.from('bookings').select('*');
-    if (error || !data) {
+    if (error) {
       console.warn("Supabase fetch failed (table might not exist). Falling back to memory.", error);
       return globalBookings;
     }
-    // Parse menu from JSON if it's stored as JSON
+    
+    // Nếu bảng rỗng (người dùng vừa tạo bảng nhưng chưa có data), tự động nạp dữ liệu mẫu
+    if (data && data.length === 0) {
+      console.log("Seeding initial data to Supabase...");
+      for (const b of globalBookings) {
+        await supabase.from('bookings').insert([{
+          ...b,
+          menu: JSON.stringify(b.menu)
+        }]);
+      }
+      return globalBookings;
+    }
+
     return data.map(b => ({
       ...b,
       menu: typeof b.menu === 'string' ? JSON.parse(b.menu) : (b.menu || [])

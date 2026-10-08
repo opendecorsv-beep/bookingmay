@@ -64,7 +64,41 @@ export default function AddBookingDialog() {
             </div>
             <div className="space-y-2 col-span-2">
               <Label htmlFor="room">Phòng / Không gian</Label>
-              <Input id="room" name="room" placeholder="Vd: Mây 101, Sảnh tầng 2..." />
+              <select 
+                id="room" 
+                name="room" 
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                <option value="Chưa chọn">-- Chưa chọn --</option>
+                <optgroup label="Tầng 1">
+                  <option value="Mây 101">Mây 101</option>
+                  <option value="Mây 102">Mây 102</option>
+                  <option value="Mây 103">Mây 103</option>
+                  <option value="Mây 104">Mây 104</option>
+                  <option value="Mây 105">Mây 105</option>
+                  <option value="Mây 106">Mây 106</option>
+                  <option value="Sảnh Tầng 1">Sảnh Tầng 1</option>
+                </optgroup>
+                <optgroup label="Tầng 2">
+                  <option value="Mây 201">Mây 201</option>
+                  <option value="Mây 202">Mây 202</option>
+                  <option value="Mây 203">Mây 203</option>
+                  <option value="Mây 204">Mây 204</option>
+                  <option value="Sảnh Tầng 2">Sảnh Tầng 2</option>
+                </optgroup>
+                <optgroup label="Tầng 3">
+                  <option value="Mây 301">Mây 301</option>
+                  <option value="Mây 302">Mây 302</option>
+                  <option value="Mây 303">Mây 303</option>
+                  <option value="Mây 304">Mây 304</option>
+                  <option value="Sảnh Tầng 3">Sảnh Tầng 3</option>
+                </optgroup>
+                <optgroup label="Tầng 4">
+                  <option value="Sảnh Tầng 4">Sảnh Tầng 4</option>
+                  <option value="Quầy Bar">Quầy Bar</option>
+                  <option value="Nội bộ">Nội bộ</option>
+                </optgroup>
+              </select>
             </div>
           </div>
           
@@ -74,8 +108,19 @@ export default function AddBookingDialog() {
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="decorRequest">Yêu cầu Decor / Setup</Label>
-            <Textarea id="decorRequest" name="decorRequest" placeholder="Vd: Trang trí sinh nhật..." rows={2}/>
+            <Label htmlFor="decorRequest">Dịp / Yêu cầu Decor</Label>
+            <select 
+              id="decorRequest" 
+              name="decorRequest" 
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <option value="Không có">Không có</option>
+              <option value="Sinh nhật">Sinh nhật</option>
+              <option value="Kỷ niệm">Kỷ niệm</option>
+              <option value="Tiệc Công ty">Tiệc Công ty</option>
+              <option value="Gia đình">Gia đình</option>
+              <option value="Khác">Khác (Ghi chú thêm ở dưới)</option>
+            </select>
           </div>
 
           <div className="space-y-2">
