@@ -99,7 +99,7 @@ export default async function KitchenPage() {
               </div>
             </CardContent>
           </Card>
-        ))}
+        )})}
         {pendingBookings.length === 0 && (
           <div className="col-span-full py-12 text-center text-slate-500 bg-white rounded-lg border border-dashed">
             Không có đơn tiệc nào đang chờ!
