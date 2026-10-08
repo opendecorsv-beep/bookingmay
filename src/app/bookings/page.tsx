@@ -9,6 +9,8 @@ import EditBookingDialog from "@/components/EditBookingDialog";
 import DeleteBookingButton from "@/components/DeleteBookingButton";
 import StatusSelect from "@/components/StatusSelect";
 
+export const dynamic = 'force-dynamic';
+
 export default async function BookingsPage() {
   const bookings = await fetchBookings();
   const sortedBookings = [...bookings].sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());

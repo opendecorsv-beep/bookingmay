@@ -30,9 +30,9 @@ export default function FloorPlanClient({ initialBookings }: { initialBookings: 
   const getRoomBookings = (roomName: string) => {
     return activeBookings.filter(b => {
       // Logic so khớp tên phòng tương đối
-      const bRoom = (b.room || "").toLowerCase();
-      const rName = roomName.toLowerCase();
-      return bRoom === rName || bRoom.includes(rName) || rName.includes(bRoom);
+      const bRoom = (b.room || "").toLowerCase().trim();
+      const rName = roomName.toLowerCase().trim();
+      return bRoom === rName;
     }).sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
   };
 

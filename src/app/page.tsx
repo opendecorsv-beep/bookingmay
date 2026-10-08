@@ -5,6 +5,8 @@ import { format, isBefore, addHours } from "date-fns";
 import { vi } from "date-fns/locale";
 import { AlertCircle, CheckCircle2, Clock, Users } from "lucide-react";
 
+export const dynamic = 'force-dynamic';
+
 export default async function Dashboard() {
   const allBookings = await fetchBookings();
   const now = new Date(); // Use real current time

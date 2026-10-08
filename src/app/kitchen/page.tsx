@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 
 import { setKitchenStatus, fetchBookings } from "@/app/actions";
 
+export const dynamic = 'force-dynamic';
+
 export default async function KitchenPage() {
   const allBookings = await fetchBookings();
   const pendingBookings = allBookings.filter(b => b.kitchenStatus !== 'done').sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
