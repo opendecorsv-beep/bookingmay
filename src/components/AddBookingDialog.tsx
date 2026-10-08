@@ -9,12 +9,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus } from "lucide-react";
 import { createNewBooking } from "@/app/actions";
 
+import MenuSelector from "./MenuSelector";
+
 export default function AddBookingDialog() {
   const [open, setOpen] = useState(false);
+  const [decorPkg, setDecorPkg] = useState("");
 
   async function onSubmit(formData: FormData) {
-    const rawMenu = formData.get("menu") as string;
-    const menuArray = rawMenu.split('\n').filter(item => item.trim() !== '');
+    const menuArray = formData.getAll("menuItem") as string[];
     
     let custName = formData.get("customerName") as string;
     const priority = formData.get("priority") as string;
@@ -131,8 +133,7 @@ export default function AddBookingDialog() {
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="menu">Thực đơn (Mỗi món 1 dòng)</Label>
-            <Textarea id="menu" name="menu" placeholder="Vd: 2 Gà nướng&#10;1 Lẩu Thái" required rows={3}/>
+          <MenuSelector decorPackage={decorPkg} />
           </div>
           
           <div className="space-y-2">
@@ -154,6 +155,8 @@ export default function AddBookingDialog() {
                 id="decorPackage" 
                 name="decorPackage" 
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                value={decorPkg}
+                onChange={(e) => setDecorPkg(e.target.value)}
               >
                 <option value="">-- Gói Decor Mây --</option>
                 <option value="1">Gói 1</option>

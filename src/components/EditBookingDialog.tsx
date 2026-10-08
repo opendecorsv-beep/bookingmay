@@ -8,12 +8,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { PenLine } from "lucide-react";
 import { updateExistingBooking } from "@/app/actions";
-import { Booking } from "@/lib/data";
+import MenuSelector from "./MenuSelector";
 
 function formatDateTimeForInput(isoString: string) {
   try {
     const d = new Date(isoString);
-    // adjust to local time string for input
     const pad = (n: number) => n.toString().padStart(2, '0');
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   } catch (e) {
@@ -58,9 +57,10 @@ export default function EditBookingDialog({ booking }: { booking: Booking }) {
     });
   }
 
+  const [decorPkg, setDecorPkg] = useState(initialDecorPackage);
+
   async function onSubmit(formData: FormData) {
-    const rawMenu = formData.get("menu") as string;
-    const menuArray = rawMenu.split('\n').filter(item => item.trim() !== '');
+    const menuArray = formData.getAll("menuItem") as string[];
     
     let custName = formData.get("customerName") as string;
     const priority = formData.get("priority") as string;
@@ -174,8 +174,7 @@ export default function EditBookingDialog({ booking }: { booking: Booking }) {
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="menu">Thực đơn (Mỗi món 1 dòng)</Label>
-            <Textarea id="menu" name="menu" defaultValue={booking.menu.join('\n')} placeholder="Vd: 2 Gà nướng&#10;1 Lẩu Thái" required rows={3}/>
+            <MenuSelector initialItems={booking.menu} decorPackage={decorPkg} />
           </div>
           
           <div className="space-y-2">
@@ -197,7 +196,8 @@ export default function EditBookingDialog({ booking }: { booking: Booking }) {
               <select 
                 id="decorPackage" 
                 name="decorPackage" 
-                defaultValue={initialDecorPackage}
+                value={decorPkg}
+                onChange={(e) => setDecorPkg(e.target.value)}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 <option value="">-- Gói Decor Mây --</option>

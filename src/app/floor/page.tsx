@@ -100,11 +100,10 @@ export default async function FloorPage() {
                 <div>
                   <h4 className="font-semibold text-sm text-slate-700 mb-1">Gói Decor: Mây {pkg}</h4>
                   <div className="rounded-lg overflow-hidden border border-slate-200 shadow-sm">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img 
                       src={`/images/decor/decor${pkg}.jpg`} 
                       alt={`Gói Decor ${pkg}`} 
-                      className="w-full h-auto object-cover max-h-48"
+                      className="w-full h-auto object-contain rounded-md"
                       loading="lazy"
                     />
                   </div>
