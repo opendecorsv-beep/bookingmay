@@ -9,12 +9,18 @@ export default async function Dashboard() {
   const allBookings = await fetchBookings();
   const now = new Date(); // Use real current time
   const next24h = addHours(now, 24);
+  const past6h = addHours(now, -6);
 
-  // Lọc các booking sắp tới
-  const upcomingBookings = allBookings.filter(b => isBefore(now, new Date(b.dateTime))).sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
+  // Lọc các booking sắp tới hoặc đang diễn ra (chưa hoàn tất)
+  const upcomingBookings = allBookings
+    .filter(b => b.status !== 'completed' && b.status !== 'done')
+    .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
   
-  // Các booking khẩn cấp (trong vòng 24h tới)
-  const urgentBookings = upcomingBookings.filter(b => isBefore(new Date(b.dateTime), next24h));
+  // Các booking khẩn cấp (trong vòng 24h tới, hoặc vừa mới diễn ra nhưng chưa xong)
+  const urgentBookings = upcomingBookings.filter(b => {
+    const time = new Date(b.dateTime);
+    return isBefore(time, next24h) && !isBefore(time, past6h);
+  });
 
   const getStatusBadge = (status: string) => {
     switch (status) {
