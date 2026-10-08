@@ -31,6 +31,7 @@ export default function RootLayout({
             <nav className="flex gap-6 text-sm font-medium text-slate-600">
               <Link href="/" className="hover:text-orange-600">Bảng điều khiển</Link>
               <Link href="/bookings" className="hover:text-orange-600">Danh sách Đặt bàn</Link>
+              <Link href="/floor-plan" className="hover:text-orange-600">Sơ đồ bàn</Link>
               <Link href="/kitchen" className="hover:text-orange-600">Bếp</Link>
               <Link href="/floor" className="hover:text-orange-600">Sảnh</Link>
             </nav>

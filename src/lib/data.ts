@@ -7,6 +7,7 @@ export interface Booking {
   phone: string;
   dateTime: string;
   guestsCount: number;
+  room: string;
   menu: string[];
   decorRequest: string;
   specialRequest: string;

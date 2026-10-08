@@ -21,6 +21,7 @@ export default function AddBookingDialog() {
       phone: formData.get("phone") as string,
       dateTime: formData.get("dateTime") as string,
       guestsCount: parseInt(formData.get("guestsCount") as string),
+      room: formData.get("room") as string || "Chưa chọn",
       menu: menuArray,
       specialRequest: formData.get("specialRequest") as string,
       decorRequest: formData.get("decorRequest") as string,
@@ -60,6 +61,10 @@ export default function AddBookingDialog() {
             <div className="space-y-2">
               <Label htmlFor="guestsCount">Số lượng khách</Label>
               <Input id="guestsCount" name="guestsCount" type="number" min="1" required />
+            </div>
+            <div className="space-y-2 col-span-2">
+              <Label htmlFor="room">Phòng / Không gian</Label>
+              <Input id="room" name="room" placeholder="Vd: Mây 101, Sảnh tầng 2..." />
             </div>
           </div>
           
