@@ -119,6 +119,15 @@ export async function updateKitchenStatus(id: string, status: TaskStatus) {
   }
 }
 
+export async function updateReceptionStatus(id: string, status: TaskStatus) {
+  try {
+    const { error } = await supabase.from('bookings').update({ receptionStatus: status }).eq('id', id);
+    if (error) throw error;
+  } catch (err) {
+    globalBookings = globalBookings.map(b => b.id === id ? { ...b, receptionStatus: status } : b);
+  }
+}
+
 export async function updateFloorStatus(id: string, status: TaskStatus) {
   try {
     const { error } = await supabase.from('bookings').update({ floorStatus: status }).eq('id', id);

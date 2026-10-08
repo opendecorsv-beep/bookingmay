@@ -8,10 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 const FLOORS = [
-  { name: "Tầng 1", rooms: ["Mây 101", "Mây 102", "Mây 103", "Mây 104", "Mây 105", "Mây 106", "Sảnh Tầng 1"] },
-  { name: "Tầng 2", rooms: ["Mây 201", "Mây 202", "Mây 203", "Mây 204", "Sảnh Tầng 2"] },
-  { name: "Tầng 3", rooms: ["Mây 301", "Mây 302", "Mây 303", "Mây 304", "Sảnh Tầng 3"] },
-  { name: "Tầng 4", rooms: ["Sảnh Tầng 4", "Quầy Bar", "Nội bộ"] },
+  { name: "Tầng 1", rooms: ["Mây 101", "Mây 102", "Mây 103", "Mây 104", "Mây 105", "Mây 106"] },
+  { name: "Tầng 2", rooms: ["Mây 201", "Mây 202", "Mây 203", "Mây 204"] },
+  { name: "Tầng 3", rooms: ["Mây 301", "Mây 302", "Mây 303", "Mây 304"] },
+  { name: "Tầng 4", rooms: Array.from({length: 25}, (_, i) => `Bàn ${i + 1}`) },
 ];
 
 export default function FloorPlanClient({ initialBookings }: { initialBookings: Booking[] }) {

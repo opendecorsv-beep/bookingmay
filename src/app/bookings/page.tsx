@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { Users, CalendarDays, ClipboardList, PenLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import AddBookingDialog from "@/components/AddBookingDialog";
+import StatusSelect from "@/components/StatusSelect";
 
 export default async function BookingsPage() {
   const bookings = await fetchBookings();
@@ -80,23 +81,15 @@ export default async function BookingsPage() {
                   
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-slate-600">Lễ tân:</span>
-                    <Badge variant={b.receptionStatus === 'done' ? 'default' : 'outline'} className={b.receptionStatus === 'done' ? 'bg-green-500' : ''}>
-                      {b.receptionStatus === 'done' ? 'Hoàn thành' : 'Chờ xử lý'}
-                    </Badge>
+                    <StatusSelect id={b.id} role="reception" currentStatus={b.receptionStatus} />
                   </div>
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-slate-600">Bếp:</span>
-                    <Badge variant={b.kitchenStatus === 'done' ? 'default' : (b.kitchenStatus === 'in_progress' ? 'secondary' : 'outline')} 
-                           className={b.kitchenStatus === 'done' ? 'bg-green-500' : (b.kitchenStatus === 'in_progress' ? 'bg-yellow-500 text-white' : '')}>
-                      {b.kitchenStatus === 'done' ? 'Hoàn thành' : (b.kitchenStatus === 'in_progress' ? 'Đang làm' : 'Chờ xử lý')}
-                    </Badge>
+                    <StatusSelect id={b.id} role="kitchen" currentStatus={b.kitchenStatus} />
                   </div>
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-slate-600">Sảnh / Decor:</span>
-                    <Badge variant={b.floorStatus === 'done' ? 'default' : (b.floorStatus === 'in_progress' ? 'secondary' : 'outline')} 
-                           className={b.floorStatus === 'done' ? 'bg-green-500' : (b.floorStatus === 'in_progress' ? 'bg-yellow-500 text-white' : '')}>
-                      {b.floorStatus === 'done' ? 'Hoàn thành' : (b.floorStatus === 'in_progress' ? 'Đang làm' : 'Chờ xử lý')}
-                    </Badge>
+                    <StatusSelect id={b.id} role="floor" currentStatus={b.floorStatus} />
                   </div>
                 </div>
               </div>

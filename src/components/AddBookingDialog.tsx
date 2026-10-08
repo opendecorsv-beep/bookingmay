@@ -77,26 +77,23 @@ export default function AddBookingDialog() {
                   <option value="Mây 104">Mây 104</option>
                   <option value="Mây 105">Mây 105</option>
                   <option value="Mây 106">Mây 106</option>
-                  <option value="Sảnh Tầng 1">Sảnh Tầng 1</option>
                 </optgroup>
                 <optgroup label="Tầng 2">
                   <option value="Mây 201">Mây 201</option>
                   <option value="Mây 202">Mây 202</option>
                   <option value="Mây 203">Mây 203</option>
                   <option value="Mây 204">Mây 204</option>
-                  <option value="Sảnh Tầng 2">Sảnh Tầng 2</option>
                 </optgroup>
                 <optgroup label="Tầng 3">
                   <option value="Mây 301">Mây 301</option>
                   <option value="Mây 302">Mây 302</option>
                   <option value="Mây 303">Mây 303</option>
                   <option value="Mây 304">Mây 304</option>
-                  <option value="Sảnh Tầng 3">Sảnh Tầng 3</option>
                 </optgroup>
                 <optgroup label="Tầng 4">
-                  <option value="Sảnh Tầng 4">Sảnh Tầng 4</option>
-                  <option value="Quầy Bar">Quầy Bar</option>
-                  <option value="Nội bộ">Nội bộ</option>
+                  {Array.from({length: 25}, (_, i) => (
+                    <option key={`Bàn ${i + 1}`} value={`Bàn ${i + 1}`}>Bàn {i + 1}</option>
+                  ))}
                 </optgroup>
               </select>
             </div>

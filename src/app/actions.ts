@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache';
-import { getBookings, addBooking, updateKitchenStatus, updateFloorStatus, updateBookingStatus } from '@/lib/store';
+import { getBookings, addBooking, updateKitchenStatus, updateFloorStatus, updateBookingStatus, updateReceptionStatus } from '@/lib/store';
 import { Booking, BookingStatus, TaskStatus } from '@/lib/data';
 
 export async function fetchBookings() {
@@ -14,6 +14,13 @@ export async function createNewBooking(data: Omit<Booking, 'id'>) {
   revalidatePath('/bookings');
   revalidatePath('/kitchen');
   revalidatePath('/floor');
+  revalidatePath('/floor-plan');
+}
+
+export async function setReceptionStatus(id: string, status: TaskStatus) {
+  updateReceptionStatus(id, status);
+  revalidatePath('/');
+  revalidatePath('/bookings');
 }
 
 export async function setKitchenStatus(id: string, status: TaskStatus) {
