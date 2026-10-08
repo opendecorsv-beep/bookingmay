@@ -43,7 +43,7 @@ export default async function KitchenPage() {
           }
 
           // Filter out the deposit info from specialRequest so kitchen doesn't need to see it
-          const cleanSpecialRequest = b.specialRequest ? b.specialRequest.replace(/\[Cọc:\s*[^\]]+\]/g, '').trim() : '';
+          const cleanSpecialRequest = b.specialRequest ? b.specialRequest.replace(/\[Cọc:\s*[^\]]+\]/g, '').replace(/\[Nguồn:\s*[^\]]+\]/g, '').trim() : '';
 
           return (
           <Card key={b.id} className={cardClass}>

@@ -44,6 +44,20 @@ export default function EditBookingDialog({ booking }: { booking: Booking }) {
     initialSpecialRequest = initialSpecialRequest.replace(/\[Cọc:\s*[^\]]+\]/, '').trim();
   }
 
+  let initialSource = "Khách quen";
+  let initialCustomSource = "";
+  const sourceMatch = initialSpecialRequest.match(/\[Nguồn:\s*([^\]]+)\]/);
+  if (sourceMatch) {
+    const src = sourceMatch[1];
+    if (["Facebook", "IG", "Threads", "Tiktok", "Khách quen"].includes(src)) {
+      initialSource = src;
+    } else {
+      initialSource = "Khác";
+      initialCustomSource = src;
+    }
+    initialSpecialRequest = initialSpecialRequest.replace(/\[Nguồn:\s*[^\]]+\]/, '').trim();
+  }
+
   let initialDecorOccasion = "Không có";
   let initialDecorPackage = "";
   let initialDecorNote = "";
@@ -58,6 +72,7 @@ export default function EditBookingDialog({ booking }: { booking: Booking }) {
   }
 
   const [decorPkg, setDecorPkg] = useState(initialDecorPackage);
+  const [sourceOption, setSourceOption] = useState(initialSource);
 
   async function onSubmit(formData: FormData) {
     const menuArray = formData.getAll("menuItem") as string[];
@@ -72,6 +87,12 @@ export default function EditBookingDialog({ booking }: { booking: Booking }) {
     const deposit = formData.get("deposit") as string;
     if (deposit && deposit.trim() !== '') {
       specReq += `\n[Cọc: ${deposit.trim()}]`;
+    }
+    const source = formData.get("source") as string;
+    const customSource = formData.get("customSource") as string;
+    const finalSource = source === "Khác" ? customSource : source;
+    if (finalSource && finalSource.trim() !== '') {
+      specReq += `\n[Nguồn: ${finalSource.trim()}]`;
     }
 
     let finalDecor = formData.get("decorRequest") as string;
@@ -170,6 +191,28 @@ export default function EditBookingDialog({ booking }: { booking: Booking }) {
                   ))}
                 </optgroup>
               </select>
+            </div>
+            <div className="space-y-2 col-span-2">
+              <Label htmlFor="source">Nguồn khách</Label>
+              <div className="flex gap-2">
+                <select 
+                  id="source" 
+                  name="source" 
+                  value={sourceOption}
+                  onChange={(e) => setSourceOption(e.target.value)}
+                  className="flex h-10 w-full md:w-1/2 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  <option value="Facebook">Facebook</option>
+                  <option value="IG">IG</option>
+                  <option value="Threads">Threads</option>
+                  <option value="Tiktok">Tiktok</option>
+                  <option value="Khách quen">Khách quen</option>
+                  <option value="Khác">Khác</option>
+                </select>
+                {sourceOption === "Khác" && (
+                  <Input id="customSource" name="customSource" defaultValue={initialCustomSource} placeholder="Nhập nguồn khác..." className="flex-1" />
+                )}
+              </div>
             </div>
           </div>
           

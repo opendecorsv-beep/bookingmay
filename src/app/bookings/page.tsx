@@ -52,6 +52,17 @@ export default async function BookingsPage() {
                           <Users className="w-4 h-4"/> 
                           {b.guestsCount} khách
                         </div>
+                        {(() => {
+                           const sourceMatch = (b.specialRequest || "").match(/\[Nguồn:\s*([^\]]+)\]/);
+                           if (sourceMatch) {
+                             return (
+                               <div className="flex items-center gap-1 text-blue-600 font-medium bg-blue-50 px-2 py-0.5 rounded text-xs border border-blue-100">
+                                 {sourceMatch[1]}
+                               </div>
+                             );
+                           }
+                           return null;
+                        })()}
                       </div>
                     </div>
                     {b.status === 'pending' && (
@@ -140,7 +151,7 @@ export default async function BookingsPage() {
                       <div>
                         <h4 className="font-semibold text-sm text-slate-700 mb-1">Yêu cầu Riêng (Ghi chú):</h4>
                         <p className="text-sm text-slate-600 italic">
-                          {(b.specialRequest || "").replace(/\[Cọc:\s*[^\]]+\]/, '').trim() || "Không có"}
+                          {(b.specialRequest || "").replace(/\[Cọc:\s*[^\]]+\]/g, '').replace(/\[Nguồn:\s*[^\]]+\]/g, '').trim() || "Không có"}
                         </p>
                       </div>
                     </div>

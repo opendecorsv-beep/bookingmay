@@ -66,7 +66,7 @@ export default async function FloorPage() {
           }
 
           // Also remove deposit from special request here, decor only needs notes
-          const cleanSpecialRequest = b.specialRequest ? b.specialRequest.replace(/\[Cọc:\s*[^\]]+\]/g, '').trim() : '';
+          const cleanSpecialRequest = b.specialRequest ? b.specialRequest.replace(/\[Cọc:\s*[^\]]+\]/g, '').replace(/\[Nguồn:\s*[^\]]+\]/g, '').trim() : '';
 
           return (
           <Card key={b.id} className={cardClass}>
