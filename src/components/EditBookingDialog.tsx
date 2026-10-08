@@ -1,0 +1,178 @@
+'use client'
+
+import { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { PenLine } from "lucide-react";
+import { updateExistingBooking } from "@/app/actions";
+import { Booking } from "@/lib/data";
+
+function formatDateTimeForInput(isoString: string) {
+  try {
+    const d = new Date(isoString);
+    // adjust to local time string for input
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } catch (e) {
+    return "";
+  }
+}
+
+export default function EditBookingDialog({ booking }: { booking: Booking }) {
+  const [open, setOpen] = useState(false);
+
+  // Extract priority
+  let initialPriority = "Bình thường";
+  let initialName = booking.customerName;
+  if (initialName.includes('[VIP]')) {
+    initialPriority = "VIP";
+    initialName = initialName.replace('[VIP]', '').trim();
+  } else if (initialName.includes('[SVIP]')) {
+    initialPriority = "SVIP";
+    initialName = initialName.replace('[SVIP]', '').trim();
+  }
+
+  const initialDateTime = formatDateTimeForInput(booking.dateTime);
+
+  async function onSubmit(formData: FormData) {
+    const rawMenu = formData.get("menu") as string;
+    const menuArray = rawMenu.split('\n').filter(item => item.trim() !== '');
+    
+    let custName = formData.get("customerName") as string;
+    const priority = formData.get("priority") as string;
+    if (priority === "VIP" || priority === "SVIP") {
+      custName = `[${priority}] ${custName}`;
+    }
+    
+    await updateExistingBooking(booking.id, {
+      customerName: custName,
+      phone: formData.get("phone") as string,
+      dateTime: formData.get("dateTime") as string,
+      guestsCount: parseInt(formData.get("guestsCount") as string),
+      room: formData.get("room") as string || "Chưa chọn",
+      menu: menuArray,
+      specialRequest: formData.get("specialRequest") as string,
+      decorRequest: formData.get("decorRequest") as string,
+    });
+    setOpen(false);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:text-orange-600">
+          <PenLine className="w-4 h-4" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Sửa thông tin đặt tiệc</DialogTitle>
+        </DialogHeader>
+        <form action={onSubmit} className="space-y-4 py-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="customerName">Tên khách hàng</Label>
+              <Input id="customerName" name="customerName" defaultValue={initialName} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Số điện thoại</Label>
+              <Input id="phone" name="phone" defaultValue={booking.phone} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="dateTime">Thời gian (Ngày & Giờ)</Label>
+              <Input id="dateTime" name="dateTime" type="datetime-local" defaultValue={initialDateTime} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="guestsCount">Số lượng khách</Label>
+              <Input id="guestsCount" name="guestsCount" type="number" min="1" defaultValue={booking.guestsCount} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="priority">Mức độ ưu tiên</Label>
+              <select 
+                id="priority" 
+                name="priority" 
+                defaultValue={initialPriority}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                <option value="Bình thường">Bình thường</option>
+                <option value="VIP">VIP</option>
+                <option value="SVIP">SVIP</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="room">Phòng / Không gian</Label>
+              <select 
+                id="room" 
+                name="room" 
+                defaultValue={booking.room}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                <option value="Chưa chọn">-- Chưa chọn --</option>
+                <optgroup label="Tầng 1">
+                  <option value="Mây 101">Mây 101</option>
+                  <option value="Mây 102">Mây 102</option>
+                  <option value="Mây 103">Mây 103</option>
+                  <option value="Mây 104">Mây 104</option>
+                  <option value="Mây 105">Mây 105</option>
+                  <option value="Mây 106">Mây 106</option>
+                </optgroup>
+                <optgroup label="Tầng 2">
+                  <option value="Mây 201">Mây 201</option>
+                  <option value="Mây 202">Mây 202</option>
+                  <option value="Mây 203">Mây 203</option>
+                  <option value="Mây 204">Mây 204</option>
+                </optgroup>
+                <optgroup label="Tầng 3">
+                  <option value="Mây 301">Mây 301</option>
+                  <option value="Mây 302">Mây 302</option>
+                  <option value="Mây 303">Mây 303</option>
+                  <option value="Mây 304">Mây 304</option>
+                </optgroup>
+                <optgroup label="Tầng 4">
+                  {Array.from({length: 25}, (_, i) => (
+                    <option key={`Bàn ${i + 1}`} value={`Bàn ${i + 1}`}>Bàn {i + 1}</option>
+                  ))}
+                </optgroup>
+              </select>
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="menu">Thực đơn (Mỗi món 1 dòng)</Label>
+            <Textarea id="menu" name="menu" defaultValue={booking.menu.join('\n')} placeholder="Vd: 2 Gà nướng&#10;1 Lẩu Thái" required rows={3}/>
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="decorRequest">Dịp / Yêu cầu Decor</Label>
+            <select 
+              id="decorRequest" 
+              name="decorRequest" 
+              defaultValue={booking.decorRequest || "Không có"}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <option value="Không có">Không có</option>
+              <option value="Sinh nhật">Sinh nhật</option>
+              <option value="Kỷ niệm">Kỷ niệm</option>
+              <option value="Tiệc Công ty">Tiệc Công ty</option>
+              <option value="Gia đình">Gia đình</option>
+              <option value="Khác">Khác (Ghi chú thêm ở dưới)</option>
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="specialRequest">Yêu cầu đặc biệt (Bếp / Phục vụ)</Label>
+            <Textarea id="specialRequest" name="specialRequest" defaultValue={booking.specialRequest} placeholder="Vd: Không ăn cay..." rows={2}/>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4">
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Hủy</Button>
+            <Button type="submit" className="bg-orange-600 hover:bg-orange-700">Lưu thay đổi</Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}

@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { Users, CalendarDays, ClipboardList, PenLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import AddBookingDialog from "@/components/AddBookingDialog";
+import EditBookingDialog from "@/components/EditBookingDialog";
 import StatusSelect from "@/components/StatusSelect";
 
 export default async function BookingsPage() {
@@ -31,6 +32,7 @@ export default async function BookingsPage() {
                         {b.customerName.includes('[SVIP]') && <span className="bg-yellow-500 text-white text-[12px] px-2 py-0.5 rounded font-black tracking-wider shadow-sm">SVIP</span>}
                         {b.customerName.includes('[VIP]') && <span className="bg-fuchsia-600 text-white text-[12px] px-2 py-0.5 rounded font-bold shadow-sm">VIP</span>}
                         - {b.phone}
+                        <EditBookingDialog booking={b} />
                         <Badge variant={b.status === 'confirmed' ? 'default' : 'secondary'} className={b.status === 'confirmed' ? 'bg-green-600 ml-auto' : 'ml-auto'}>
                           {b.status === 'confirmed' ? 'Đã chốt' : 'Đang chờ'}
                         </Badge>

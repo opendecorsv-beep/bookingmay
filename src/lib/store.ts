@@ -110,6 +110,19 @@ export async function addBooking(booking: Omit<Booking, 'id'>) {
   return newBooking;
 }
 
+export async function updateBookingData(id: string, data: Partial<Omit<Booking, 'id'>>) {
+  try {
+    const updatePayload: any = { ...data };
+    if (data.menu) {
+      updatePayload.menu = JSON.stringify(data.menu);
+    }
+    const { error } = await supabase.from('bookings').update(updatePayload).eq('id', id);
+    if (error) throw error;
+  } catch (err) {
+    globalBookings = globalBookings.map(b => b.id === id ? { ...b, ...data } : b);
+  }
+}
+
 export async function updateKitchenStatus(id: string, status: TaskStatus) {
   try {
     const { error } = await supabase.from('bookings').update({ kitchenStatus: status }).eq('id', id);
