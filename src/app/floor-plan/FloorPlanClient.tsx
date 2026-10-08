@@ -23,17 +23,17 @@ export default function FloorPlanClient({ initialBookings }: { initialBookings: 
     
     const bTime = new Date(b.dateTime);
     const sTime = new Date(selectedDateTime);
-    // Cùng ngày và cách nhau không quá 4 tiếng
-    return isSameDay(bTime, sTime) && Math.abs(differenceInHours(bTime, sTime)) <= 4;
+    // Hiển thị TẤT CẢ các tiệc trong cùng ngày (chưa được Clean)
+    return isSameDay(bTime, sTime);
   });
 
-  const getRoomBooking = (roomName: string) => {
-    return activeBookings.find(b => {
+  const getRoomBookings = (roomName: string) => {
+    return activeBookings.filter(b => {
       // Logic so khớp tên phòng tương đối
-      const bRoom = b.room.toLowerCase();
+      const bRoom = (b.room || "").toLowerCase();
       const rName = roomName.toLowerCase();
       return bRoom === rName || bRoom.includes(rName) || rName.includes(bRoom);
-    });
+    }).sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
   };
 
   return (
@@ -69,42 +69,57 @@ export default function FloorPlanClient({ initialBookings }: { initialBookings: 
             <CardContent className="p-4 bg-[#f8efe6]">
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {floor.rooms.map(room => {
-                  const booking = getRoomBooking(room);
-                  const isBooked = !!booking;
-                  const isVIP = isBooked && booking.customerName.includes('[VIP]');
-                  const isSVIP = isBooked && booking.customerName.includes('[SVIP]');
+                  const roomBookings = getRoomBookings(room);
+                  const isBooked = roomBookings.length > 0;
                   
-                  // Extract clean name for display
-                  let displayName = booking?.customerName || "";
-                  if (isVIP) displayName = displayName.replace('[VIP]', '').trim();
-                  if (isSVIP) displayName = displayName.replace('[SVIP]', '').trim();
-
+                  // Xác định background dựa trên booking ưu tiên cao nhất trong phòng
                   let bgClass = 'bg-white border-green-200 text-slate-700 hover:border-green-300';
-                  if (isSVIP) {
-                    bgClass = 'bg-gradient-to-br from-amber-100 to-yellow-300 border-yellow-500 text-yellow-950 ring-2 ring-yellow-400 shadow-yellow-200 shadow-lg';
-                  } else if (isVIP) {
-                    bgClass = 'bg-gradient-to-br from-purple-100 to-fuchsia-200 border-fuchsia-400 text-fuchsia-950 ring-1 ring-fuchsia-300 shadow-md';
-                  } else if (isBooked) {
-                    bgClass = 'bg-red-50 border-red-200 text-red-900';
+                  if (isBooked) {
+                    const hasSVIP = roomBookings.some(b => b.customerName.includes('[SVIP]'));
+                    const hasVIP = roomBookings.some(b => b.customerName.includes('[VIP]'));
+                    
+                    if (hasSVIP) {
+                      bgClass = 'bg-gradient-to-br from-amber-100 to-yellow-300 border-yellow-500 text-yellow-950 ring-2 ring-yellow-400 shadow-yellow-200 shadow-lg';
+                    } else if (hasVIP) {
+                      bgClass = 'bg-gradient-to-br from-purple-100 to-fuchsia-200 border-fuchsia-400 text-fuchsia-950 ring-1 ring-fuchsia-300 shadow-md';
+                    } else {
+                      bgClass = 'bg-red-50 border-red-200 text-red-900';
+                    }
                   }
 
                   return (
                     <div 
                       key={room} 
-                      className={`p-4 rounded-lg border-2 flex flex-col items-center justify-center text-center min-h-[100px] transition-all ${bgClass}`}
+                      className={`p-4 rounded-lg border-2 flex flex-col items-center justify-start text-center min-h-[100px] transition-all ${bgClass}`}
                     >
-                      <span className="font-bold">{room}</span>
-                      {isBooked && (
-                        <div className="mt-2 text-xs flex flex-col items-center gap-1">
-                          {isSVIP && <span className="bg-yellow-500 text-white text-[10px] px-1.5 py-0.5 rounded font-black tracking-wider shadow-sm">SVIP</span>}
-                          {isVIP && <span className="bg-fuchsia-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold shadow-sm">VIP</span>}
-                          <span className="font-semibold">{displayName}</span>
-                          <span className="opacity-80">{booking.guestsCount} khách</span>
-                          <span className="opacity-80 font-medium">{format(new Date(booking.dateTime), "HH:mm")}</span>
+                      <span className="font-bold mb-1">{room}</span>
+                      
+                      {isBooked ? (
+                        <div className="flex flex-col gap-3 w-full">
+                          {roomBookings.map(booking => {
+                            const isVIP = booking.customerName.includes('[VIP]');
+                            const isSVIP = booking.customerName.includes('[SVIP]');
+                            let displayName = booking.customerName;
+                            if (isVIP) displayName = displayName.replace('[VIP]', '').trim();
+                            if (isSVIP) displayName = displayName.replace('[SVIP]', '').trim();
+
+                            return (
+                              <div key={booking.id} className="mt-1 text-xs flex flex-col items-center gap-1 border-t border-black/10 pt-2 first:border-0 first:pt-0">
+                                <div className="flex gap-1">
+                                  {isSVIP && <span className="bg-yellow-500 text-white text-[10px] px-1.5 py-0.5 rounded font-black tracking-wider shadow-sm leading-none">SVIP</span>}
+                                  {isVIP && <span className="bg-fuchsia-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold shadow-sm leading-none">VIP</span>}
+                                </div>
+                                <span className="font-semibold text-[13px]">{displayName}</span>
+                                <div className="flex items-center gap-2 opacity-80">
+                                  <span>{booking.guestsCount} khách</span>
+                                  <span className="font-bold">• {format(new Date(booking.dateTime), "HH:mm")}</span>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
-                      )}
-                      {!isBooked && (
-                        <span className="mt-2 text-xs text-green-600 font-medium">Trống</span>
+                      ) : (
+                        <span className="mt-auto mb-auto text-xs text-green-600 font-medium">Trống</span>
                       )}
                     </div>
                   );
