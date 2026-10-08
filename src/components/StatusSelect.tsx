@@ -1,6 +1,6 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useTransition, useState } from 'react';
 import { setReceptionStatus, setKitchenStatus, setFloorStatus } from '@/app/actions';
 import { TaskStatus } from '@/lib/data';
 
@@ -14,9 +14,11 @@ interface Props {
 
 export default function StatusSelect({ id, role, currentStatus }: Props) {
   const [isPending, startTransition] = useTransition();
+  const [optimisticStatus, setOptimisticStatus] = useState<TaskStatus>(currentStatus);
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newStatus = e.target.value as TaskStatus;
+    setOptimisticStatus(newStatus); // Optimistic UI update
     startTransition(() => {
       if (role === 'reception') setReceptionStatus(id, newStatus);
       if (role === 'kitchen') setKitchenStatus(id, newStatus);
@@ -24,18 +26,21 @@ export default function StatusSelect({ id, role, currentStatus }: Props) {
     });
   };
 
+  const statusToRender = isPending ? optimisticStatus : currentStatus;
+
   const getColors = () => {
-    if (currentStatus === 'done') return "bg-green-100 text-green-800 border-green-200";
-    if (currentStatus === 'in_progress') return "bg-yellow-100 text-yellow-800 border-yellow-200";
+    if (statusToRender === 'done') return "bg-green-100 text-green-800 border-green-200";
+    if (statusToRender === 'in_progress') return "bg-yellow-100 text-yellow-800 border-yellow-200";
+    if (statusToRender === 'clean') return "bg-blue-100 text-blue-800 border-blue-200";
     return "bg-slate-100 text-slate-800 border-slate-200";
   };
 
   return (
     <select 
-      value={currentStatus} 
+      value={statusToRender} 
       onChange={handleChange}
       disabled={isPending}
-      className={`appearance-none text-xs font-semibold py-1 pl-2 pr-6 rounded-full border outline-none cursor-pointer bg-no-repeat ${getColors()} ${isPending ? 'opacity-50' : ''}`}
+      className={`appearance-none text-xs font-semibold py-1 pl-2 pr-6 rounded-full border outline-none cursor-pointer bg-no-repeat ${getColors()} ${isPending ? 'opacity-70' : ''}`}
       style={{
         backgroundPosition: 'right 0.3rem center',
         backgroundSize: '1em',
@@ -45,6 +50,7 @@ export default function StatusSelect({ id, role, currentStatus }: Props) {
       <option value="pending" className="bg-white text-slate-800">Chờ xử lý</option>
       <option value="in_progress" className="bg-white text-slate-800">Đang làm</option>
       <option value="done" className="bg-white text-slate-800">Hoàn thành</option>
+      {role === 'reception' && <option value="clean" className="bg-white text-slate-800">Dọn xong (Clean)</option>}
     </select>
   );
 }

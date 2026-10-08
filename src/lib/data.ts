@@ -1,5 +1,5 @@
 export type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
-export type TaskStatus = 'pending' | 'in_progress' | 'done';
+export type TaskStatus = 'pending' | 'in_progress' | 'done' | 'clean';
 
 export interface Booking {
   id: string;

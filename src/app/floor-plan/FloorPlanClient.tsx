@@ -17,8 +17,10 @@ const FLOORS = [
 export default function FloorPlanClient({ initialBookings }: { initialBookings: Booking[] }) {
   const [selectedDateTime, setSelectedDateTime] = useState(format(new Date(), "yyyy-MM-dd'T'HH:mm"));
 
-  // Lọc ra các booking trùng ngày và khung giờ (ví dụ +- 4 tiếng)
   const activeBookings = initialBookings.filter(b => {
+    // Nếu Giám sát đã dọn xong thì trả phòng lại trạng thái Trống
+    if (b.receptionStatus === 'clean') return false;
+    
     const bTime = new Date(b.dateTime);
     const sTime = new Date(selectedDateTime);
     // Cùng ngày và cách nhau không quá 4 tiếng
@@ -30,7 +32,7 @@ export default function FloorPlanClient({ initialBookings }: { initialBookings: 
       // Logic so khớp tên phòng tương đối
       const bRoom = b.room.toLowerCase();
       const rName = roomName.toLowerCase();
-      return bRoom.includes(rName) || rName.includes(bRoom) || (bRoom === 'mây 1' && rName === 'mây 101');
+      return bRoom === rName || bRoom.includes(rName) || rName.includes(bRoom);
     });
   };
 

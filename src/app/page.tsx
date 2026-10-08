@@ -13,7 +13,7 @@ export default async function Dashboard() {
 
   // Lọc các booking sắp tới hoặc đang diễn ra (chưa hoàn tất)
   const upcomingBookings = allBookings
-    .filter(b => b.status !== 'completed' && b.status !== 'done')
+    .filter(b => b.status !== 'completed' && b.status !== 'done' && b.receptionStatus !== 'clean')
     .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
   
   // Các booking khẩn cấp (trong vòng 24h tới, hoặc vừa mới diễn ra nhưng chưa xong)

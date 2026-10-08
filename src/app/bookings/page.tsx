@@ -80,7 +80,7 @@ export default async function BookingsPage() {
                   <h4 className="font-semibold text-sm text-slate-700">Trạng thái công việc</h4>
                   
                   <div className="flex justify-between items-center text-sm">
-                    <span className="text-slate-600">Lễ tân:</span>
+                    <span className="text-slate-600">Giám sát:</span>
                     <StatusSelect id={b.id} role="reception" currentStatus={b.receptionStatus} />
                   </div>
                   <div className="flex justify-between items-center text-sm">
