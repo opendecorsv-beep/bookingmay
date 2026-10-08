@@ -123,6 +123,15 @@ export async function updateBookingData(id: string, data: Partial<Omit<Booking, 
   }
 }
 
+export async function deleteBookingData(id: string) {
+  try {
+    const { error } = await supabase.from('bookings').delete().eq('id', id);
+    if (error) throw error;
+  } catch (err) {
+    globalBookings = globalBookings.filter(b => b.id !== id);
+  }
+}
+
 export async function updateKitchenStatus(id: string, status: TaskStatus) {
   try {
     const { error } = await supabase.from('bookings').update({ kitchenStatus: status }).eq('id', id);

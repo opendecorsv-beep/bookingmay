@@ -22,6 +22,12 @@ export default function AddBookingDialog() {
       custName = `[${priority}] ${custName}`;
     }
     
+    let specReq = formData.get("specialRequest") as string;
+    const deposit = formData.get("deposit") as string;
+    if (deposit && deposit.trim() !== '') {
+      specReq += `\n[Cọc: ${deposit.trim()}]`;
+    }
+    
     await createNewBooking({
       customerName: custName,
       phone: formData.get("phone") as string,
@@ -29,7 +35,7 @@ export default function AddBookingDialog() {
       guestsCount: parseInt(formData.get("guestsCount") as string),
       room: formData.get("room") as string || "Chưa chọn",
       menu: menuArray,
-      specialRequest: formData.get("specialRequest") as string,
+      specialRequest: specReq.trim(),
       decorRequest: formData.get("decorRequest") as string,
       status: "pending",
       receptionStatus: "pending",
@@ -136,6 +142,11 @@ export default function AddBookingDialog() {
               <option value="Gia đình">Gia đình</option>
               <option value="Khác">Khác (Ghi chú thêm ở dưới)</option>
             </select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="deposit">Tiền cọc (VNĐ) - Nếu có</Label>
+            <Input id="deposit" name="deposit" placeholder="Vd: 500,000 hoặc 500k" />
           </div>
 
           <div className="space-y-2">

@@ -37,6 +37,14 @@ export default function EditBookingDialog({ booking }: { booking: Booking }) {
 
   const initialDateTime = formatDateTimeForInput(booking.dateTime);
 
+  let initialSpecialRequest = booking.specialRequest || "";
+  let initialDeposit = "";
+  const depositMatch = initialSpecialRequest.match(/\[Cọc:\s*([^\]]+)\]/);
+  if (depositMatch) {
+    initialDeposit = depositMatch[1];
+    initialSpecialRequest = initialSpecialRequest.replace(/\[Cọc:\s*[^\]]+\]/, '').trim();
+  }
+
   async function onSubmit(formData: FormData) {
     const rawMenu = formData.get("menu") as string;
     const menuArray = rawMenu.split('\n').filter(item => item.trim() !== '');
@@ -47,6 +55,12 @@ export default function EditBookingDialog({ booking }: { booking: Booking }) {
       custName = `[${priority}] ${custName}`;
     }
     
+    let specReq = formData.get("specialRequest") as string;
+    const deposit = formData.get("deposit") as string;
+    if (deposit && deposit.trim() !== '') {
+      specReq += `\n[Cọc: ${deposit.trim()}]`;
+    }
+
     await updateExistingBooking(booking.id, {
       customerName: custName,
       phone: formData.get("phone") as string,
@@ -54,7 +68,7 @@ export default function EditBookingDialog({ booking }: { booking: Booking }) {
       guestsCount: parseInt(formData.get("guestsCount") as string),
       room: formData.get("room") as string || "Chưa chọn",
       menu: menuArray,
-      specialRequest: formData.get("specialRequest") as string,
+      specialRequest: specReq.trim(),
       decorRequest: formData.get("decorRequest") as string,
     });
     setOpen(false);
@@ -163,8 +177,13 @@ export default function EditBookingDialog({ booking }: { booking: Booking }) {
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="deposit">Tiền cọc (VNĐ) - Nếu có</Label>
+            <Input id="deposit" name="deposit" defaultValue={initialDeposit} placeholder="Vd: 500,000 hoặc 500k" />
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="specialRequest">Yêu cầu đặc biệt (Bếp / Phục vụ)</Label>
-            <Textarea id="specialRequest" name="specialRequest" defaultValue={booking.specialRequest} placeholder="Vd: Không ăn cay..." rows={2}/>
+            <Textarea id="specialRequest" name="specialRequest" defaultValue={initialSpecialRequest} placeholder="Vd: Không ăn cay..." rows={2}/>
           </div>
 
           <div className="flex justify-end gap-2 pt-4">

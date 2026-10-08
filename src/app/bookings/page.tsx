@@ -6,6 +6,7 @@ import { Users, CalendarDays, ClipboardList, PenLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import AddBookingDialog from "@/components/AddBookingDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
+import DeleteBookingButton from "@/components/DeleteBookingButton";
 import StatusSelect from "@/components/StatusSelect";
 
 export default async function BookingsPage() {
@@ -32,7 +33,10 @@ export default async function BookingsPage() {
                         {b.customerName.includes('[SVIP]') && <span className="bg-yellow-500 text-white text-[12px] px-2 py-0.5 rounded font-black tracking-wider shadow-sm">SVIP</span>}
                         {b.customerName.includes('[VIP]') && <span className="bg-fuchsia-600 text-white text-[12px] px-2 py-0.5 rounded font-bold shadow-sm">VIP</span>}
                         - {b.phone}
-                        <EditBookingDialog booking={b} />
+                        <div className="flex items-center gap-1 ml-2">
+                          <EditBookingDialog booking={b} />
+                          <DeleteBookingButton id={b.id} customerName={b.customerName} />
+                        </div>
                         <Badge variant={b.status === 'confirmed' ? 'default' : 'secondary'} className={b.status === 'confirmed' ? 'bg-green-600 ml-auto' : 'ml-auto'}>
                           {b.status === 'confirmed' ? 'Đã chốt' : 'Đang chờ'}
                         </Badge>
@@ -74,8 +78,19 @@ export default async function BookingsPage() {
                         <p className="text-sm text-slate-600">{b.decorRequest || "Không có"}</p>
                       </div>
                       <div>
+                        <h4 className="font-semibold text-sm text-slate-700 mb-1">Tiền cọc:</h4>
+                        <p className="text-sm font-semibold text-orange-600">
+                          {(() => {
+                            const match = (b.specialRequest || "").match(/\[Cọc:\s*([^\]]+)\]/);
+                            return match ? match[1] : "Chưa cọc";
+                          })()}
+                        </p>
+                      </div>
+                      <div>
                         <h4 className="font-semibold text-sm text-slate-700 mb-1">Yêu cầu Riêng (Ghi chú):</h4>
-                        <p className="text-sm text-slate-600 italic">{b.specialRequest || "Không có"}</p>
+                        <p className="text-sm text-slate-600 italic">
+                          {(b.specialRequest || "").replace(/\[Cọc:\s*[^\]]+\]/, '').trim() || "Không có"}
+                        </p>
                       </div>
                     </div>
                   </div>
