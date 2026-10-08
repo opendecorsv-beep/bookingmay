@@ -26,9 +26,12 @@ export default async function BookingsPage() {
                 <div className="space-y-4 flex-1">
                   <div className="flex justify-between items-start">
                     <div>
-                      <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                        {b.customerName} - {b.phone}
-                        <Badge variant={b.status === 'confirmed' ? 'default' : 'secondary'} className={b.status === 'confirmed' ? 'bg-green-600' : ''}>
+                      <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2 flex-wrap">
+                        {b.customerName.replace(/\[S?VIP\] /g, '')}
+                        {b.customerName.includes('[SVIP]') && <span className="bg-yellow-500 text-white text-[12px] px-2 py-0.5 rounded font-black tracking-wider shadow-sm">SVIP</span>}
+                        {b.customerName.includes('[VIP]') && <span className="bg-fuchsia-600 text-white text-[12px] px-2 py-0.5 rounded font-bold shadow-sm">VIP</span>}
+                        - {b.phone}
+                        <Badge variant={b.status === 'confirmed' ? 'default' : 'secondary'} className={b.status === 'confirmed' ? 'bg-green-600 ml-auto' : 'ml-auto'}>
                           {b.status === 'confirmed' ? 'Đã chốt' : 'Đang chờ'}
                         </Badge>
                       </h2>

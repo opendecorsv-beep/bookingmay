@@ -16,8 +16,14 @@ export default function AddBookingDialog() {
     const rawMenu = formData.get("menu") as string;
     const menuArray = rawMenu.split('\n').filter(item => item.trim() !== '');
     
+    let custName = formData.get("customerName") as string;
+    const priority = formData.get("priority") as string;
+    if (priority === "VIP" || priority === "SVIP") {
+      custName = `[${priority}] ${custName}`;
+    }
+    
     await createNewBooking({
-      customerName: formData.get("customerName") as string,
+      customerName: custName,
       phone: formData.get("phone") as string,
       dateTime: formData.get("dateTime") as string,
       guestsCount: parseInt(formData.get("guestsCount") as string),
@@ -62,7 +68,19 @@ export default function AddBookingDialog() {
               <Label htmlFor="guestsCount">Số lượng khách</Label>
               <Input id="guestsCount" name="guestsCount" type="number" min="1" required />
             </div>
-            <div className="space-y-2 col-span-2">
+            <div className="space-y-2">
+              <Label htmlFor="priority">Mức độ ưu tiên</Label>
+              <select 
+                id="priority" 
+                name="priority" 
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                <option value="Bình thường">Bình thường</option>
+                <option value="VIP">VIP</option>
+                <option value="SVIP">SVIP</option>
+              </select>
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="room">Phòng / Không gian</Label>
               <select 
                 id="room" 

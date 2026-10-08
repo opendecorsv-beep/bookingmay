@@ -50,9 +50,11 @@ export default function FloorPlanClient({ initialBookings }: { initialBookings: 
                 onChange={(e) => setSelectedDateTime(e.target.value)} 
               />
             </div>
-            <div className="flex gap-4 pb-2 text-sm">
+            <div className="flex flex-wrap gap-4 pb-2 text-sm">
               <div className="flex items-center gap-2"><div className="w-4 h-4 bg-green-100 border border-green-200 rounded"></div> Trống</div>
               <div className="flex items-center gap-2"><div className="w-4 h-4 bg-red-100 border border-red-200 rounded"></div> Đã đặt</div>
+              <div className="flex items-center gap-2"><div className="w-4 h-4 bg-gradient-to-br from-purple-100 to-fuchsia-200 border border-fuchsia-400 rounded"></div> VIP</div>
+              <div className="flex items-center gap-2"><div className="w-4 h-4 bg-gradient-to-br from-amber-100 to-yellow-300 border border-yellow-500 rounded"></div> SVIP</div>
             </div>
           </div>
         </CardContent>
@@ -69,22 +71,36 @@ export default function FloorPlanClient({ initialBookings }: { initialBookings: 
                 {floor.rooms.map(room => {
                   const booking = getRoomBooking(room);
                   const isBooked = !!booking;
+                  const isVIP = isBooked && booking.customerName.includes('[VIP]');
+                  const isSVIP = isBooked && booking.customerName.includes('[SVIP]');
+                  
+                  // Extract clean name for display
+                  let displayName = booking?.customerName || "";
+                  if (isVIP) displayName = displayName.replace('[VIP]', '').trim();
+                  if (isSVIP) displayName = displayName.replace('[SVIP]', '').trim();
+
+                  let bgClass = 'bg-white border-green-200 text-slate-700 hover:border-green-300';
+                  if (isSVIP) {
+                    bgClass = 'bg-gradient-to-br from-amber-100 to-yellow-300 border-yellow-500 text-yellow-950 ring-2 ring-yellow-400 shadow-yellow-200 shadow-lg';
+                  } else if (isVIP) {
+                    bgClass = 'bg-gradient-to-br from-purple-100 to-fuchsia-200 border-fuchsia-400 text-fuchsia-950 ring-1 ring-fuchsia-300 shadow-md';
+                  } else if (isBooked) {
+                    bgClass = 'bg-red-50 border-red-200 text-red-900';
+                  }
+
                   return (
                     <div 
                       key={room} 
-                      className={`
-                        p-4 rounded-lg border-2 flex flex-col items-center justify-center text-center min-h-[100px] shadow-sm transition-all
-                        ${isBooked 
-                          ? 'bg-red-50 border-red-200 text-red-900' 
-                          : 'bg-white border-green-200 text-slate-700 hover:border-green-300'}
-                      `}
+                      className={`p-4 rounded-lg border-2 flex flex-col items-center justify-center text-center min-h-[100px] transition-all ${bgClass}`}
                     >
                       <span className="font-bold">{room}</span>
                       {isBooked && (
-                        <div className="mt-2 text-xs flex flex-col items-center">
-                          <span className="font-semibold text-red-700">{booking.customerName}</span>
-                          <span className="text-red-600">{booking.guestsCount} khách</span>
-                          <span className="text-red-600">{format(new Date(booking.dateTime), "HH:mm")}</span>
+                        <div className="mt-2 text-xs flex flex-col items-center gap-1">
+                          {isSVIP && <span className="bg-yellow-500 text-white text-[10px] px-1.5 py-0.5 rounded font-black tracking-wider shadow-sm">SVIP</span>}
+                          {isVIP && <span className="bg-fuchsia-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold shadow-sm">VIP</span>}
+                          <span className="font-semibold">{displayName}</span>
+                          <span className="opacity-80">{booking.guestsCount} khách</span>
+                          <span className="opacity-80 font-medium">{format(new Date(booking.dateTime), "HH:mm")}</span>
                         </div>
                       )}
                       {!isBooked && (

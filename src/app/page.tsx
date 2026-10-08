@@ -58,7 +58,12 @@ export default async function Dashboard() {
                   <div key={b.id} className="bg-white p-4 rounded-lg border border-orange-100 shadow-sm">
                     <div className="flex justify-between items-start mb-2">
                       <div>
-                        <h3 className="font-semibold text-slate-800">{b.customerName} - {b.phone}</h3>
+                        <h3 className="font-semibold text-slate-800 flex items-center gap-2">
+                          {b.customerName.replace(/\[S?VIP\] /g, '')}
+                          {b.customerName.includes('[SVIP]') && <span className="bg-yellow-500 text-white text-[10px] px-1.5 py-0.5 rounded font-black tracking-wider">SVIP</span>}
+                          {b.customerName.includes('[VIP]') && <span className="bg-fuchsia-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">VIP</span>}
+                          - {b.phone}
+                        </h3>
                         <p className="text-sm text-slate-500">{format(new Date(b.dateTime), "HH:mm, EEEE, dd/MM/yyyy", { locale: vi })}</p>
                       </div>
                       <Badge variant="destructive">Khẩn cấp</Badge>
@@ -102,7 +107,12 @@ export default async function Dashboard() {
                 {upcomingBookings.map(b => (
                   <div key={b.id} className="flex justify-between items-center p-3 hover:bg-slate-50 rounded-md border border-transparent hover:border-slate-100 transition-colors">
                     <div>
-                      <p className="font-medium text-slate-800">{b.customerName} ({b.guestsCount} khách)</p>
+                      <p className="font-medium text-slate-800 flex items-center gap-2">
+                        {b.customerName.replace(/\[S?VIP\] /g, '')}
+                        {b.customerName.includes('[SVIP]') && <span className="bg-yellow-500 text-white text-[10px] px-1.5 py-0.5 rounded font-black tracking-wider">SVIP</span>}
+                        {b.customerName.includes('[VIP]') && <span className="bg-fuchsia-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">VIP</span>}
+                        ({b.guestsCount} khách)
+                      </p>
                       <p className="text-xs text-slate-500">{format(new Date(b.dateTime), "dd/MM/yyyy HH:mm")}</p>
                     </div>
                     <Badge variant={b.status === 'confirmed' ? "default" : "secondary"}>
