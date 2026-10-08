@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function KitchenPage() {
   const allBookings = await fetchBookings();
-  const pendingBookings = allBookings.filter(b => b.kitchenStatus !== 'done').sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
+  const pendingBookings = allBookings.sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
 
   return (
     <div className="space-y-6">
@@ -59,8 +59,8 @@ export default async function KitchenPage() {
                     <Clock className="w-4 h-4"/> {format(new Date(b.dateTime), "HH:mm - dd/MM")}
                   </span>
                 </CardTitle>
-                <Badge variant={b.kitchenStatus === 'in_progress' ? 'default' : 'outline'} className={b.kitchenStatus === 'in_progress' ? 'bg-orange-500' : ''}>
-                  {b.kitchenStatus === 'in_progress' ? 'Đang nấu' : 'Chờ làm'}
+                <Badge variant={b.kitchenStatus === 'done' ? 'secondary' : (b.kitchenStatus === 'in_progress' ? 'default' : 'outline')} className={b.kitchenStatus === 'in_progress' ? 'bg-orange-500' : (b.kitchenStatus === 'done' ? 'bg-green-100 text-green-700 hover:bg-green-200' : '')}>
+                  {b.kitchenStatus === 'done' ? 'Đã nấu xong' : (b.kitchenStatus === 'in_progress' ? 'Đang nấu' : 'Chờ làm')}
                 </Badge>
               </div>
             </CardHeader>
@@ -89,7 +89,7 @@ export default async function KitchenPage() {
                     <Button type="submit" className="w-full bg-orange-500 hover:bg-orange-600">Bắt đầu nấu</Button>
                   </form>
                 )}
-                {b.kitchenStatus === 'in_progress' && (
+                {b.kitchenStatus !== 'done' && b.kitchenStatus === 'in_progress' && (
                   <form action={setKitchenStatus.bind(null, b.id, 'done')} className="w-full">
                     <Button type="submit" className="w-full bg-green-600 hover:bg-green-700">
                       <CheckSquare className="w-4 h-4 mr-2"/> Báo Xong

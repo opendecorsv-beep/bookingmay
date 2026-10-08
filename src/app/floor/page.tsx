@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function FloorPage() {
   const allBookings = await fetchBookings();
-  const pendingBookings = allBookings.filter(b => b.floorStatus !== 'done').sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
+  const pendingBookings = allBookings.sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
   
   let decorBookings = pendingBookings.filter(b => {
     let occasion = "Không có";
@@ -82,8 +82,8 @@ export default async function FloorPage() {
                     <Users className="w-4 h-4"/> {b.guestsCount} khách | {format(new Date(b.dateTime), "HH:mm - dd/MM")}
                   </span>
                 </CardTitle>
-                <Badge variant={b.floorStatus === 'in_progress' ? 'default' : 'outline'} className={b.floorStatus === 'in_progress' ? 'bg-purple-600' : ''}>
-                  {b.floorStatus === 'in_progress' ? 'Đang setup' : 'Chờ xử lý'}
+                <Badge variant={b.floorStatus === 'done' ? 'secondary' : (b.floorStatus === 'in_progress' ? 'default' : 'outline')} className={b.floorStatus === 'in_progress' ? 'bg-purple-600' : (b.floorStatus === 'done' ? 'bg-green-100 text-green-700 hover:bg-green-200' : '')}>
+                  {b.floorStatus === 'done' ? 'Đã hoàn thành' : (b.floorStatus === 'in_progress' ? 'Đang setup' : 'Chờ xử lý')}
                 </Badge>
               </div>
             </CardHeader>
@@ -126,11 +126,13 @@ export default async function FloorPage() {
                     <Button type="submit" variant="outline" className="text-purple-600 border-purple-200 hover:bg-purple-50">Bắt đầu Setup</Button>
                   </form>
                 )}
-                <form action={setFloorStatus.bind(null, b.id, 'done')}>
-                  <Button type="submit" className="bg-purple-600 hover:bg-purple-700">
-                    <CheckCircle className="w-4 h-4 mr-2"/> Hoàn tất Setup
-                  </Button>
-                </form>
+                {b.floorStatus !== 'done' && (
+                  <form action={setFloorStatus.bind(null, b.id, 'done')}>
+                    <Button type="submit" className="bg-purple-600 hover:bg-purple-700">
+                      <CheckCircle className="w-4 h-4 mr-2"/> Hoàn tất Setup
+                    </Button>
+                  </form>
+                )}
               </div>
             </CardContent>
           </Card>
