@@ -153,9 +153,12 @@ export default async function BookingsPage() {
                               if (m) {
                                 const qty = parseInt(m[1]);
                                 const priceText = m[3];
-                                const price = parseInt(priceText.replace(/[^\d]/g, ''));
-                                if (!isNaN(price) && price > 0) {
-                                  total += qty * price;
+                                const priceMatch = priceText.match(/[\d\.\,]+/);
+                                if (priceMatch) {
+                                  const price = parseInt(priceMatch[0].replace(/[^\d]/g, ''));
+                                  if (!isNaN(price) && price > 0) {
+                                    total += qty * price;
+                                  }
                                 }
                               }
                             });

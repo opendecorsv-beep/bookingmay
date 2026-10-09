@@ -38,8 +38,11 @@ export default function MenuSelector({
       qty = parseInt(match[1]);
       name = match[2].trim();
       priceText = match[3].trim();
-      const p = parseInt(priceText.replace(/[^\d]/g, ''));
-      if (!isNaN(p)) price = p;
+      const priceMatch = priceText.match(/[\d\.\,]+/);
+      if (priceMatch) {
+        const p = parseInt(priceMatch[0].replace(/[^\d]/g, ''));
+        if (!isNaN(p)) price = p;
+      }
     } else {
       name = item;
     }
@@ -66,8 +69,11 @@ export default function MenuSelector({
     if (typeof item.price === 'number') {
       p = item.price;
     } else {
-      const parsed = parseInt(String(item.price).replace(/[^\d]/g, ''));
-      if (!isNaN(parsed)) p = parsed;
+      const match = String(item.price).match(/[\d\.\,]+/);
+      if (match) {
+        const parsed = parseInt(match[0].replace(/[^\d]/g, ''));
+        if (!isNaN(parsed)) p = parsed;
+      }
     }
     
     setSelectedItems(prev => [...prev, {
