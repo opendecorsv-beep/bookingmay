@@ -49,7 +49,7 @@ export default function AddBookingDialog() {
     if (decorPkg) finalDecor += `|PKG:${decorPkg}`;
     if (decorNote) finalDecor += `|NOTE:${decorNote}`;
     
-    await createNewBooking({
+    const res = await createNewBooking({
       customerName: custName,
       phone: formData.get("phone") as string,
       dateTime: formData.get("dateTime") as string,
@@ -63,6 +63,12 @@ export default function AddBookingDialog() {
       kitchenStatus: "pending",
       floorStatus: "pending"
     });
+
+    if (res?.error) {
+      alert(res.error);
+      return;
+    }
+
     setOpen(false);
   }
 

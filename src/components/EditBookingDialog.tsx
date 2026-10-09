@@ -112,7 +112,7 @@ export default function EditBookingDialog({ booking }: { booking: Booking }) {
     if (decorPkg) finalDecor += `|PKG:${decorPkg}`;
     if (decorNote) finalDecor += `|NOTE:${decorNote}`;
 
-    await updateExistingBooking(booking.id, {
+    const res = await updateExistingBooking(booking.id, {
       customerName: custName,
       phone: formData.get("phone") as string,
       dateTime: formData.get("dateTime") as string,
@@ -122,6 +122,12 @@ export default function EditBookingDialog({ booking }: { booking: Booking }) {
       specialRequest: specReq.trim(),
       decorRequest: finalDecor,
     });
+
+    if (res?.error) {
+      alert(res.error);
+      return;
+    }
+
     setOpen(false);
   }
 
