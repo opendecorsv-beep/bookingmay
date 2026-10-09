@@ -42,8 +42,8 @@ export default async function KitchenPage() {
             headerClass += 'bg-fuchsia-50/50';
           }
 
-          // Filter out the deposit info from specialRequest so kitchen doesn't need to see it
-          const cleanSpecialRequest = b.specialRequest ? b.specialRequest.replace(/\[Cọc:\s*[^\]]+\]/g, '').replace(/\[Nguồn:\s*[^\]]+\]/g, '').trim() : '';
+          // Filter out the deposit, source, and discount info from specialRequest so kitchen doesn't need to see it
+          const cleanSpecialRequest = b.specialRequest ? b.specialRequest.replace(/\[Cọc:\s*[^\]]+\]/g, '').replace(/\[Nguồn:\s*[^\]]+\]/g, '').replace(/\[Giảm giá:\s*[^\]]+\]/g, '').trim() : '';
 
           return (
           <Card key={b.id} className={cardClass}>

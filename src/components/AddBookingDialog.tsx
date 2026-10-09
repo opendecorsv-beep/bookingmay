@@ -31,6 +31,10 @@ export default function AddBookingDialog() {
     if (deposit && deposit.trim() !== '') {
       specReq += `\n[Cọc: ${deposit.trim()}]`;
     }
+    const discount = formData.get("discount") as string;
+    if (discount && discount.trim() !== '') {
+      specReq += `\n[Giảm giá: ${discount.trim()}]`;
+    }
     const source = formData.get("source") as string;
     const customSource = formData.get("customSource") as string;
     const finalSource = source === "Khác" ? customSource : source;
@@ -189,12 +193,12 @@ export default function AddBookingDialog() {
                 onChange={(e) => setDecorPkg(e.target.value)}
               >
                 <option value="">-- Gói Decor Mây --</option>
-                <option value="1">Gói 1</option>
-                <option value="2">Gói 2</option>
-                <option value="3">Gói 3</option>
-                <option value="4">Gói 4</option>
-                <option value="5">Gói 5</option>
-                <option value="6">Gói 6</option>
+                <option value="1">1 - Bướm Ngũ Sắc</option>
+                <option value="2">2 - Bướm Trắng</option>
+                <option value="3">3 - Bướm Đỏ</option>
+                <option value="4">4 - Nơ Trắng</option>
+                <option value="5">5 - Nơ Hồng</option>
+                <option value="6">6 - Background Nâu</option>
               </select>
             </div>
           </div>
@@ -204,9 +208,15 @@ export default function AddBookingDialog() {
             <Textarea id="decorNote" name="decorNote" placeholder="Vd: Tone hồng, bóng bay..." rows={2}/>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="deposit">Tiền cọc (VNĐ) - Nếu có</Label>
-            <Input id="deposit" name="deposit" placeholder="Vd: 500,000 hoặc 500k" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="deposit">Tiền cọc (VNĐ) - Nếu có</Label>
+              <Input id="deposit" name="deposit" placeholder="Vd: 500,000 hoặc 500k" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="discount">Giảm giá (VNĐ) - Nếu có</Label>
+              <Input id="discount" name="discount" placeholder="Vd: 200,000 hoặc 200k" />
+            </div>
           </div>
 
           <div className="space-y-2">

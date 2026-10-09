@@ -1068,5 +1068,139 @@
         "price": "Liên hệ"
       }
     ]
+  },
+  {
+    "name": "Đồ Uống Có Cồn",
+    "items": [
+      {
+        "name": "Cocktail Blood And Sand",
+        "price": 275000
+      },
+      {
+        "name": "Cocktail Hotel Nacional",
+        "price": 240000
+      }
+    ]
+  },
+  {
+    "name": "Đồ Uống Không Cồn",
+    "items": [
+      {
+        "name": "Mocktail Virgin Penicilline",
+        "price": 150000
+      },
+      {
+        "name": "Mocktail Summer Time",
+        "price": 120000
+      },
+      {
+        "name": "Pink Daydream",
+        "price": 160000
+      },
+      {
+        "name": "Freshing sour",
+        "price": 160000
+      },
+      {
+        "name": "Tropical tea",
+        "price": 60000
+      },
+      {
+        "name": "Fruit yogurt",
+        "price": 60000
+      },
+      {
+        "name": "Nước chanh tươi",
+        "price": 70000
+      },
+      {
+        "name": "Soda chanh",
+        "price": 75000
+      }
+    ]
+  },
+  {
+    "name": "Detox",
+    "items": [
+      {
+        "name": "Detox Dưỡng Nhan",
+        "price": 75000
+      },
+      {
+        "name": "Detox Thanh Lọc",
+        "price": 90000
+      }
+    ]
+  },
+  {
+    "name": "Nước Ép",
+    "items": [
+      {
+        "name": "Ép Thơm",
+        "price": 50000
+      },
+      {
+        "name": "Ép dưa hấu",
+        "price": 50000
+      },
+      {
+        "name": "Ép ổi",
+        "price": 60000
+      }
+    ]
+  },
+  {
+    "name": "Bia",
+    "items": [
+      {
+        "name": "Bia Heineken Silver 250 ML",
+        "price": 35000
+      },
+      {
+        "name": "Bia Heineken 0 độ",
+        "price": 32000
+      },
+      {
+        "name": "Bia Tiger Bạc Lon 250 ML",
+        "price": 30000
+      },
+      {
+        "name": "Bia Tiger Bạc Lon 330 ML",
+        "price": 35000
+      },
+      {
+        "name": "Bia Tiger Nâu Lon 250 ML",
+        "price": 25000
+      }
+    ]
+  },
+  {
+    "name": "Nước Ngọt",
+    "items": [
+      {
+        "name": "Pepsi Lon 320 ML",
+        "price": 20000
+      },
+      {
+        "name": "Pepsi Không Calo Vị Chanh 320 ML",
+        "price": 20000
+      },
+      {
+        "name": "7Up",
+        "price": 20000
+      },
+      {
+        "name": "Soda Lon 320 ML",
+        "price": 20000
+      },
+      {
+        "name": "Sting đỏ lon 320 ML",
+        "price": 20000
+      },
+      {
+        "name": "Nước Suối Aquafina  Chai 500 ML",
+        "price": 15000
+      }
+    ]
   }
 ]

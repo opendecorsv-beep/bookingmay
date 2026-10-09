@@ -65,8 +65,8 @@ export default async function FloorPage() {
             headerClass += 'bg-fuchsia-100/50';
           }
 
-          // Also remove deposit from special request here, decor only needs notes
-          const cleanSpecialRequest = b.specialRequest ? b.specialRequest.replace(/\[Cọc:\s*[^\]]+\]/g, '').replace(/\[Nguồn:\s*[^\]]+\]/g, '').trim() : '';
+          // Also remove deposit and discount from special request here, decor only needs notes
+          const cleanSpecialRequest = b.specialRequest ? b.specialRequest.replace(/\[Cọc:\s*[^\]]+\]/g, '').replace(/\[Nguồn:\s*[^\]]+\]/g, '').replace(/\[Giảm giá:\s*[^\]]+\]/g, '').trim() : '';
 
           return (
           <Card key={b.id} className={cardClass}>
@@ -98,7 +98,9 @@ export default async function FloorPage() {
 
               {pkg && (
                 <div>
-                  <h4 className="font-semibold text-sm text-slate-700 mb-1">Gói Decor: Mây {pkg}</h4>
+                  <h4 className="font-semibold text-sm text-slate-700 mb-1">
+                    Gói Decor: Mây {pkg} ({{"1": "Bướm Ngũ Sắc", "2": "Bướm Trắng", "3": "Bướm Đỏ", "4": "Nơ Trắng", "5": "Nơ Hồng", "6": "Background Nâu"}[pkg] || ""})
+                  </h4>
                   <div className="rounded-lg overflow-hidden border border-slate-200 shadow-sm">
                     <img 
                       src={`/images/decor/decor${pkg}.jpg`} 

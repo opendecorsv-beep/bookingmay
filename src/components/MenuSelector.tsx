@@ -160,7 +160,10 @@ export default function MenuSelector({
         </div>
         {decorPackage && (
           <div className="flex justify-between text-sm">
-            <span className="text-slate-600">Giá Gói Decor Mây {decorPackage}:</span>
+            <span className="text-slate-600">
+              Giá Gói Decor Mây {decorPackage} 
+              ({{"1": "Bướm Ngũ Sắc", "2": "Bướm Trắng", "3": "Bướm Đỏ", "4": "Nơ Trắng", "5": "Nơ Hồng", "6": "Background Nâu"}[decorPackage] || ""}):
+            </span>
             <span className="font-semibold text-purple-600">3.700.000 đ</span>
           </div>
         )}

@@ -86,6 +86,7 @@ export default async function BookingsPage() {
                       </ul>
                     </div>
                     <div className="space-y-2">
+
                       <div>
                         <h4 className="font-semibold text-sm text-slate-700 mb-1">Yêu cầu Decor:</h4>
                         <p className="text-sm text-slate-600">
@@ -101,29 +102,49 @@ export default async function BookingsPage() {
                             const note = noteStr.replace('NOTE:', '');
                             
                             let res = occ;
-                            if (pkg) res += ` - Gói Mây ${pkg}`;
+                            if (pkg) {
+                              const pkgNames: Record<string, string> = {"1": "Bướm Ngũ Sắc", "2": "Bướm Trắng", "3": "Bướm Đỏ", "4": "Nơ Trắng", "5": "Nơ Hồng", "6": "Background Nâu"};
+                              res += ` - Gói Mây ${pkg} (${pkgNames[pkg] || ""})`;
+                            }
                             if (note) res += ` - Ghi chú: ${note}`;
                             return res;
                           })()}
                         </p>
                       </div>
-                      <div>
-                        <h4 className="font-semibold text-sm text-slate-700 mb-1">Tiền cọc:</h4>
-                        <p className="text-sm font-semibold text-orange-600">
-                          {(() => {
-                            const match = (b.specialRequest || "").match(/\[Cọc:\s*([^\]]+)\]/);
-                            if (!match) return "Chưa cọc";
-                            const val = match[1];
-                            const num = parseInt(val.replace(/[^\d]/g, ''));
-                            if (!isNaN(num) && num >= 1000) {
-                              return num.toLocaleString('vi-VN') + " đ";
-                            }
-                            return val;
-                          })()}
-                        </p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <h4 className="font-semibold text-sm text-slate-700 mb-1">Tiền cọc:</h4>
+                          <p className="text-sm font-semibold text-orange-600">
+                            {(() => {
+                              const match = (b.specialRequest || "").match(/\[Cọc:\s*([^\]]+)\]/);
+                              if (!match) return "Chưa cọc";
+                              const val = match[1];
+                              const num = parseInt(val.replace(/[^\d]/g, ''));
+                              if (!isNaN(num) && num >= 1000) {
+                                return num.toLocaleString('vi-VN') + " đ";
+                              }
+                              return val;
+                            })()}
+                          </p>
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-sm text-slate-700 mb-1">Giảm giá:</h4>
+                          <p className="text-sm font-semibold text-green-600">
+                            {(() => {
+                              const match = (b.specialRequest || "").match(/\[Giảm giá:\s*([^\]]+)\]/);
+                              if (!match) return "Không có";
+                              const val = match[1];
+                              const num = parseInt(val.replace(/[^\d]/g, ''));
+                              if (!isNaN(num) && num >= 1000) {
+                                return num.toLocaleString('vi-VN') + " đ";
+                              }
+                              return val;
+                            })()}
+                          </p>
+                        </div>
                       </div>
                       <div>
-                        <h4 className="font-semibold text-sm text-slate-700 mb-1">Tổng tiền (Món + Decor):</h4>
+                        <h4 className="font-semibold text-sm text-slate-700 mb-1">Tổng tiền (Món + Decor - Giảm giá):</h4>
                         <p className="text-sm font-bold text-red-600">
                           {(() => {
                             let total = 0;
@@ -144,6 +165,16 @@ export default async function BookingsPage() {
                                  total += 3700000;
                                }
                             }
+                            
+                            // Subtract discount
+                            const discountMatch = (b.specialRequest || "").match(/\[Giảm giá:\s*([^\]]+)\]/);
+                            if (discountMatch) {
+                              const num = parseInt(discountMatch[1].replace(/[^\d]/g, ''));
+                              if (!isNaN(num) && num > 0) {
+                                total -= num;
+                              }
+                            }
+
                             return total > 0 ? total.toLocaleString('vi-VN') + " đ" : "Chưa tính";
                           })()}
                         </p>
@@ -151,7 +182,7 @@ export default async function BookingsPage() {
                       <div>
                         <h4 className="font-semibold text-sm text-slate-700 mb-1">Yêu cầu Riêng (Ghi chú):</h4>
                         <p className="text-sm text-slate-600 italic">
-                          {(b.specialRequest || "").replace(/\[Cọc:\s*[^\]]+\]/g, '').replace(/\[Nguồn:\s*[^\]]+\]/g, '').trim() || "Không có"}
+                          {(b.specialRequest || "").replace(/\[Cọc:\s*[^\]]+\]/g, '').replace(/\[Nguồn:\s*[^\]]+\]/g, '').replace(/\[Giảm giá:\s*[^\]]+\]/g, '').trim() || "Không có"}
                         </p>
                       </div>
                     </div>

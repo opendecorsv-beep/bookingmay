@@ -44,6 +44,13 @@ export default function EditBookingDialog({ booking }: { booking: Booking }) {
     initialSpecialRequest = initialSpecialRequest.replace(/\[Cọc:\s*[^\]]+\]/, '').trim();
   }
 
+  let initialDiscount = "";
+  const discountMatch = initialSpecialRequest.match(/\[Giảm giá:\s*([^\]]+)\]/);
+  if (discountMatch) {
+    initialDiscount = discountMatch[1];
+    initialSpecialRequest = initialSpecialRequest.replace(/\[Giảm giá:\s*[^\]]+\]/, '').trim();
+  }
+
   let initialSource = "Khách quen";
   let initialCustomSource = "";
   const sourceMatch = initialSpecialRequest.match(/\[Nguồn:\s*([^\]]+)\]/);
@@ -87,6 +94,10 @@ export default function EditBookingDialog({ booking }: { booking: Booking }) {
     const deposit = formData.get("deposit") as string;
     if (deposit && deposit.trim() !== '') {
       specReq += `\n[Cọc: ${deposit.trim()}]`;
+    }
+    const discount = formData.get("discount") as string;
+    if (discount && discount.trim() !== '') {
+      specReq += `\n[Giảm giá: ${discount.trim()}]`;
     }
     const source = formData.get("source") as string;
     const customSource = formData.get("customSource") as string;
@@ -244,12 +255,12 @@ export default function EditBookingDialog({ booking }: { booking: Booking }) {
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 <option value="">-- Gói Decor Mây --</option>
-                <option value="1">Gói 1</option>
-                <option value="2">Gói 2</option>
-                <option value="3">Gói 3</option>
-                <option value="4">Gói 4</option>
-                <option value="5">Gói 5</option>
-                <option value="6">Gói 6</option>
+                <option value="1">1 - Bướm Ngũ Sắc</option>
+                <option value="2">2 - Bướm Trắng</option>
+                <option value="3">3 - Bướm Đỏ</option>
+                <option value="4">4 - Nơ Trắng</option>
+                <option value="5">5 - Nơ Hồng</option>
+                <option value="6">6 - Background Nâu</option>
               </select>
             </div>
           </div>
@@ -259,9 +270,15 @@ export default function EditBookingDialog({ booking }: { booking: Booking }) {
             <Textarea id="decorNote" name="decorNote" defaultValue={initialDecorNote} placeholder="Vd: Tone hồng, bóng bay..." rows={2}/>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="deposit">Tiền cọc (VNĐ) - Nếu có</Label>
-            <Input id="deposit" name="deposit" defaultValue={initialDeposit} placeholder="Vd: 500,000 hoặc 500k" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="deposit">Tiền cọc (VNĐ) - Nếu có</Label>
+              <Input id="deposit" name="deposit" defaultValue={initialDeposit} placeholder="Vd: 500,000 hoặc 500k" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="discount">Giảm giá (VNĐ) - Nếu có</Label>
+              <Input id="discount" name="discount" defaultValue={initialDiscount} placeholder="Vd: 200,000 hoặc 200k" />
+            </div>
           </div>
 
           <div className="space-y-2">
