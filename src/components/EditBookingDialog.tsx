@@ -126,7 +126,7 @@ export default function EditBookingDialog({ booking }: { booking: Booking }) {
           <DialogTitle>Sửa thông tin đặt tiệc</DialogTitle>
         </DialogHeader>
         <form action={onSubmit} className="space-y-4 py-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="customerName">Tên khách hàng</Label>
               <Input id="customerName" name="customerName" defaultValue={initialName} required />
@@ -192,15 +192,15 @@ export default function EditBookingDialog({ booking }: { booking: Booking }) {
                 </optgroup>
               </select>
             </div>
-            <div className="space-y-2 col-span-2">
+            <div className="space-y-2 col-span-1 md:col-span-2">
               <Label htmlFor="source">Nguồn khách</Label>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <select 
                   id="source" 
                   name="source" 
                   value={sourceOption}
                   onChange={(e) => setSourceOption(e.target.value)}
-                  className="flex h-10 w-full md:w-1/2 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  className="flex h-10 w-full sm:w-1/2 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
                   <option value="Facebook">Facebook</option>
                   <option value="IG">IG</option>
@@ -210,7 +210,7 @@ export default function EditBookingDialog({ booking }: { booking: Booking }) {
                   <option value="Khác">Khác</option>
                 </select>
                 {sourceOption === "Khác" && (
-                  <Input id="customSource" name="customSource" defaultValue={initialCustomSource} placeholder="Nhập nguồn khác..." className="flex-1" />
+                  <Input id="customSource" name="customSource" defaultValue={initialCustomSource} placeholder="Nhập nguồn khác..." className="flex-1 w-full" />
                 )}
               </div>
             </div>
@@ -222,7 +222,7 @@ export default function EditBookingDialog({ booking }: { booking: Booking }) {
           
           <div className="space-y-2">
             <Label htmlFor="decorRequest">Dịp / Yêu cầu Decor</Label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <select 
                 id="decorRequest" 
                 name="decorRequest" 
