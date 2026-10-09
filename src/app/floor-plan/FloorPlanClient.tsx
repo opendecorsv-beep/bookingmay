@@ -40,21 +40,22 @@ export default function FloorPlanClient({ initialBookings }: { initialBookings: 
     <div className="space-y-6">
       <Card>
         <CardContent className="pt-6">
-          <div className="flex flex-col md:flex-row gap-4 items-end">
-            <div className="space-y-2 flex-1 max-w-sm">
+          <div className="flex flex-col md:flex-row gap-4 items-start md:items-end justify-between">
+            <div className="space-y-2 w-full md:flex-1 md:max-w-sm">
               <Label htmlFor="datetime">Chọn thời gian kiểm tra sơ đồ</Label>
               <Input 
                 id="datetime" 
                 type="datetime-local" 
                 value={selectedDateTime} 
                 onChange={(e) => setSelectedDateTime(e.target.value)} 
+                className="w-full"
               />
             </div>
-            <div className="flex flex-wrap gap-4 pb-2 text-sm">
-              <div className="flex items-center gap-2"><div className="w-4 h-4 bg-green-100 border border-green-200 rounded"></div> Trống</div>
-              <div className="flex items-center gap-2"><div className="w-4 h-4 bg-red-100 border border-red-200 rounded"></div> Đã đặt</div>
-              <div className="flex items-center gap-2"><div className="w-4 h-4 bg-gradient-to-br from-purple-100 to-fuchsia-200 border border-fuchsia-400 rounded"></div> VIP</div>
-              <div className="flex items-center gap-2"><div className="w-4 h-4 bg-gradient-to-br from-amber-100 to-yellow-300 border border-yellow-500 rounded"></div> SVIP</div>
+            <div className="flex flex-wrap gap-3 md:pb-2 text-sm justify-start md:justify-end w-full md:w-auto mt-1 md:mt-0">
+              <div className="flex items-center gap-1.5"><div className="w-4 h-4 bg-green-100 border border-green-200 rounded shrink-0"></div> <span className="whitespace-nowrap">Trống</span></div>
+              <div className="flex items-center gap-1.5"><div className="w-4 h-4 bg-red-100 border border-red-200 rounded shrink-0"></div> <span className="whitespace-nowrap">Đã đặt</span></div>
+              <div className="flex items-center gap-1.5"><div className="w-4 h-4 bg-gradient-to-br from-purple-100 to-fuchsia-200 border border-fuchsia-400 rounded shrink-0"></div> <span className="whitespace-nowrap">VIP</span></div>
+              <div className="flex items-center gap-1.5"><div className="w-4 h-4 bg-gradient-to-br from-amber-100 to-yellow-300 border border-yellow-500 rounded shrink-0"></div> <span className="whitespace-nowrap">SVIP</span></div>
             </div>
           </div>
         </CardContent>
