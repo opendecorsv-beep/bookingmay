@@ -17,59 +17,67 @@ export default function AddBookingDialog() {
 
   const [sourceOption, setSourceOption] = useState("Facebook");
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   async function onSubmit(formData: FormData) {
-    const menuArray = formData.getAll("menuItem") as string[];
-    
-    let custName = formData.get("customerName") as string;
-    const priority = formData.get("priority") as string;
-    if (priority === "VIP" || priority === "SVIP") {
-      custName = `[${priority}] ${custName}`;
-    }
-    
-    let specReq = formData.get("specialRequest") as string;
-    const deposit = formData.get("deposit") as string;
-    if (deposit && deposit.trim() !== '') {
-      specReq += `\n[Cọc: ${deposit.trim()}]`;
-    }
-    const discount = formData.get("discount") as string;
-    if (discount && discount.trim() !== '') {
-      specReq += `\n[Giảm giá: ${discount.trim()}]`;
-    }
-    const source = formData.get("source") as string;
-    const customSource = formData.get("customSource") as string;
-    const finalSource = source === "Khác" ? customSource : source;
-    if (finalSource && finalSource.trim() !== '') {
-      specReq += `\n[Nguồn: ${finalSource.trim()}]`;
-    }
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      const menuArray = formData.getAll("menuItem") as string[];
+      
+      let custName = formData.get("customerName") as string;
+      const priority = formData.get("priority") as string;
+      if (priority === "VIP" || priority === "SVIP") {
+        custName = `[${priority}] ${custName}`;
+      }
+      
+      let specReq = formData.get("specialRequest") as string;
+      const deposit = formData.get("deposit") as string;
+      if (deposit && deposit.trim() !== '') {
+        specReq += `\n[Cọc: ${deposit.trim()}]`;
+      }
+      const discount = formData.get("discount") as string;
+      if (discount && discount.trim() !== '') {
+        specReq += `\n[Giảm giá: ${discount.trim()}]`;
+      }
+      const source = formData.get("source") as string;
+      const customSource = formData.get("customSource") as string;
+      const finalSource = source === "Khác" ? customSource : source;
+      if (finalSource && finalSource.trim() !== '') {
+        specReq += `\n[Nguồn: ${finalSource.trim()}]`;
+      }
 
-    let finalDecor = formData.get("decorRequest") as string;
-    const decorPkg = formData.get("decorPackage") as string;
-    const decorNote = formData.get("decorNote") as string;
-    
-    if (decorPkg) finalDecor += `|PKG:${decorPkg}`;
-    if (decorNote) finalDecor += `|NOTE:${decorNote}`;
-    
-    const res = await createNewBooking({
-      customerName: custName,
-      phone: formData.get("phone") as string,
-      dateTime: formData.get("dateTime") as string,
-      guestsCount: parseInt(formData.get("guestsCount") as string),
-      room: formData.get("room") as string || "Chưa chọn",
-      menu: menuArray,
-      specialRequest: specReq.trim(),
-      decorRequest: finalDecor,
-      status: "pending",
-      receptionStatus: "pending",
-      kitchenStatus: "pending",
-      floorStatus: "pending"
-    });
+      let finalDecor = formData.get("decorRequest") as string;
+      const decorPkg = formData.get("decorPackage") as string;
+      const decorNote = formData.get("decorNote") as string;
+      
+      if (decorPkg) finalDecor += `|PKG:${decorPkg}`;
+      if (decorNote) finalDecor += `|NOTE:${decorNote}`;
+      
+      const res = await createNewBooking({
+        customerName: custName,
+        phone: formData.get("phone") as string,
+        dateTime: formData.get("dateTime") as string,
+        guestsCount: parseInt(formData.get("guestsCount") as string),
+        room: formData.get("room") as string || "Chưa chọn",
+        menu: menuArray,
+        specialRequest: specReq.trim(),
+        decorRequest: finalDecor,
+        status: "pending",
+        receptionStatus: "pending",
+        kitchenStatus: "pending",
+        floorStatus: "pending"
+      });
 
-    if (res?.error) {
-      alert(res.error);
-      return;
+      if (res?.error) {
+        alert(res.error);
+        return;
+      }
+
+      setOpen(false);
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setOpen(false);
   }
 
   return (
@@ -203,8 +211,8 @@ export default function AddBookingDialog() {
                 <option value="2">2 - Bướm Trắng</option>
                 <option value="3">3 - Bướm Đỏ</option>
                 <option value="4">4 - Nơ Trắng</option>
-                <option value="5">5 - Nơ Hồng</option>
-                <option value="6">6 - Background Nâu</option>
+                <option value="5">5 - Background Nâu</option>
+                <option value="6">6 - Nơ Hồng</option>
               </select>
             </div>
           </div>
@@ -231,8 +239,10 @@ export default function AddBookingDialog() {
           </div>
 
           <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Hủy</Button>
-            <Button type="submit" className="bg-orange-600 hover:bg-orange-700">Lưu thông tin</Button>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isSubmitting}>Hủy</Button>
+            <Button type="submit" className="bg-orange-600 hover:bg-orange-700" disabled={isSubmitting}>
+              {isSubmitting ? "Đang lưu..." : "Lưu thông tin"}
+            </Button>
           </div>
         </form>
       </DialogContent>

@@ -103,7 +103,7 @@ export default async function BookingsPage() {
                             
                             let res = occ;
                             if (pkg) {
-                              const pkgNames: Record<string, string> = {"1": "Bướm Ngũ Sắc", "2": "Bướm Trắng", "3": "Bướm Đỏ", "4": "Nơ Trắng", "5": "Nơ Hồng", "6": "Background Nâu"};
+                              const pkgNames: Record<string, string> = {"1": "Bướm Ngũ Sắc", "2": "Bướm Trắng", "3": "Bướm Đỏ", "4": "Nơ Trắng", "5": "Background Nâu", "6": "Nơ Hồng"};
                               res += ` - Gói Mây ${pkg} (${pkgNames[pkg] || ""})`;
                             }
                             if (note) res += ` - Ghi chú: ${note}`;
