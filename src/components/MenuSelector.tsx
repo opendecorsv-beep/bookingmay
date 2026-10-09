@@ -18,6 +18,8 @@ export type SelectedItem = {
   price: number;
   priceText: string;
   qty: number;
+  isCustomPrice?: boolean;
+  customPriceRaw?: string;
 };
 
 export default function MenuSelector({ 
@@ -33,6 +35,9 @@ export default function MenuSelector({
     let price = 0;
     let priceText = "Liên hệ";
     
+    let isCustomPrice = false;
+    let customPriceRaw = "";
+    
     const match = item.match(/^(\d+)\s*x\s*(.*)\s*-\s*(.*)$/);
     if (match) {
       qty = parseInt(match[1]);
@@ -42,11 +47,14 @@ export default function MenuSelector({
       if (priceMatch) {
         const p = parseInt(priceMatch[0].replace(/[^\d]/g, ''));
         if (!isNaN(p)) price = p;
+      } else {
+        isCustomPrice = true;
       }
     } else {
       name = item;
+      isCustomPrice = true;
     }
-    return { id: idx.toString(), name, price, priceText, qty };
+    return { id: idx.toString(), name, price, priceText, qty, isCustomPrice, customPriceRaw };
   });
 
   const [selectedItems, setSelectedItems] = useState<SelectedItem[]>(parsedInitial);
@@ -66,6 +74,7 @@ export default function MenuSelector({
 
   const addItem = (item: MenuItem) => {
     let p = 0;
+    let isCustom = false;
     if (typeof item.price === 'number') {
       p = item.price;
     } else {
@@ -73,6 +82,8 @@ export default function MenuSelector({
       if (match) {
         const parsed = parseInt(match[0].replace(/[^\d]/g, ''));
         if (!isNaN(parsed)) p = parsed;
+      } else {
+        isCustom = true;
       }
     }
     
@@ -81,7 +92,9 @@ export default function MenuSelector({
       name: item.name,
       price: p,
       priceText: typeof item.price === 'number' ? `${item.price.toLocaleString('vi-VN')} đ` : String(item.price),
-      qty: 1
+      qty: 1,
+      isCustomPrice: isCustom,
+      customPriceRaw: ''
     }]);
     setSearchTerm("");
   };
@@ -93,6 +106,16 @@ export default function MenuSelector({
   const updateQty = (id: string, qty: number) => {
     if (qty < 1) return;
     setSelectedItems(prev => prev.map(i => i.id === id ? { ...i, qty } : i));
+  };
+
+  const updatePrice = (id: string, rawPrice: string) => {
+    setSelectedItems(prev => prev.map(i => {
+      if (i.id !== id) return i;
+      const num = parseInt(rawPrice.replace(/[^\d]/g, ''));
+      const price = isNaN(num) ? 0 : num;
+      const priceText = price > 0 ? `${price.toLocaleString('vi-VN')} đ` : rawPrice;
+      return { ...i, price, priceText, customPriceRaw: rawPrice };
+    }));
   };
 
   const foodTotal = selectedItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
@@ -147,7 +170,19 @@ export default function MenuSelector({
               <input type="hidden" name="menuItem" value={`${item.qty} x ${item.name} - ${item.priceText}`} />
             </div>
             <div className="text-sm font-semibold text-slate-700 whitespace-nowrap">
-              {item.price > 0 ? (item.price * item.qty).toLocaleString('vi-VN') + ' đ' : item.priceText}
+              {item.isCustomPrice ? (
+                <div className="flex items-center gap-1">
+                  <Input 
+                    type="text"
+                    value={item.customPriceRaw !== undefined ? item.customPriceRaw : (item.price > 0 ? item.price.toString() : '')}
+                    onChange={(e) => updatePrice(item.id, e.target.value)}
+                    placeholder="Nhập giá"
+                    className="w-24 h-8 text-right px-2"
+                  />
+                </div>
+              ) : (
+                item.price > 0 ? (item.price * item.qty).toLocaleString('vi-VN') + ' đ' : item.priceText
+              )}
             </div>
             <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => removeItem(item.id)}>
               <Trash2 className="w-4 h-4" />
