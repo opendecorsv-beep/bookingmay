@@ -33,7 +33,7 @@ export default function MenuSelector({
     let price = 0;
     let priceText = "Liên hệ";
     
-    const match = item.match(/^(\d+)\s*x\s*(.*?)\s*-\s*(.*)$/);
+    const match = item.match(/^(\d+)\s*x\s*(.*)\s*-\s*(.*)$/);
     if (match) {
       qty = parseInt(match[1]);
       name = match[2].trim();

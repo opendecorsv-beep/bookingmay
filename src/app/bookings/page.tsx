@@ -128,7 +128,7 @@ export default async function BookingsPage() {
                           {(() => {
                             let total = 0;
                             b.menu.forEach(item => {
-                              const m = item.match(/^(\d+)\s*x\s*(.*?)\s*-\s*(.*)$/);
+                              const m = item.match(/^(\d+)\s*x\s*(.*)\s*-\s*(.*)$/);
                               if (m) {
                                 const qty = parseInt(m[1]);
                                 const priceText = m[3];
