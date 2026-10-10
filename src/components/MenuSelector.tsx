@@ -132,7 +132,7 @@ export default function MenuSelector({
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Gõ tên món (vd: Gà, Lẩu, Bò...)"
           />
-          {filteredItems.length > 0 && (
+          {searchTerm.length > 0 && (
             <div className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-y-auto">
               {filteredItems.map((item, idx) => (
                 <div 
@@ -149,6 +149,15 @@ export default function MenuSelector({
                   </div>
                 </div>
               ))}
+              <div 
+                className="px-3 py-2 hover:bg-orange-100 cursor-pointer flex justify-between items-center border-t text-orange-700 bg-orange-50 sticky bottom-0"
+                onClick={() => addItem({ name: searchTerm.trim(), price: "Theo Thời Giá", category: "Món ngoài menu" } as any)}
+              >
+                <div className="font-medium text-sm flex items-center gap-2">
+                  <span className="text-lg leading-none">+</span> Thêm món ngoài menu: &quot;{searchTerm}&quot;
+                </div>
+                <div className="text-xs font-semibold bg-orange-200 px-2 py-1 rounded">Tự nhập giá</div>
+              </div>
             </div>
           )}
         </div>
