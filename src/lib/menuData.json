@@ -542,27 +542,27 @@
     "name": "Cua Hoàng Đế",
     "items": [
       {
-        "name": "Nấu Súp",
+        "name": "Cua Hoàng Đế - Nấu Súp",
         "price": "Theo Thời Giá"
       },
       {
-        "name": "Hấp Rượu Vang Trắng",
+        "name": "Cua Hoàng Đế - Hấp Rượu Vang Trắng",
         "price": "Liên hệ"
       },
       {
-        "name": "Chiên Sốt Bơ Tỏi",
+        "name": "Cua Hoàng Đế - Chiên Sốt Bơ Tỏi",
         "price": "Liên hệ"
       },
       {
-        "name": "Rang Muối Tỏi",
+        "name": "Cua Hoàng Đế - Rang Muối Tỏi",
         "price": "Liên hệ"
       },
       {
-        "name": "Bỏ Lò Phomai Ăn Kèm Bánh Mì Nướng",
+        "name": "Cua Hoàng Đế - Bỏ Lò Phomai Ăn Kèm Bánh Mì Nướng",
         "price": "Liên hệ"
       },
       {
-        "name": "Sốt Me Thái/ Sốt Ớt",
+        "name": "Cua Hoàng Đế - Sốt Me Thái/ Sốt Ớt",
         "price": "Liên hệ"
       }
     ]
@@ -571,35 +571,35 @@
     "name": "TÔM HÙM BÔNG/ TÔM HÙM XANH BABY",
     "items": [
       {
-        "name": "Tiết Canh",
+        "name": "TÔM HÙM BÔNG/ TÔM HÙM XANH BABY - Tiết Canh",
         "price": "Theo Thời Giá"
       },
       {
-        "name": "Sashimi Tôm Hùm",
+        "name": "TÔM HÙM BÔNG/ TÔM HÙM XANH BABY - Sashimi Tôm Hùm",
         "price": "Liên hệ"
       },
       {
-        "name": "Hấp Rượu Vang Trắng",
+        "name": "TÔM HÙM BÔNG/ TÔM HÙM XANH BABY - Hấp Rượu Vang Trắng",
         "price": "Liên hệ"
       },
       {
-        "name": "Hấp Miến Tỏi",
+        "name": "TÔM HÙM BÔNG/ TÔM HÙM XANH BABY - Hấp Miến Tỏi",
         "price": "Liên hệ"
       },
       {
-        "name": "Rang Muối Tỏi",
+        "name": "TÔM HÙM BÔNG/ TÔM HÙM XANH BABY - Rang Muối Tỏi",
         "price": "Liên hệ"
       },
       {
-        "name": "Chiên Sốt Bơ Tỏi",
+        "name": "TÔM HÙM BÔNG/ TÔM HÙM XANH BABY - Chiên Sốt Bơ Tỏi",
         "price": "Liên hệ"
       },
       {
-        "name": "Bỏ Lò Phomai Ăn Kèm Bánh Mì Nướng",
+        "name": "TÔM HÙM BÔNG/ TÔM HÙM XANH BABY - Bỏ Lò Phomai Ăn Kèm Bánh Mì Nướng",
         "price": "Liên hệ"
       },
       {
-        "name": "Nấu Cháo Đậu Xanh",
+        "name": "TÔM HÙM BÔNG/ TÔM HÙM XANH BABY - Nấu Cháo Đậu Xanh",
         "price": "Liên hệ"
       }
     ]
@@ -608,23 +608,23 @@
     "name": "TÔM HÙM ALASKA/ TÔM MŨ NI",
     "items": [
       {
-        "name": "Hấp Rượu Vang Trắng",
+        "name": "TÔM HÙM ALASKA/ TÔM MŨ NI - Hấp Rượu Vang Trắng",
         "price": "Theo Thời Giá"
       },
       {
-        "name": "Rang Muối Tỏi",
+        "name": "TÔM HÙM ALASKA/ TÔM MŨ NI - Rang Muối Tỏi",
         "price": "Liên hệ"
       },
       {
-        "name": "Chiên Sốt Bơ Tỏi",
+        "name": "TÔM HÙM ALASKA/ TÔM MŨ NI - Chiên Sốt Bơ Tỏi",
         "price": "Liên hệ"
       },
       {
-        "name": "Bỏ Lò Phomai Ăn Kèm Bánh Mì Nướng",
+        "name": "TÔM HÙM ALASKA/ TÔM MŨ NI - Bỏ Lò Phomai Ăn Kèm Bánh Mì Nướng",
         "price": "Liên hệ"
       },
       {
-        "name": "Nấu Cháo Đậu Xanh",
+        "name": "TÔM HÙM ALASKA/ TÔM MŨ NI - Nấu Cháo Đậu Xanh",
         "price": "Liên hệ"
       }
     ]
@@ -633,31 +633,31 @@
     "name": "TÔM SÚ CÁC LOẠI",
     "items": [
       {
-        "name": "Tôm Sú Sashimi",
+        "name": "TÔM SÚ CÁC LOẠI - Tôm Sú Sashimi",
         "price": "Theo Thời Giá"
       },
       {
-        "name": "Gỏi Tôm Sú Tắm Mắm Cay Kiểu Thái",
+        "name": "TÔM SÚ CÁC LOẠI - Gỏi Tôm Sú Tắm Mắm Cay Kiểu Thái",
         "price": "Liên hệ"
       },
       {
-        "name": "Sốt Bơ Tỏi Ăn Kèm Bánh Mì Nướng",
+        "name": "TÔM SÚ CÁC LOẠI - Sốt Bơ Tỏi Ăn Kèm Bánh Mì Nướng",
         "price": "Liên hệ"
       },
       {
-        "name": "Sốt Trứng Muối Ăn Kèm Bánh Mì Nướng",
+        "name": "TÔM SÚ CÁC LOẠI - Sốt Trứng Muối Ăn Kèm Bánh Mì Nướng",
         "price": "Liên hệ"
       },
       {
-        "name": "Sốt Me Thái/ Sốt Ớt",
+        "name": "TÔM SÚ CÁC LOẠI - Sốt Me Thái/ Sốt Ớt",
         "price": "Liên hệ"
       },
       {
-        "name": "Nướng Muối Ớt",
+        "name": "TÔM SÚ CÁC LOẠI - Nướng Muối Ớt",
         "price": "Liên hệ"
       },
       {
-        "name": "Hấp Sả/ Hấp Miến Tỏi",
+        "name": "TÔM SÚ CÁC LOẠI - Hấp Sả/ Hấp Miến Tỏi",
         "price": "Liên hệ"
       }
     ]
@@ -666,11 +666,11 @@
     "name": "BỀ BỀ",
     "items": [
       {
-        "name": "Hấp/ Rang Muối",
+        "name": "BỀ BỀ - Hấp/ Rang Muối",
         "price": "Theo Thời Giá"
       },
       {
-        "name": "Chiên Sốt Me",
+        "name": "BỀ BỀ - Chiên Sốt Me",
         "price": "Liên hệ"
       }
     ]
@@ -679,27 +679,27 @@
     "name": "CUA GẠCH - CUA THỊT CÀ MAU",
     "items": [
       {
-        "name": "Hấp",
+        "name": "CUA GẠCH - CUA THỊT CÀ MAU - Hấp",
         "price": "Theo Thời Giá"
       },
       {
-        "name": "Rang Muối Tỏi",
+        "name": "CUA GẠCH - CUA THỊT CÀ MAU - Rang Muối Tỏi",
         "price": "Liên hệ"
       },
       {
-        "name": "Sốt Me Thái/ Sốt Ớt",
+        "name": "CUA GẠCH - CUA THỊT CÀ MAU - Sốt Me Thái/ Sốt Ớt",
         "price": "Liên hệ"
       },
       {
-        "name": "Cua Bể Xào Miến Đậu Xanh",
+        "name": "CUA GẠCH - CUA THỊT CÀ MAU - Cua Bể Xào Miến Đậu Xanh",
         "price": "Liên hệ"
       },
       {
-        "name": "Cua Bể Xào Bí Xanh",
+        "name": "CUA GẠCH - CUA THỊT CÀ MAU - Cua Bể Xào Bí Xanh",
         "price": "Liên hệ"
       },
       {
-        "name": "Lẩu Cua Bầu",
+        "name": "CUA GẠCH - CUA THỊT CÀ MAU - Lẩu Cua Bầu",
         "price": "Liên hệ"
       }
     ]
@@ -708,7 +708,7 @@
     "name": "CÁ BƠN VÀNG - ĐEN HÀN QUỐC",
     "items": [
       {
-        "name": "Sashimi Cá Bơn",
+        "name": "CÁ BƠN VÀNG - ĐEN HÀN QUỐC - Sashimi Cá Bơn",
         "price": "Theo Thời Giá"
       },
       {
@@ -716,11 +716,11 @@
         "price": "Liên hệ"
       },
       {
-        "name": "Nướng Muối Ớt",
+        "name": "CÁ BƠN VÀNG - ĐEN HÀN QUỐC - Nướng Muối Ớt",
         "price": "Liên hệ"
       },
       {
-        "name": "Nấu Cháo Đậu Xanh",
+        "name": "CÁ BƠN VÀNG - ĐEN HÀN QUỐC - Nấu Cháo Đậu Xanh",
         "price": "Liên hệ"
       }
     ]
@@ -729,11 +729,11 @@
     "name": "CÁ MÚ ĐEN",
     "items": [
       {
-        "name": "Sashimi Cá Mú",
+        "name": "CÁ MÚ ĐEN - Sashimi Cá Mú",
         "price": "Theo Thời Giá"
       },
       {
-        "name": "Hấp Xì Dầu/ Hấp Hành Gừng",
+        "name": "CÁ MÚ ĐEN - Hấp Xì Dầu/ Hấp Hành Gừng",
         "price": "Liên hệ"
       },
       {
@@ -741,19 +741,19 @@
         "price": "Liên hệ"
       },
       {
-        "name": "Nướng Muối Ớt",
+        "name": "CÁ MÚ ĐEN - Nướng Muối Ớt",
         "price": "Liên hệ"
       },
       {
-        "name": "Canh Chua",
+        "name": "CÁ MÚ ĐEN - Canh Chua",
         "price": "Liên hệ"
       },
       {
-        "name": "Nấu Cháo Đậu Xanh",
+        "name": "CÁ MÚ ĐEN - Nấu Cháo Đậu Xanh",
         "price": "Liên hệ"
       },
       {
-        "name": "Lẩu Chua Cay Hải Sản.",
+        "name": "CÁ MÚ ĐEN - Lẩu Chua Cay Hải Sản.",
         "price": "Liên hệ"
       }
     ]
@@ -762,19 +762,19 @@
     "name": "CÁ MÚ ĐỎ",
     "items": [
       {
-        "name": "Sashimi Cá Mú Đỏ",
+        "name": "CÁ MÚ ĐỎ - Sashimi Cá Mú Đỏ",
         "price": "Theo Thời Giá"
       },
       {
-        "name": "Hấp Xì Dầu/ Hấp Hành GỪNG",
+        "name": "CÁ MÚ ĐỎ - Hấp Xì Dầu/ Hấp Hành GỪNG",
         "price": "Liên hệ"
       },
       {
-        "name": "Nướng Muối Ớt",
+        "name": "CÁ MÚ ĐỎ - Nướng Muối Ớt",
         "price": "Liên hệ"
       },
       {
-        "name": "Canh Chua/ Cháo Đậu Xanh",
+        "name": "CÁ MÚ ĐỎ - Canh Chua/ Cháo Đậu Xanh",
         "price": "Liên hệ"
       }
     ]
@@ -783,15 +783,15 @@
     "name": "CÁ MẶT QUỶ",
     "items": [
       {
-        "name": "Hấp Xì Dầu/ Hấp Hành Gừng",
+        "name": "CÁ MẶT QUỶ - Hấp Xì Dầu/ Hấp Hành Gừng",
         "price": "Theo Thời Giá"
       },
       {
-        "name": "Nướng muối Ớt",
+        "name": "CÁ MẶT QUỶ - Nướng muối Ớt",
         "price": "Liên hệ"
       },
       {
-        "name": "Nấu Cháo Đậu Xanh",
+        "name": "CÁ MẶT QUỶ - Nấu Cháo Đậu Xanh",
         "price": "Liên hệ"
       }
     ]
@@ -800,23 +800,23 @@
     "name": "CÁ BÒ GIÁP",
     "items": [
       {
-        "name": "Sashimi Cá Bò Giáp",
+        "name": "CÁ BÒ GIÁP - Sashimi Cá Bò Giáp",
         "price": "Theo Thời Giá"
       },
       {
-        "name": "Nướng Muối Ớt",
+        "name": "CÁ BÒ GIÁP - Nướng Muối Ớt",
         "price": "Liên hệ"
       },
       {
-        "name": "Hấp Xì Dầu/ Hấp Hành Gừng",
+        "name": "CÁ BÒ GIÁP - Hấp Xì Dầu/ Hấp Hành Gừng",
         "price": "Liên hệ"
       },
       {
-        "name": "Nấu Canh Chua",
+        "name": "CÁ BÒ GIÁP - Nấu Canh Chua",
         "price": "Liên hệ"
       },
       {
-        "name": "Nấu Cháo Đậu Xanh",
+        "name": "CÁ BÒ GIÁP - Nấu Cháo Đậu Xanh",
         "price": "Liên hệ"
       }
     ]
@@ -825,35 +825,35 @@
     "name": "CÁ TẦM/ CÁ LĂNG",
     "items": [
       {
-        "name": "Nướng Riềng Mẻ",
+        "name": "CÁ TẦM/ CÁ LĂNG - Nướng Riềng Mẻ",
         "price": "Thời Thời Giá"
       },
       {
-        "name": "Nướng Muối Ớt",
+        "name": "CÁ TẦM/ CÁ LĂNG - Nướng Muối Ớt",
         "price": "Liên hệ"
       },
       {
-        "name": "Hấp Xì Dầu.",
+        "name": "CÁ TẦM/ CÁ LĂNG - Hấp Xì Dầu.",
         "price": "Liên hệ"
       },
       {
-        "name": "Hấp Hành Gừng",
+        "name": "CÁ TẦM/ CÁ LĂNG - Hấp Hành Gừng",
         "price": "Liên hệ"
       },
       {
-        "name": "Rang Muối Tỏi",
+        "name": "CÁ TẦM/ CÁ LĂNG - Rang Muối Tỏi",
         "price": "Liên hệ"
       },
       {
-        "name": "Nấu Canh Chua",
+        "name": "CÁ TẦM/ CÁ LĂNG - Nấu Canh Chua",
         "price": "Liên hệ"
       },
       {
-        "name": "Nấu Cháo Đậu Xanh",
+        "name": "CÁ TẦM/ CÁ LĂNG - Nấu Cháo Đậu Xanh",
         "price": "Liên hệ"
       },
       {
-        "name": "Lẩu Hải Sản Chua Cay",
+        "name": "CÁ TẦM/ CÁ LĂNG - Lẩu Hải Sản Chua Cay",
         "price": "Liên hệ"
       }
     ]
@@ -862,19 +862,19 @@
     "name": "CÁ CHÌNH TRẮNG - CHÌNH HÒA",
     "items": [
       {
-        "name": "Nấu Mẻ Thì Là",
+        "name": "CÁ CHÌNH TRẮNG - CHÌNH HÒA - Nấu Mẻ Thì Là",
         "price": "Theo Thời Giá"
       },
       {
-        "name": "Nướng Riềng Mẻ",
+        "name": "CÁ CHÌNH TRẮNG - CHÌNH HÒA - Nướng Riềng Mẻ",
         "price": "Liên hệ"
       },
       {
-        "name": "Hấp Xì Dầu",
+        "name": "CÁ CHÌNH TRẮNG - CHÌNH HÒA - Hấp Xì Dầu",
         "price": "Liên hệ"
       },
       {
-        "name": "Hấp Tàu Xì",
+        "name": "CÁ CHÌNH TRẮNG - CHÌNH HÒA - Hấp Tàu Xì",
         "price": "Liên hệ"
       }
     ]
@@ -883,19 +883,19 @@
     "name": "VÒI VOI CANADA",
     "items": [
       {
-        "name": "Sashimi Vòi Voi",
+        "name": "VÒI VOI CANADA - Sashimi Vòi Voi",
         "price": "Theo Thời Giá"
       },
       {
-        "name": "Xào Hành Răm",
+        "name": "VÒI VOI CANADA - Xào Hành Răm",
         "price": "Liên hệ"
       },
       {
-        "name": "Xào Nấm",
+        "name": "VÒI VOI CANADA - Xào Nấm",
         "price": "Liên hệ"
       },
       {
-        "name": "Bỏ Lò Phomai Ăn Kèm Bánh Mì Nướng",
+        "name": "VÒI VOI CANADA - Bỏ Lò Phomai Ăn Kèm Bánh Mì Nướng",
         "price": "Liên hệ"
       }
     ]
@@ -904,23 +904,23 @@
     "name": "BÀO NGƯ HÀN QUỐC",
     "items": [
       {
-        "name": "Sashimi Bào Ngư",
+        "name": "BÀO NGƯ HÀN QUỐC - Sashimi Bào Ngư",
         "price": "Theo Thời Giá"
       },
       {
-        "name": "Nướng Mỡ Hành",
+        "name": "BÀO NGƯ HÀN QUỐC - Nướng Mỡ Hành",
         "price": "Liên hệ"
       },
       {
-        "name": "Hấp Tỏi",
+        "name": "BÀO NGƯ HÀN QUỐC - Hấp Tỏi",
         "price": "Liên hệ"
       },
       {
-        "name": "Bỏ Lò Phomai Ăn Kèm Bánh Mì Nướng",
+        "name": "BÀO NGƯ HÀN QUỐC - Bỏ Lò Phomai Ăn Kèm Bánh Mì Nướng",
         "price": "Liên hệ"
       },
       {
-        "name": "Tiềm Nấm Hương Rau Xanh",
+        "name": "BÀO NGƯ HÀN QUỐC - Tiềm Nấm Hương Rau Xanh",
         "price": "Liên hệ"
       }
     ]
@@ -929,15 +929,15 @@
     "name": "TU HÀI",
     "items": [
       {
-        "name": "Hấp Sả",
+        "name": "TU HÀI - Hấp Sả",
         "price": "Theo Thời Giá"
       },
       {
-        "name": "Nướng Mỡ Hành",
+        "name": "TU HÀI - Nướng Mỡ Hành",
         "price": "Liên hệ"
       },
       {
-        "name": "Hấp Tỏi",
+        "name": "TU HÀI - Hấp Tỏi",
         "price": "Liên hệ"
       }
     ]
@@ -946,15 +946,15 @@
     "name": "SÒ DƯƠNG -SÒ BUNG",
     "items": [
       {
-        "name": "Hấp Sả",
+        "name": "SÒ DƯƠNG -SÒ BUNG - Hấp Sả",
         "price": "Theo Thời Giá"
       },
       {
-        "name": "Hấp Thái",
+        "name": "SÒ DƯƠNG -SÒ BUNG - Hấp Thái",
         "price": "Liên hệ"
       },
       {
-        "name": "Nướng Mỡ Hành",
+        "name": "SÒ DƯƠNG -SÒ BUNG - Nướng Mỡ Hành",
         "price": "Liên hệ"
       }
     ]
@@ -963,19 +963,19 @@
     "name": "HÀU SỮA VÀNG - HÀU ĐẠI DƯƠNG",
     "items": [
       {
-        "name": "Hàu Gỏi Sống Mắm Xanh",
+        "name": "HÀU SỮA VÀNG - HÀU ĐẠI DƯƠNG - Hàu Gỏi Sống Mắm Xanh",
         "price": "Theo Thời Giá"
       },
       {
-        "name": "Hàu Sashimi",
+        "name": "HÀU SỮA VÀNG - HÀU ĐẠI DƯƠNG - Hàu Sashimi",
         "price": "Liên hệ"
       },
       {
-        "name": "Bỏ Lò Phomai",
+        "name": "HÀU SỮA VÀNG - HÀU ĐẠI DƯƠNG - Bỏ Lò Phomai",
         "price": "Liên hệ"
       },
       {
-        "name": "Nướng Mỡ Hành",
+        "name": "HÀU SỮA VÀNG - HÀU ĐẠI DƯƠNG - Nướng Mỡ Hành",
         "price": "Liên hệ"
       }
     ]
@@ -984,19 +984,19 @@
     "name": "SÒ MAI - SÒ ĐIỆP",
     "items": [
       {
-        "name": "Hấp Tỏi",
+        "name": "SÒ MAI - SÒ ĐIỆP - Hấp Tỏi",
         "price": "Theo Thời Giá"
       },
       {
-        "name": "Hấp Sả",
+        "name": "SÒ MAI - SÒ ĐIỆP - Hấp Sả",
         "price": "Liên hệ"
       },
       {
-        "name": "Nướng Mỡ Hành",
+        "name": "SÒ MAI - SÒ ĐIỆP - Nướng Mỡ Hành",
         "price": "Liên hệ"
       },
       {
-        "name": "Nướng Phomai",
+        "name": "SÒ MAI - SÒ ĐIỆP - Nướng Phomai",
         "price": "Liên hệ"
       }
     ]
@@ -1005,19 +1005,19 @@
     "name": "ỐC HƯƠNG",
     "items": [
       {
-        "name": "Nướng Mọi",
+        "name": "ỐC HƯƠNG - Nướng Mọi",
         "price": "Theo Thời Giá"
       },
       {
-        "name": "Hấp Sả",
+        "name": "ỐC HƯƠNG - Hấp Sả",
         "price": "Liên hệ"
       },
       {
-        "name": "Sốt Bơ Tỏi Ăn Kèm Bánh Mì Nướng",
+        "name": "ỐC HƯƠNG - Sốt Bơ Tỏi Ăn Kèm Bánh Mì Nướng",
         "price": "Liên hệ"
       },
       {
-        "name": "Sốt Trứng Muối Ăn Kèm Bánh Mì Nướng",
+        "name": "ỐC HƯƠNG - Sốt Trứng Muối Ăn Kèm Bánh Mì Nướng",
         "price": "Liên hệ"
       }
     ]
@@ -1026,11 +1026,11 @@
     "name": "ỐC NỮ HOÀNG",
     "items": [
       {
-        "name": "Xào Hành Dăm",
+        "name": "ỐC NỮ HOÀNG - Xào Hành Dăm",
         "price": "Theo Thời Giá"
       },
       {
-        "name": "Hấp Sả",
+        "name": "ỐC NỮ HOÀNG - Hấp Sả",
         "price": "Liên hệ"
       }
     ]
@@ -1039,11 +1039,11 @@
     "name": "BỌ BIỂN",
     "items": [
       {
-        "name": "Hấp",
+        "name": "BỌ BIỂN - Hấp",
         "price": "Theo Thời Giá"
       },
       {
-        "name": "Nướng Mỡ Hành",
+        "name": "BỌ BIỂN - Nướng Mỡ Hành",
         "price": "Liên hệ"
       }
     ]
@@ -1052,19 +1052,19 @@
     "name": "BA BA",
     "items": [
       {
-        "name": "Ba Ba Rang Muối Tỏi",
+        "name": "BA BA - Ba Ba Rang Muối Tỏi",
         "price": "Theo Thời Giá"
       },
       {
-        "name": "Ba Ba Om Chuối Đậu",
+        "name": "BA BA - Ba Ba Om Chuối Đậu",
         "price": "Liên hệ"
       },
       {
-        "name": "Ba Ba Hồng Síu",
+        "name": "BA BA - Ba Ba Hồng Síu",
         "price": "Liên hệ"
       },
       {
-        "name": "Ba Ba Nướng Muối Ớt",
+        "name": "BA BA - Ba Ba Nướng Muối Ớt",
         "price": "Liên hệ"
       }
     ]
