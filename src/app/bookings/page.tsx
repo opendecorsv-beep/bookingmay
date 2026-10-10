@@ -14,6 +14,13 @@ export const dynamic = 'force-dynamic';
 export default async function BookingsPage() {
   const bookings = await fetchBookings();
   const sortedBookings = [...bookings].sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
+  
+  const groupedBookings = sortedBookings.reduce((acc, b) => {
+    const dateStr = format(new Date(b.dateTime), "dd/MM/yyyy");
+    if (!acc[dateStr]) acc[dateStr] = [];
+    acc[dateStr].push(b);
+    return acc;
+  }, {} as Record<string, typeof sortedBookings>);
 
   return (
     <div className="space-y-6">
@@ -22,8 +29,16 @@ export default async function BookingsPage() {
         <AddBookingDialog />
       </div>
       
-      <div className="grid grid-cols-1 gap-4">
-        {sortedBookings.map((b) => (
+      <div className="space-y-8">
+        {Object.entries(groupedBookings).map(([dateStr, dayBookings]) => (
+          <div key={dateStr} className="space-y-4">
+            <h2 className="text-xl font-bold text-slate-800 border-b border-orange-200 pb-2 sticky top-0 bg-[#f8efe6]/90 backdrop-blur z-10 pt-2 flex items-center gap-2 shadow-sm rounded-t px-2">
+              <CalendarDays className="w-5 h-5 text-orange-600" />
+              Ngày {dateStr}
+              <Badge variant="secondary" className="ml-2 bg-orange-100 text-orange-800 hover:bg-orange-200">{dayBookings.length} tiệc</Badge>
+            </h2>
+            <div className="grid grid-cols-1 gap-4">
+              {dayBookings.map((b) => (
           <Card key={b.id}>
             <CardContent className="p-6">
               <div className="flex flex-col md:flex-row gap-6 justify-between">
@@ -211,6 +226,9 @@ export default async function BookingsPage() {
               </div>
             </CardContent>
           </Card>
+        ))}
+            </div>
+          </div>
         ))}
         {sortedBookings.length === 0 && (
           <div className="col-span-full py-12 text-center text-slate-500 bg-white rounded-lg border border-dashed">

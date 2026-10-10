@@ -26,6 +26,13 @@ export default async function FloorPage() {
     return occasion !== 'Không có' || pkg !== '' || note !== '';
   });
 
+  const groupedBookings = decorBookings.reduce((acc, b) => {
+    const dateStr = format(new Date(b.dateTime), "dd/MM/yyyy");
+    if (!acc[dateStr]) acc[dateStr] = [];
+    acc[dateStr].push(b);
+    return acc;
+  }, {} as Record<string, typeof decorBookings>);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
@@ -38,8 +45,15 @@ export default async function FloorPage() {
         </div>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {decorBookings.map((b) => {
+      <div className="space-y-8">
+        {Object.entries(groupedBookings).map(([dateStr, dayBookings]) => (
+          <div key={dateStr} className="space-y-4">
+            <h2 className="text-xl font-bold text-slate-800 border-b border-purple-200 pb-2 sticky top-0 bg-[#f8efe6]/90 backdrop-blur z-10 pt-2 flex items-center gap-2 shadow-sm rounded-t px-2">
+              Ngày {dateStr}
+              <Badge variant="secondary" className="ml-2 bg-purple-100 text-purple-800">{dayBookings.length} tiệc</Badge>
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {dayBookings.map((b) => {
           let occasion = "Không có";
           let pkg = "";
           let note = "";
@@ -138,6 +152,9 @@ export default async function FloorPage() {
             </CardContent>
           </Card>
         )})}
+            </div>
+          </div>
+        ))}
         {decorBookings.length === 0 && (
           <div className="col-span-full py-12 text-center text-slate-500 bg-white rounded-lg border border-dashed">
             Không có đơn tiệc nào yêu cầu Decor đang chờ!
