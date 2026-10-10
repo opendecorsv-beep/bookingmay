@@ -36,6 +36,7 @@ export default function RootLayout({
               <Link href="/floor-plan" className="hover:text-orange-600 shrink-0">Sơ đồ bàn</Link>
               <Link href="/kitchen" className="hover:text-orange-600 shrink-0">Bếp</Link>
               <Link href="/floor" className="hover:text-orange-600 shrink-0">Sảnh</Link>
+              <Link href="/seafood" className="hover:text-orange-600 shrink-0">Kho Hải Sản</Link>
             </nav>
           </div>
         </header>
