@@ -9,7 +9,13 @@ export const dynamic = 'force-dynamic';
 
 export default async function Dashboard() {
   const allBookings = await fetchBookings();
-  const now = new Date(); // Use real current time
+  
+  // Fix timezone issue on Vercel: Vercel runs in UTC. The dateTime strings from HTML input lack timezone,
+  // so they are parsed as UTC. To compare correctly, we must shift 'now' to Vietnam time literally.
+  const utcNow = new Date();
+  const vnTimeStr = utcNow.toLocaleString("en-US", { timeZone: "Asia/Ho_Chi_Minh" });
+  const now = new Date(vnTimeStr); 
+  
   const next24h = addHours(now, 24);
   const past6h = addHours(now, -6);
 
