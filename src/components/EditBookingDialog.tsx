@@ -275,6 +275,8 @@ export default function EditBookingDialog({ booking }: { booking: Booking }) {
                 <option value="4">4 - Nơ Trắng</option>
                 <option value="5">5 - Background Nâu</option>
                 <option value="6">6 - Nơ Hồng</option>
+                <option value="7">7 - Free S4 1</option>
+                <option value="8">8 - Free S4 2</option>
               </select>
             </div>
           </div>
