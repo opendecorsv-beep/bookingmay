@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 
+import { isBookingArchived } from "@/lib/bookingUtils";
+
 const FLOORS = [
   { name: "Tầng 1", rooms: ["Mây 101", "Mây 102", "Mây 103", "Mây 104", "Mây 105", "Mây 106"] },
   { name: "Tầng 2", rooms: ["Mây 201", "Mây 202", "Mây 203", "Mây 204"] },
@@ -26,12 +28,12 @@ export default function FloorPlanClient({ initialBookings }: { initialBookings: 
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
 
   const activeBookings = initialBookings.filter(b => {
-    // Nếu Giám sát đã dọn xong thì trả phòng lại trạng thái Trống
-    if (b.receptionStatus === 'clean') return false;
+    // Nếu Giám sát đã dọn xong hoặc tiệc đã qua 8 tiếng thì trả phòng lại trạng thái Trống
+    if (isBookingArchived(b)) return false;
     
     const bTime = new Date(b.dateTime);
     const sTime = new Date(selectedDateTime);
-    // Hiển thị TẤT CẢ các tiệc trong cùng ngày (chưa được Clean)
+    // Hiển thị TẤT CẢ các tiệc trong cùng ngày (chưa được Clean / Lưu trữ)
     return isSameDay(bTime, sTime);
   });
 

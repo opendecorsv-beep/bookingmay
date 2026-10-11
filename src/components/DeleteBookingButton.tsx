@@ -4,11 +4,17 @@ import { useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { Trash2 } from 'lucide-react';
 import { deleteBookingAction } from '@/app/actions';
+import { useAuth } from '@/context/AuthContext';
 
 export default function DeleteBookingButton({ id, customerName }: { id: string, customerName: string }) {
+  const { isLoggedIn, openLoginModal } = useAuth();
   const [isPending, startTransition] = useTransition();
 
   const handleDelete = () => {
+    if (!isLoggedIn) {
+      openLoginModal();
+      return;
+    }
     if (window.confirm(`Bạn có chắc chắn muốn HỦY và XÓA tiệc của khách ${customerName.replace(/\[S?VIP\] /g, '')} không? Hành động này không thể hoàn tác.`)) {
       startTransition(() => {
         deleteBookingAction(id);

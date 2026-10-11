@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { fetchBookings, setBookingStatus } from "@/app/actions";
+import { fetchBookings } from "@/app/actions";
 import { format } from "date-fns";
 import { Users, CalendarDays, ClipboardList, PenLine, Archive, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,13 +9,16 @@ import AddBookingDialog from "@/components/AddBookingDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
 import DeleteBookingButton from "@/components/DeleteBookingButton";
 import StatusSelect from "@/components/StatusSelect";
+import ConfirmBookingButton from "@/components/ConfirmBookingButton";
+import { isBookingArchived, getVietnamNow } from "@/lib/bookingUtils";
 
 export const dynamic = 'force-dynamic';
 
 export default async function BookingsPage() {
   const bookings = await fetchBookings();
-  const activeBookings = bookings.filter(b => b.receptionStatus !== 'clean');
-  const archivedCount = bookings.filter(b => b.receptionStatus === 'clean').length;
+  const now = getVietnamNow();
+  const activeBookings = bookings.filter(b => !isBookingArchived(b, now));
+  const archivedCount = bookings.filter(b => isBookingArchived(b, now)).length;
 
   const sortedBookings = [...activeBookings].sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
   
@@ -112,11 +115,7 @@ export default async function BookingsPage() {
                       </div>
                     </div>
                     {b.status === 'pending' && (
-                      <form action={setBookingStatus.bind(null, b.id, 'confirmed')}>
-                        <Button type="submit" variant="outline" size="sm" className="text-green-600 border-green-200 hover:bg-green-50">
-                          Xác nhận Tiệc
-                        </Button>
-                      </form>
+                      <ConfirmBookingButton id={b.id} />
                     )}
                   </div>
 

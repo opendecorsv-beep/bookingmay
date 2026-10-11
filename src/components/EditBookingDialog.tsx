@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { PenLine } from "lucide-react";
 import { updateExistingBooking } from "@/app/actions";
 import MenuSelector from "./MenuSelector";
+import { useAuth } from "@/context/AuthContext";
 
 function formatDateTimeForInput(isoString: string) {
   try {
@@ -21,7 +22,16 @@ function formatDateTimeForInput(isoString: string) {
 }
 
 export default function EditBookingDialog({ booking }: { booking: Booking }) {
+  const { isLoggedIn, openLoginModal } = useAuth();
   const [open, setOpen] = useState(false);
+
+  const handleOpenChange = (newOpen: boolean) => {
+    if (newOpen && !isLoggedIn) {
+      openLoginModal();
+      return;
+    }
+    setOpen(newOpen);
+  };
 
   // Extract priority
   let initialPriority = "Bình thường";
@@ -140,7 +150,7 @@ export default function EditBookingDialog({ booking }: { booking: Booking }) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:text-orange-600">
           <PenLine className="w-4 h-4" />

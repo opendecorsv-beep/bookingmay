@@ -4,6 +4,8 @@ import { useTransition, useState } from 'react';
 import { setReceptionStatus, setKitchenStatus, setFloorStatus } from '@/app/actions';
 import { TaskStatus } from '@/lib/data';
 
+import { useAuth } from '@/context/AuthContext';
+
 type Role = 'reception' | 'kitchen' | 'floor';
 
 interface Props {
@@ -13,10 +15,15 @@ interface Props {
 }
 
 export default function StatusSelect({ id, role, currentStatus }: Props) {
+  const { isLoggedIn, openLoginModal } = useAuth();
   const [isPending, startTransition] = useTransition();
   const [optimisticStatus, setOptimisticStatus] = useState<TaskStatus>(currentStatus);
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    if (!isLoggedIn) {
+      openLoginModal();
+      return;
+    }
     const newStatus = e.target.value as TaskStatus;
     setOptimisticStatus(newStatus); // Optimistic UI update
     startTransition(() => {
@@ -34,6 +41,24 @@ export default function StatusSelect({ id, role, currentStatus }: Props) {
     if (statusToRender === 'clean') return "bg-blue-100 text-blue-800 border-blue-200";
     return "bg-slate-100 text-slate-800 border-slate-200";
   };
+
+  if (!isLoggedIn) {
+    const labels: Record<TaskStatus, string> = {
+      pending: "Chờ xử lý",
+      in_progress: "Đang làm",
+      done: "Hoàn thành",
+      clean: "Dọn xong"
+    };
+    return (
+      <span 
+        onClick={openLoginModal}
+        title="Đăng nhập tài khoản maybmt để thay đổi"
+        className={`inline-block text-xs font-semibold py-0.5 px-2.5 rounded-full border cursor-pointer hover:opacity-80 transition-opacity ${getColors()}`}
+      >
+        {labels[statusToRender] || statusToRender}
+      </span>
+    );
+  }
 
   return (
     <select 

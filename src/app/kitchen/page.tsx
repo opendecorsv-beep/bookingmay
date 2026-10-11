@@ -7,12 +7,15 @@ import { Button } from "@/components/ui/button";
 
 import { setKitchenStatus, fetchBookings } from "@/app/actions";
 
+import { isBookingArchived, getVietnamNow } from "@/lib/bookingUtils";
+
 export const dynamic = 'force-dynamic';
 
 export default async function KitchenPage() {
   const allBookings = await fetchBookings();
+  const now = getVietnamNow();
   const pendingBookings = allBookings
-    .filter(b => b.receptionStatus !== 'clean')
+    .filter(b => !isBookingArchived(b, now))
     .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
 
   const groupedBookings = pendingBookings.reduce((acc, b) => {

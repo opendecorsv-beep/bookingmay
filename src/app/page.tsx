@@ -7,21 +7,18 @@ import { AlertCircle, CheckCircle2, Clock, Users } from "lucide-react";
 
 export const dynamic = 'force-dynamic';
 
+import { isBookingArchived, getVietnamNow } from "@/lib/bookingUtils";
+
 export default async function Dashboard() {
   const allBookings = await fetchBookings();
-  
-  // Fix timezone issue on Vercel: Vercel runs in UTC. The dateTime strings from HTML input lack timezone,
-  // so they are parsed as UTC. To compare correctly, we must shift 'now' to Vietnam time literally.
-  const utcNow = new Date();
-  const vnTimeStr = utcNow.toLocaleString("en-US", { timeZone: "Asia/Ho_Chi_Minh" });
-  const now = new Date(vnTimeStr); 
+  const now = getVietnamNow();
   
   const next24h = addHours(now, 24);
   const past6h = addHours(now, -6);
 
-  // Lọc các booking sắp tới hoặc đang diễn ra (chưa hoàn tất)
+  // Lọc các booking sắp tới hoặc đang diễn ra (chưa hoàn tất và chưa bị lưu trữ)
   const upcomingBookings = allBookings
-    .filter(b => b.status !== 'completed' && b.status !== 'done' && b.receptionStatus !== 'clean')
+    .filter(b => b.status !== 'completed' && b.status !== 'done' && !isBookingArchived(b, now))
     .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
   
   // Các booking khẩn cấp (trong vòng 24h tới, hoặc vừa mới diễn ra nhưng chưa xong)

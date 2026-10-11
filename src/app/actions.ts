@@ -1,8 +1,39 @@
 'use server'
 
 import { revalidatePath } from 'next/cache';
+import { cookies } from 'next/headers';
 import { getBookings, addBooking, updateBookingData, deleteBookingData, updateKitchenStatus, updateFloorStatus, updateBookingStatus, updateReceptionStatus, getSeafoodInventory, saveSeafoodInventory } from '@/lib/store';
 import { Booking, BookingStatus, TaskStatus, SeafoodCategory } from '@/lib/data';
+
+export async function loginAction(id: string, pass: string) {
+  if (id.trim() === 'maybmt' && pass.trim() === '1122334455') {
+    cookies().set('booking_auth', 'maybmt', {
+      httpOnly: false,
+      path: '/',
+      maxAge: 60 * 60 * 24 * 30,
+      sameSite: 'lax',
+    });
+    return { success: true };
+  }
+  return { error: 'Tên đăng nhập hoặc mật khẩu không chính xác!' };
+}
+
+export async function logoutAction() {
+  cookies().delete('booking_auth');
+  return { success: true };
+}
+
+export async function getAuthStatus(): Promise<boolean> {
+  const cookieStore = cookies();
+  return cookieStore.get('booking_auth')?.value === 'maybmt';
+}
+
+async function verifyAuthPermission() {
+  const isAuth = await getAuthStatus();
+  if (!isAuth) {
+    throw new Error('Chỉ tài khoản quản lý (maybmt) mới có quyền thay đổi thông tin booking!');
+  }
+}
 
 export async function fetchBookings() {
   return getBookings();
@@ -38,6 +69,7 @@ function checkDecorConflict(bookings: Booking[], newDateTimeStr: string, newDeco
 }
 
 export async function createNewBooking(data: Omit<Booking, 'id'>) {
+  await verifyAuthPermission();
   const bookings = await getBookings();
   const error = checkDecorConflict(bookings, data.dateTime, data.decorRequest || "");
   if (error) return { error };
@@ -52,6 +84,7 @@ export async function createNewBooking(data: Omit<Booking, 'id'>) {
 }
 
 export async function updateExistingBooking(id: string, data: Partial<Omit<Booking, 'id'>>) {
+  await verifyAuthPermission();
   if (data.dateTime || data.decorRequest) {
     const bookings = await getBookings();
     // if only one is updated, fetch the existing one to get the other field
@@ -74,6 +107,7 @@ export async function updateExistingBooking(id: string, data: Partial<Omit<Booki
 }
 
 export async function deleteBookingAction(id: string) {
+  await verifyAuthPermission();
   await deleteBookingData(id);
   revalidatePath('/');
   revalidatePath('/bookings');
@@ -83,6 +117,7 @@ export async function deleteBookingAction(id: string) {
 }
 
 export async function setReceptionStatus(id: string, status: TaskStatus) {
+  await verifyAuthPermission();
   updateReceptionStatus(id, status);
   revalidatePath('/');
   revalidatePath('/bookings');
@@ -93,6 +128,7 @@ export async function setReceptionStatus(id: string, status: TaskStatus) {
 }
 
 export async function setKitchenStatus(id: string, status: TaskStatus) {
+  await verifyAuthPermission();
   updateKitchenStatus(id, status);
   revalidatePath('/');
   revalidatePath('/bookings');
@@ -101,6 +137,7 @@ export async function setKitchenStatus(id: string, status: TaskStatus) {
 }
 
 export async function setFloorStatus(id: string, status: TaskStatus) {
+  await verifyAuthPermission();
   updateFloorStatus(id, status);
   revalidatePath('/');
   revalidatePath('/bookings');
@@ -109,6 +146,7 @@ export async function setFloorStatus(id: string, status: TaskStatus) {
 }
 
 export async function setBookingStatus(id: string, status: BookingStatus) {
+  await verifyAuthPermission();
   updateBookingStatus(id, status);
   revalidatePath('/');
   revalidatePath('/bookings');
@@ -117,6 +155,7 @@ export async function setBookingStatus(id: string, status: BookingStatus) {
 }
 
 export async function restoreBookingAction(id: string) {
+  await verifyAuthPermission();
   updateReceptionStatus(id, 'done');
   revalidatePath('/');
   revalidatePath('/bookings');
@@ -132,6 +171,7 @@ export async function fetchSeafoodInventory() {
 }
 
 export async function updateSeafoodInventoryAction(inventory: { updatedAt: string; categories: SeafoodCategory[] }) {
+  await verifyAuthPermission();
   await saveSeafoodInventory(inventory);
   revalidatePath('/seafood');
   return { success: true };

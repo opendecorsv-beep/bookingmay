@@ -23,6 +23,7 @@ import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import { SeafoodCategory, SeafoodItem } from "@/lib/data";
 import { updateSeafoodInventoryAction } from "@/app/actions";
+import { useAuth } from "@/context/AuthContext";
 
 interface SeafoodClientProps {
   initialData: {
@@ -32,6 +33,7 @@ interface SeafoodClientProps {
 }
 
 export default function SeafoodClient({ initialData }: SeafoodClientProps) {
+  const { isLoggedIn, openLoginModal } = useAuth();
   const [data, setData] = useState(initialData);
   const [isEditing, setIsEditing] = useState(false);
   const [editCategories, setEditCategories] = useState<SeafoodCategory[]>(initialData.categories);
@@ -58,6 +60,10 @@ export default function SeafoodClient({ initialData }: SeafoodClientProps) {
   };
 
   const handleStartEdit = () => {
+    if (!isLoggedIn) {
+      openLoginModal();
+      return;
+    }
     setEditCategories(JSON.parse(JSON.stringify(data.categories)));
     setIsEditing(true);
     setSaveSuccess(false);

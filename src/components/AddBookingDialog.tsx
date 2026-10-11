@@ -11,13 +11,24 @@ import { createNewBooking } from "@/app/actions";
 
 import MenuSelector from "./MenuSelector";
 
+import { useAuth } from "@/context/AuthContext";
+
 export default function AddBookingDialog() {
+  const { isLoggedIn, openLoginModal } = useAuth();
   const [open, setOpen] = useState(false);
   const [decorPkg, setDecorPkg] = useState("");
 
   const [sourceOption, setSourceOption] = useState("Facebook");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleOpenChange = (newOpen: boolean) => {
+    if (newOpen && !isLoggedIn) {
+      openLoginModal();
+      return;
+    }
+    setOpen(newOpen);
+  };
 
   async function onSubmit(formData: FormData) {
     if (isSubmitting) return;
@@ -81,7 +92,7 @@ export default function AddBookingDialog() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button className="bg-orange-600 hover:bg-orange-700">
           <Plus className="w-4 h-4 mr-2" /> Thêm tiệc mới

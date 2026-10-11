@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
+import { useAuth } from '@/context/AuthContext';
 import { 
   Archive, 
   Search, 
@@ -22,7 +23,8 @@ import {
   DollarSign,
   Clock,
   MapPin,
-  CheckCircle2
+  CheckCircle2,
+  ClockAlert
 } from "lucide-react";
 import { restoreBookingAction, deleteBookingAction } from '@/app/actions';
 
@@ -31,6 +33,7 @@ interface ArchiveClientProps {
 }
 
 export default function ArchiveClient({ initialBookings }: ArchiveClientProps) {
+  const { isLoggedIn, openLoginModal } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
   const [isPending, startTransition] = useTransition();
@@ -86,6 +89,10 @@ export default function ArchiveClient({ initialBookings }: ArchiveClientProps) {
   }, {} as Record<string, typeof sortedBookings>);
 
   const handleRestore = (id: string, name: string) => {
+    if (!isLoggedIn) {
+      openLoginModal();
+      return;
+    }
     if (confirm(`Bạn có chắc muốn khôi phục tiệc của "${name.replace(/\[S?VIP\] /g, '')}" quay lại Danh Sách Đặt Bàn?`)) {
       startTransition(async () => {
         await restoreBookingAction(id);
@@ -295,10 +302,17 @@ export default function ArchiveClient({ initialBookings }: ArchiveClientProps) {
                               </div>
 
                               <div className="flex items-center gap-2">
-                                <Badge className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1 text-xs">
-                                  <CheckCircle2 className="w-3 h-3" />
-                                  Đã dọn xong (Clean)
-                                </Badge>
+                                {b.receptionStatus === 'clean' ? (
+                                  <Badge className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1 text-xs">
+                                    <CheckCircle2 className="w-3 h-3" />
+                                    Đã dọn xong (Clean)
+                                  </Badge>
+                                ) : (
+                                  <Badge className="bg-amber-600 hover:bg-amber-700 text-white flex items-center gap-1 text-xs">
+                                    <ClockAlert className="w-3 h-3" />
+                                    Tự động lưu trữ (&gt; 8 tiếng)
+                                  </Badge>
+                                )}
                               </div>
                             </div>
 
