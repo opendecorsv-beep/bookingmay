@@ -1,8 +1,8 @@
 'use server'
 
 import { revalidatePath } from 'next/cache';
-import { getBookings, addBooking, updateBookingData, deleteBookingData, updateKitchenStatus, updateFloorStatus, updateBookingStatus, updateReceptionStatus } from '@/lib/store';
-import { Booking, BookingStatus, TaskStatus } from '@/lib/data';
+import { getBookings, addBooking, updateBookingData, deleteBookingData, updateKitchenStatus, updateFloorStatus, updateBookingStatus, updateReceptionStatus, getSeafoodInventory, saveSeafoodInventory } from '@/lib/store';
+import { Booking, BookingStatus, TaskStatus, SeafoodCategory } from '@/lib/data';
 
 export async function fetchBookings() {
   return getBookings();
@@ -107,3 +107,14 @@ export async function setBookingStatus(id: string, status: BookingStatus) {
   revalidatePath('/');
   revalidatePath('/bookings');
 }
+
+export async function fetchSeafoodInventory() {
+  return getSeafoodInventory();
+}
+
+export async function updateSeafoodInventoryAction(inventory: { updatedAt: string; categories: SeafoodCategory[] }) {
+  await saveSeafoodInventory(inventory);
+  revalidatePath('/seafood');
+  return { success: true };
+}
+

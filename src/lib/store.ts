@@ -1,5 +1,10 @@
-import { Booking, BookingStatus, TaskStatus } from './data';
+import { Booking, BookingStatus, TaskStatus, SeafoodCategory, defaultSeafoodCategories } from './data';
 import { supabase } from './supabase';
+
+let globalSeafoodData: { updatedAt: string; categories: SeafoodCategory[] } = {
+  updatedAt: new Date().toISOString(),
+  categories: defaultSeafoodCategories
+};
 
 let globalBookings: Booking[] = [
   {
@@ -84,10 +89,12 @@ export async function getBookings() {
       return globalBookings;
     }
 
-    return data.map(b => ({
-      ...b,
-      menu: typeof b.menu === 'string' ? JSON.parse(b.menu) : (b.menu || [])
-    })) as Booking[];
+    return data
+      .filter(b => b.id !== 'CONFIG_SEAFOOD' && !b.id.startsWith('CONFIG_'))
+      .map(b => ({
+        ...b,
+        menu: typeof b.menu === 'string' ? JSON.parse(b.menu) : (b.menu || [])
+      })) as Booking[];
   } catch (err) {
     return globalBookings;
   }
@@ -167,3 +174,44 @@ export async function updateBookingStatus(id: string, status: BookingStatus) {
     globalBookings = globalBookings.map(b => b.id === id ? { ...b, status } : b);
   }
 }
+
+export async function getSeafoodInventory(): Promise<{ updatedAt: string; categories: SeafoodCategory[] }> {
+  try {
+    const { data, error } = await supabase.from('bookings').select('menu, dateTime').eq('id', 'CONFIG_SEAFOOD').single();
+    if (error || !data) {
+      return globalSeafoodData;
+    }
+    const parsed = typeof data.menu === 'string' ? JSON.parse(data.menu) : data.menu;
+    if (parsed && parsed.categories) {
+      return parsed;
+    }
+    return globalSeafoodData;
+  } catch (err) {
+    return globalSeafoodData;
+  }
+}
+
+export async function saveSeafoodInventory(inventory: { updatedAt: string; categories: SeafoodCategory[] }) {
+  globalSeafoodData = inventory;
+  try {
+    const { error } = await supabase.from('bookings').upsert([{
+      id: 'CONFIG_SEAFOOD',
+      customerName: 'SEAFOOD_INVENTORY',
+      phone: '0000000000',
+      dateTime: inventory.updatedAt,
+      guestsCount: 0,
+      room: 'CONFIG',
+      menu: JSON.stringify(inventory),
+      specialRequest: '',
+      decorRequest: '',
+      status: 'cancelled',
+      receptionStatus: 'done',
+      kitchenStatus: 'done',
+      floorStatus: 'done'
+    }]);
+    if (error) console.error("Error saving seafood to Supabase:", error);
+  } catch (err) {
+    console.error("Error saving seafood to Supabase:", err);
+  }
+}
+
