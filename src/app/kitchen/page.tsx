@@ -11,7 +11,9 @@ export const dynamic = 'force-dynamic';
 
 export default async function KitchenPage() {
   const allBookings = await fetchBookings();
-  const pendingBookings = allBookings.sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
+  const pendingBookings = allBookings
+    .filter(b => b.receptionStatus !== 'clean')
+    .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
 
   const groupedBookings = pendingBookings.reduce((acc, b) => {
     const dateStr = format(new Date(b.dateTime), "dd/MM/yyyy");

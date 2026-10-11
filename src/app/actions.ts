@@ -86,6 +86,10 @@ export async function setReceptionStatus(id: string, status: TaskStatus) {
   updateReceptionStatus(id, status);
   revalidatePath('/');
   revalidatePath('/bookings');
+  revalidatePath('/floor-plan');
+  revalidatePath('/archive');
+  revalidatePath('/kitchen');
+  revalidatePath('/floor');
 }
 
 export async function setKitchenStatus(id: string, status: TaskStatus) {
@@ -93,6 +97,7 @@ export async function setKitchenStatus(id: string, status: TaskStatus) {
   revalidatePath('/');
   revalidatePath('/bookings');
   revalidatePath('/kitchen');
+  revalidatePath('/archive');
 }
 
 export async function setFloorStatus(id: string, status: TaskStatus) {
@@ -100,12 +105,26 @@ export async function setFloorStatus(id: string, status: TaskStatus) {
   revalidatePath('/');
   revalidatePath('/bookings');
   revalidatePath('/floor');
+  revalidatePath('/archive');
 }
 
 export async function setBookingStatus(id: string, status: BookingStatus) {
   updateBookingStatus(id, status);
   revalidatePath('/');
   revalidatePath('/bookings');
+  revalidatePath('/floor-plan');
+  revalidatePath('/archive');
+}
+
+export async function restoreBookingAction(id: string) {
+  updateReceptionStatus(id, 'done');
+  revalidatePath('/');
+  revalidatePath('/bookings');
+  revalidatePath('/floor-plan');
+  revalidatePath('/archive');
+  revalidatePath('/kitchen');
+  revalidatePath('/floor');
+  return { success: true };
 }
 
 export async function fetchSeafoodInventory() {

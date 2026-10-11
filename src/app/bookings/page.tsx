@@ -2,8 +2,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { fetchBookings, setBookingStatus } from "@/app/actions";
 import { format } from "date-fns";
-import { Users, CalendarDays, ClipboardList, PenLine } from "lucide-react";
+import { Users, CalendarDays, ClipboardList, PenLine, Archive, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import AddBookingDialog from "@/components/AddBookingDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
 import DeleteBookingButton from "@/components/DeleteBookingButton";
@@ -13,7 +14,10 @@ export const dynamic = 'force-dynamic';
 
 export default async function BookingsPage() {
   const bookings = await fetchBookings();
-  const sortedBookings = [...bookings].sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
+  const activeBookings = bookings.filter(b => b.receptionStatus !== 'clean');
+  const archivedCount = bookings.filter(b => b.receptionStatus === 'clean').length;
+
+  const sortedBookings = [...activeBookings].sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
   
   const groupedBookings = sortedBookings.reduce((acc, b) => {
     const dateStr = format(new Date(b.dateTime), "dd/MM/yyyy");
@@ -24,11 +28,38 @@ export default async function BookingsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-slate-800">Danh Sách Đặt Bàn</h1>
-        <AddBookingDialog />
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-800">Danh Sách Đặt Bàn</h1>
+          <p className="text-slate-500 text-sm mt-0.5">Quản lý các tiệc đang hoạt động và sắp diễn ra</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link href="/archive">
+            <Button variant="outline" className="flex items-center gap-1.5 text-slate-600 hover:text-slate-900 border-slate-300">
+              <Archive className="w-4 h-4 text-slate-500" />
+              Lưu trữ ({archivedCount})
+            </Button>
+          </Link>
+          <AddBookingDialog />
+        </div>
       </div>
-      
+
+      {activeBookings.length === 0 ? (
+        <Card className="border-dashed bg-white">
+          <CardContent className="p-12 text-center space-y-3">
+            <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto" />
+            <h3 className="text-lg font-bold text-slate-700">Tất cả tiệc đã được dọn xong!</h3>
+            <p className="text-slate-500 text-sm max-w-md mx-auto">
+              Không có tiệc nào đang hoạt động. Các tiệc hoàn tất đã được tự động chuyển vào mục Lưu Trữ.
+            </p>
+            <div className="pt-2">
+              <Link href="/archive">
+                <Button variant="outline" className="text-sm">Xem Kho Lưu Trữ ({archivedCount} tiệc)</Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
       <div className="space-y-8">
         {Object.entries(groupedBookings).map(([dateStr, dayBookings]) => (
           <div key={dateStr} className="space-y-4">
@@ -118,7 +149,16 @@ export default async function BookingsPage() {
                             
                             let res = occ;
                             if (pkg) {
-                              const pkgNames: Record<string, string> = {"1": "Bướm Ngũ Sắc", "2": "Bướm Trắng", "3": "Bướm Đỏ", "4": "Nơ Trắng", "5": "Background Nâu", "6": "Nơ Hồng"};
+                              const pkgNames: Record<string, string> = {
+                                "1": "Bướm Ngũ Sắc", 
+                                "2": "Bướm Trắng", 
+                                "3": "Bướm Đỏ", 
+                                "4": "Nơ Trắng", 
+                                "5": "Background Nâu", 
+                                "6": "Nơ Hồng",
+                                "7": "Free S4 1 (Miễn phí)",
+                                "8": "Free S4 2 (Miễn phí)"
+                              };
                               res += ` - Gói Mây ${pkg} (${pkgNames[pkg] || ""})`;
                             }
                             if (note) res += ` - Ghi chú: ${note}`;
@@ -180,7 +220,10 @@ export default async function BookingsPage() {
                             if ((b.decorRequest || "").includes('|PKG:')) {
                                const pkgStr = b.decorRequest.split('|').find(p => p.startsWith('PKG:'));
                                if (pkgStr && pkgStr !== 'PKG:') {
-                                 total += 3700000;
+                                 const pNum = pkgStr.replace('PKG:', '');
+                                 if (pNum !== '7' && pNum !== '8') {
+                                   total += 3700000;
+                                 }
                                }
                             }
                             
@@ -230,12 +273,8 @@ export default async function BookingsPage() {
             </div>
           </div>
         ))}
-        {sortedBookings.length === 0 && (
-          <div className="col-span-full py-12 text-center text-slate-500 bg-white rounded-lg border border-dashed">
-            Chưa có dữ liệu đặt tiệc nào.
-          </div>
-        )}
       </div>
+      )}
     </div>
   );
 }
