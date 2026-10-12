@@ -1,31 +1,40 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { fetchBookings } from "@/app/actions";
-import { format, isBefore, addHours } from "date-fns";
+import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import { AlertCircle, CheckCircle2, Clock, Users } from "lucide-react";
+import { isBookingArchived, parseBookingDate } from "@/lib/bookingUtils";
+import AutoRefreshDashboard from "@/components/AutoRefreshDashboard";
 
 export const dynamic = 'force-dynamic';
 
-import { isBookingArchived, getVietnamNow } from "@/lib/bookingUtils";
-
 export default async function Dashboard() {
   const allBookings = await fetchBookings();
-  const now = getVietnamNow();
-  
-  const next24h = addHours(now, 24);
-  const past6h = addHours(now, -6);
+  const nowEpoch = Date.now();
+  const next24hEpoch = nowEpoch + 24 * 60 * 60 * 1000;
 
-  // Lọc các booking sắp tới hoặc đang diễn ra (chưa hoàn tất và chưa bị lưu trữ)
-  const upcomingBookings = allBookings
-    .filter(b => b.status !== 'completed' && b.status !== 'done' && !isBookingArchived(b, now))
-    .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
+  // Lọc các booking chưa bị lưu trữ (loại bỏ tiệc clean, tiệc đã qua ngày, tiệc quá 8 tiếng)
+  const activeBookings = allBookings
+    .filter(b => b.status !== 'completed' && b.status !== 'done' && !isBookingArchived(b));
   
-  // Các booking khẩn cấp (trong vòng 24h tới, hoặc vừa mới diễn ra nhưng chưa xong)
-  const urgentBookings = upcomingBookings.filter(b => {
-    const time = new Date(b.dateTime);
-    return isBefore(time, next24h) && !isBefore(time, past6h);
-  });
+  // 1. Tiệc khẩn cấp trong 24h tới:
+  // CHỈ lấy các tiệc TỪ THỜI ĐIỂM HIỆN TẠI ĐẾN 24H TIẾP THEO (timeEpoch >= nowEpoch && timeEpoch <= next24hEpoch).
+  // Các tiệc đã qua giờ (timeEpoch < nowEpoch) hoặc đã qua ngày sẽ tự động không hiển thị tại đây!
+  const urgentBookings = activeBookings
+    .filter(b => {
+      const timeEpoch = parseBookingDate(b.dateTime).getTime();
+      return timeEpoch >= nowEpoch && timeEpoch <= next24hEpoch;
+    })
+    .sort((a, b) => parseBookingDate(a.dateTime).getTime() - parseBookingDate(b.dateTime).getTime());
+
+  // 2. Tổng quan sắp tới (danh sách các tiệc từ thời điểm hiện tại trở đi)
+  const upcomingBookings = activeBookings
+    .filter(b => {
+      const timeEpoch = parseBookingDate(b.dateTime).getTime();
+      return timeEpoch >= nowEpoch;
+    })
+    .sort((a, b) => parseBookingDate(a.dateTime).getTime() - parseBookingDate(b.dateTime).getTime());
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -34,10 +43,13 @@ export default async function Dashboard() {
       case 'pending': return <Badge variant="outline" className="text-slate-500 border-slate-300">Chờ</Badge>;
       default: return null;
     }
-  }
+  };
 
   return (
     <div className="space-y-6">
+      {/* Tự động refresh nền mỗi 30s để cập nhật ngay khi đến/qua giờ tiệc */}
+      <AutoRefreshDashboard intervalMs={30000} />
+
       <h1 className="text-3xl font-bold text-slate-800">Bảng Điều Khiển (Dashboard)</h1>
       
       {/* Alert Section */}
@@ -52,7 +64,7 @@ export default async function Dashboard() {
           </CardHeader>
           <CardContent>
             {urgentBookings.length === 0 ? (
-              <p className="text-sm text-slate-500">Không có tiệc nào trong 24h tới.</p>
+              <p className="text-sm text-slate-500">Không có tiệc nào sắp diễn ra trong 24h tới.</p>
             ) : (
               <div className="space-y-4">
                 {urgentBookings.map(b => {
@@ -69,7 +81,7 @@ export default async function Dashboard() {
                           {b.customerName.includes('[VIP]') && <span className="bg-fuchsia-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">VIP</span>}
                           - {b.phone}
                         </h3>
-                        <p className="text-sm text-slate-500">{format(new Date(b.dateTime), "HH:mm, EEEE, dd/MM/yyyy", { locale: vi })}</p>
+                        <p className="text-sm text-slate-500">{format(parseBookingDate(b.dateTime), "HH:mm, EEEE, dd/MM/yyyy", { locale: vi })}</p>
                       </div>
                       <Badge variant="destructive">Khẩn cấp</Badge>
                     </div>
@@ -108,24 +120,28 @@ export default async function Dashboard() {
               <CardDescription>Danh sách tiệc đang chờ phục vụ</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {upcomingBookings.map(b => (
-                  <div key={b.id} className="flex justify-between items-center p-3 hover:bg-slate-50 rounded-md border border-transparent hover:border-slate-100 transition-colors">
-                    <div>
-                      <p className="font-medium text-slate-800 flex items-center gap-2">
-                        {b.customerName.replace(/\[S?VIP\] /g, '')}
-                        {b.customerName.includes('[SVIP]') && <span className="bg-yellow-500 text-white text-[10px] px-1.5 py-0.5 rounded font-black tracking-wider">SVIP</span>}
-                        {b.customerName.includes('[VIP]') && <span className="bg-fuchsia-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">VIP</span>}
-                        ({b.guestsCount} khách)
-                      </p>
-                      <p className="text-xs text-slate-500">{format(new Date(b.dateTime), "dd/MM/yyyy HH:mm")}</p>
+              {upcomingBookings.length === 0 ? (
+                <p className="text-sm text-slate-500">Không có tiệc sắp tới nào đang chờ.</p>
+              ) : (
+                <div className="space-y-3">
+                  {upcomingBookings.map(b => (
+                    <div key={b.id} className="flex justify-between items-center p-3 hover:bg-slate-50 rounded-md border border-transparent hover:border-slate-100 transition-colors">
+                      <div>
+                        <p className="font-medium text-slate-800 flex items-center gap-2">
+                          {b.customerName.replace(/\[S?VIP\] /g, '')}
+                          {b.customerName.includes('[SVIP]') && <span className="bg-yellow-500 text-white text-[10px] px-1.5 py-0.5 rounded font-black tracking-wider">SVIP</span>}
+                          {b.customerName.includes('[VIP]') && <span className="bg-fuchsia-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">VIP</span>}
+                          ({b.guestsCount} khách)
+                        </p>
+                        <p className="text-xs text-slate-500">{format(parseBookingDate(b.dateTime), "dd/MM/yyyy HH:mm")}</p>
+                      </div>
+                      <Badge variant={b.status === 'confirmed' ? "default" : "secondary"}>
+                        {b.status === 'confirmed' ? 'Đã chốt' : 'Đang chờ'}
+                      </Badge>
                     </div>
-                    <Badge variant={b.status === 'confirmed' ? "default" : "secondary"}>
-                      {b.status === 'confirmed' ? 'Đã chốt' : 'Đang chờ'}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
