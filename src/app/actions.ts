@@ -177,3 +177,24 @@ export async function updateSeafoodInventoryAction(inventory: { updatedAt: strin
   return { success: true };
 }
 
+export async function toggleSeafoodUrgentAction(catId: string, itemId: string, isUrgent: boolean) {
+  await verifyAuthPermission();
+  const inventory = await getSeafoodInventory();
+  const updatedCategories = inventory.categories.map(cat => {
+    if (cat.id !== catId) return cat;
+    return {
+      ...cat,
+      items: cat.items.map(item =>
+        item.id === itemId ? { ...item, isUrgent } : item
+      )
+    };
+  });
+  const updatedPayload = {
+    updatedAt: new Date().toISOString(),
+    categories: updatedCategories
+  };
+  await saveSeafoodInventory(updatedPayload);
+  revalidatePath('/seafood');
+  return { success: true, updatedPayload };
+}
+

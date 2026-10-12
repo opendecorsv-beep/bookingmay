@@ -69,6 +69,8 @@ export interface SeafoodItem {
   name: string;
   qty: string;
   size: string;
+  isUrgent?: boolean; // Tình trạng đẩy hàng (hàng ngợp cần đẩy gấp)
+  urgentNote?: string;
 }
 
 export interface SeafoodCategory {
