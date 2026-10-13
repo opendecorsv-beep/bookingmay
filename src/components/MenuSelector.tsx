@@ -67,12 +67,33 @@ export default function MenuSelector({
     return menuData.flatMap(cat => cat.items.map(item => ({...item, category: cat.name})));
   }, []);
 
+function removeVietnameseTones(str: string) {
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D');
+}
+
   const filteredItems = useMemo(() => {
-    if (!searchTerm) return [];
-    const term = searchTerm.toLowerCase();
-    return allItems.filter(item => 
-      item.name.toLowerCase().includes(term) || item.category.toLowerCase().includes(term)
-    ).slice(0, 10);
+    if (!searchTerm.trim()) return [];
+    const term = searchTerm.toLowerCase().trim();
+    const termNoTone = removeVietnameseTones(term);
+    const tokens = term.split(/\s+/).filter(Boolean);
+    const rawTokens = tokens.map(t => removeVietnameseTones(t));
+
+    return allItems.filter(item => {
+      const itemText = (item.name + ' ' + item.category).toLowerCase();
+      const itemTextNoTone = removeVietnameseTones(itemText);
+
+      if (itemText.includes(term) || itemTextNoTone.includes(termNoTone)) {
+        return true;
+      }
+
+      return tokens.every((token, idx) => 
+        itemText.includes(token) || itemTextNoTone.includes(rawTokens[idx])
+      );
+    }).slice(0, 20);
   }, [searchTerm, allItems]);
 
   const addItem = (item: MenuItem) => {
