@@ -202,16 +202,31 @@ export default function FloorPlanClient({ initialBookings }: { initialBookings: 
                       let parts = req.split('|');
                       let occ = parts[0] || "";
                       let pkg = "";
+                      let price = "";
                       let note = "";
                       parts.forEach(p => {
                         if (p.startsWith('PKG:')) pkg = p.replace('PKG:', '');
+                        if (p.startsWith('PRICE:')) price = p.replace('PRICE:', '');
                         if (p.startsWith('NOTE:')) note = p.replace('NOTE:', '');
                       });
                       
                       let res = occ;
                       if (pkg) {
-                        const pkgNames: Record<string, string> = {"1": "Bướm Ngũ Sắc", "2": "Bướm Trắng", "3": "Bướm Đỏ", "4": "Nơ Trắng", "5": "Background Nâu", "6": "Nơ Hồng"};
-                        res += ` - Gói Mây ${pkg} (${pkgNames[pkg] || ""})`;
+                        if (pkg === 'custom') {
+                          res += ` - Decor Yêu Cầu${price ? ` (Giá: ${price})` : ''}`;
+                        } else {
+                          const pkgNames: Record<string, string> = {
+                            "1": "Bướm Ngũ Sắc", 
+                            "2": "Bướm Trắng", 
+                            "3": "Bướm Đỏ", 
+                            "4": "Nơ Trắng", 
+                            "5": "Background Nâu", 
+                            "6": "Nơ Hồng",
+                            "7": "Free S4 1 (Miễn phí)",
+                            "8": "Free S4 2 (Miễn phí)"
+                          };
+                          res += ` - Gói Mây ${pkg} (${pkgNames[pkg] || ""})`;
+                        }
                       }
                       if (note) res += ` - Ghi chú: ${note}`;
                       return res;

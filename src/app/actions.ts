@@ -42,8 +42,8 @@ export async function fetchBookings() {
 function checkDecorConflict(bookings: Booking[], newDateTimeStr: string, newDecorStr: string, currentBookingId?: string): string | null {
   if (!newDecorStr.includes('|PKG:')) return null;
   const newPkgStr = newDecorStr.split('|').find(p => p.startsWith('PKG:'));
-  if (!newPkgStr || newPkgStr === 'PKG:') return null;
   const newPkg = newPkgStr.replace('PKG:', '');
+  if (!newPkg || newPkg === 'custom') return null;
   
   const newTime = new Date(newDateTimeStr).getTime();
 

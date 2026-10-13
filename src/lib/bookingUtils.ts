@@ -93,3 +93,38 @@ export function isBookingArchived(b: Booking, _unusedNow?: Date): boolean {
   // 3. Tự động chuyển vào lưu trữ nếu đã qua thời gian tổ chức tiệc trên 8 tiếng
   return isPast8Hours(b.dateTime);
 }
+
+/**
+ * Phân tích chuỗi giá thành số nguyên (hỗ trợ các dạng: "2.500.000", "2,500,000", "2500000", "2tr5", "2.5tr", "500k", v.v.)
+ */
+export function parsePriceToNumber(raw: string | number | undefined | null): number {
+  if (typeof raw === 'number') return raw;
+  if (!raw) return 0;
+  const s = String(raw).toLowerCase().trim();
+
+  // Kiểm tra đơn vị 'tr' / 'triệu' (vd: "2tr5", "2.5tr", "2tr")
+  const trMatch = s.match(/^([\d.,]+)\s*(tr|triệu)/);
+  if (trMatch) {
+    const val = parseFloat(trMatch[1].replace(',', '.'));
+    if (!isNaN(val)) {
+      const after = s.slice(trMatch[0].length).trim();
+      const afterNum = parseInt(after);
+      if (!isNaN(afterNum) && afterNum < 10) {
+        return Math.round((val + afterNum / 10) * 1000000);
+      }
+      return Math.round(val * 1000000);
+    }
+  }
+
+  // Kiểm tra đơn vị 'k' (vd: "500k", "1500k")
+  const kMatch = s.match(/^([\d.,]+)\s*k/);
+  if (kMatch) {
+    const val = parseFloat(kMatch[1].replace(',', '.'));
+    if (!isNaN(val)) return Math.round(val * 1000);
+  }
+
+  // Chuỗi số thông thường loại bỏ dấu chấm/phẩy/chữ
+  const num = parseInt(s.replace(/[^\d]/g, ''));
+  return isNaN(num) ? 0 : num;
+}
+

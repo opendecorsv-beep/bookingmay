@@ -61,11 +61,13 @@ export default async function FloorPage() {
               {dayBookings.map((b) => {
           let occasion = "Không có";
           let pkg = "";
+          let price = "";
           let note = "";
           const parts = (b.decorRequest || "").split('|');
           occasion = parts[0] || "Không có";
           parts.forEach(p => {
             if (p.startsWith('PKG:')) pkg = p.replace('PKG:', '');
+            if (p.startsWith('PRICE:')) price = p.replace('PRICE:', '');
             if (p.startsWith('NOTE:')) note = p.replace('NOTE:', '');
           });
 
@@ -118,16 +120,35 @@ export default async function FloorPage() {
               {pkg && (
                 <div>
                   <h4 className="font-semibold text-sm text-slate-700 mb-1">
-                    Gói Decor: Mây {pkg} ({{"1": "Bướm Ngũ Sắc", "2": "Bướm Trắng", "3": "Bướm Đỏ", "4": "Nơ Trắng", "5": "Background Nâu", "6": "Nơ Hồng"}[pkg] || ""})
+                    {pkg === 'custom' ? (
+                      `Gói Decor: Decor Yêu Cầu${price ? ` - Giá: ${price}` : ''}`
+                    ) : (
+                      `Gói Decor: Mây ${pkg} (${{
+                        "1": "Bướm Ngũ Sắc", 
+                        "2": "Bướm Trắng", 
+                        "3": "Bướm Đỏ", 
+                        "4": "Nơ Trắng", 
+                        "5": "Background Nâu", 
+                        "6": "Nơ Hồng",
+                        "7": "Free S4 1 (Miễn phí)",
+                        "8": "Free S4 2 (Miễn phí)"
+                      }[pkg] || ""})`
+                    )}
                   </h4>
-                  <div className="rounded-lg overflow-hidden border border-slate-200 shadow-sm">
-                    <img 
-                      src={`/images/decor/decor${pkg}.jpg`} 
-                      alt={`Gói Decor ${pkg}`} 
-                      className="w-full h-auto object-contain rounded-md"
-                      loading="lazy"
-                    />
-                  </div>
+                  {pkg !== 'custom' ? (
+                    <div className="rounded-lg overflow-hidden border border-slate-200 shadow-sm">
+                      <img 
+                        src={`/images/decor/decor${pkg}.jpg`} 
+                        alt={`Gói Decor ${pkg}`} 
+                        className="w-full h-auto object-contain rounded-md"
+                        loading="lazy"
+                      />
+                    </div>
+                  ) : (
+                    <div className="bg-purple-50 p-3 rounded-lg border border-purple-200 text-sm text-purple-900">
+                      ✨ <strong>Decor theo yêu cầu riêng của khách</strong> (Setup theo ghi chú chi tiết bên trên)
+                    </div>
+                  )}
                 </div>
               )}
               

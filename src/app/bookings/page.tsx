@@ -10,7 +10,7 @@ import EditBookingDialog from "@/components/EditBookingDialog";
 import DeleteBookingButton from "@/components/DeleteBookingButton";
 import StatusSelect from "@/components/StatusSelect";
 import ConfirmBookingButton from "@/components/ConfirmBookingButton";
-import { isBookingArchived, getVietnamNow } from "@/lib/bookingUtils";
+import { isBookingArchived, getVietnamNow, parsePriceToNumber } from "@/lib/bookingUtils";
 
 export const dynamic = 'force-dynamic';
 
@@ -141,24 +141,30 @@ export default async function BookingsPage() {
                             const parts = raw.split('|');
                             const occ = parts[0] || "Không có";
                             const pkgStr = parts.find(p => p.startsWith('PKG:')) || "";
+                            const priceStr = parts.find(p => p.startsWith('PRICE:')) || "";
                             const noteStr = parts.find(p => p.startsWith('NOTE:')) || "";
                             
                             const pkg = pkgStr.replace('PKG:', '');
+                            const customPrice = priceStr.replace('PRICE:', '');
                             const note = noteStr.replace('NOTE:', '');
                             
                             let res = occ;
                             if (pkg) {
-                              const pkgNames: Record<string, string> = {
-                                "1": "Bướm Ngũ Sắc", 
-                                "2": "Bướm Trắng", 
-                                "3": "Bướm Đỏ", 
-                                "4": "Nơ Trắng", 
-                                "5": "Background Nâu", 
-                                "6": "Nơ Hồng",
-                                "7": "Free S4 1 (Miễn phí)",
-                                "8": "Free S4 2 (Miễn phí)"
-                              };
-                              res += ` - Gói Mây ${pkg} (${pkgNames[pkg] || ""})`;
+                              if (pkg === 'custom') {
+                                res += ` - Decor Yêu Cầu${customPrice ? ` (Giá: ${customPrice})` : ''}`;
+                              } else {
+                                const pkgNames: Record<string, string> = {
+                                  "1": "Bướm Ngũ Sắc", 
+                                  "2": "Bướm Trắng", 
+                                  "3": "Bướm Đỏ", 
+                                  "4": "Nơ Trắng", 
+                                  "5": "Background Nâu", 
+                                  "6": "Nơ Hồng",
+                                  "7": "Free S4 1 (Miễn phí)",
+                                  "8": "Free S4 2 (Miễn phí)"
+                                };
+                                res += ` - Gói Mây ${pkg} (${pkgNames[pkg] || ""})`;
+                              }
                             }
                             if (note) res += ` - Ghi chú: ${note}`;
                             return res;
@@ -220,7 +226,12 @@ export default async function BookingsPage() {
                                const pkgStr = b.decorRequest.split('|').find(p => p.startsWith('PKG:'));
                                if (pkgStr && pkgStr !== 'PKG:') {
                                  const pNum = pkgStr.replace('PKG:', '');
-                                 if (pNum !== '7' && pNum !== '8') {
+                                 if (pNum === 'custom') {
+                                   const priceStr = b.decorRequest.split('|').find(p => p.startsWith('PRICE:'));
+                                   if (priceStr) {
+                                     total += parsePriceToNumber(priceStr.replace('PRICE:', ''));
+                                   }
+                                 } else if (pNum !== '7' && pNum !== '8') {
                                    total += 3700000;
                                  }
                                }

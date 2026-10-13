@@ -17,6 +17,7 @@ export default function AddBookingDialog() {
   const { isLoggedIn, openLoginModal } = useAuth();
   const [open, setOpen] = useState(false);
   const [decorPkg, setDecorPkg] = useState("");
+  const [customDecorPrice, setCustomDecorPrice] = useState("");
 
   const [sourceOption, setSourceOption] = useState("Facebook");
 
@@ -60,9 +61,13 @@ export default function AddBookingDialog() {
 
       let finalDecor = formData.get("decorRequest") as string;
       const decorPkg = formData.get("decorPackage") as string;
+      const customDecorPrice = formData.get("customDecorPrice") as string;
       const decorNote = formData.get("decorNote") as string;
       
       if (decorPkg) finalDecor += `|PKG:${decorPkg}`;
+      if (decorPkg === 'custom' && customDecorPrice && customDecorPrice.trim() !== '') {
+        finalDecor += `|PRICE:${customDecorPrice.trim()}`;
+      }
       if (decorNote) finalDecor += `|NOTE:${decorNote}`;
       
       const res = await createNewBooking({
@@ -192,7 +197,7 @@ export default function AddBookingDialog() {
           </div>
           
           <div className="space-y-2">
-            <MenuSelector decorPackage={decorPkg} />
+            <MenuSelector decorPackage={decorPkg} customDecorPrice={customDecorPrice} />
           </div>
           
           <div className="space-y-2">
@@ -224,10 +229,26 @@ export default function AddBookingDialog() {
                 <option value="4">4 - Nơ Trắng</option>
                 <option value="5">5 - Background Nâu</option>
                 <option value="6">6 - Nơ Hồng</option>
-                <option value="7">7 - Free S4 1</option>
-                <option value="8">8 - Free S4 2</option>
+                <option value="7">7 - Free S4 1 (Miễn phí)</option>
+                <option value="8">8 - Free S4 2 (Miễn phí)</option>
+                <option value="custom">Decor Yêu Cầu - (Tự nhập giá)</option>
               </select>
             </div>
+            {decorPkg === "custom" && (
+              <div className="pt-1.5 space-y-1 animate-in fade-in duration-200">
+                <Label htmlFor="customDecorPrice" className="text-xs font-semibold text-purple-700">
+                  Giá Decor Yêu Cầu (VNĐ)
+                </Label>
+                <Input 
+                  id="customDecorPrice" 
+                  name="customDecorPrice" 
+                  value={customDecorPrice}
+                  onChange={(e) => setCustomDecorPrice(e.target.value)}
+                  placeholder="Nhập giá decor (vd: 2.000.000, 2tr5 hoặc 500k)..." 
+                  className="h-9 border-purple-300 focus-visible:ring-purple-400 bg-purple-50/40 text-sm font-semibold text-purple-900" 
+                />
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">
