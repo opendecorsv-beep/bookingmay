@@ -38,7 +38,7 @@ export default async function RootLayout({
                 <span className="tracking-tight hidden md:block">Mây Restaurant</span>
               </Link>
               <nav className="flex gap-4 sm:gap-6 text-sm font-medium text-slate-600 overflow-x-auto whitespace-nowrap scrollbar-hide flex-1 justify-start md:justify-end py-2 items-center">
-                <Link href="/" className="hover:text-orange-600 shrink-0">Bảng điều khiển</Link>
+                <Link href="/" className="hover:text-orange-600 shrink-0">Lễ Tân</Link>
                 <Link href="/bookings" className="hover:text-orange-600 shrink-0">Danh sách Đặt bàn</Link>
                 <Link href="/floor-plan" className="hover:text-orange-600 shrink-0">Sơ đồ bàn</Link>
                 <Link href="/kitchen" className="hover:text-orange-600 shrink-0">Bếp</Link>

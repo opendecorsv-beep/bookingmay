@@ -1,10 +1,12 @@
-import { Booking, BookingStatus, TaskStatus, SeafoodCategory, defaultSeafoodCategories } from './data';
+import { Booking, BookingStatus, TaskStatus, SeafoodCategory, defaultSeafoodCategories, ReceptionEntry, defaultReceptionLogs } from './data';
 import { supabase } from './supabase';
 
 let globalSeafoodData: { updatedAt: string; categories: SeafoodCategory[] } = {
   updatedAt: new Date().toISOString(),
   categories: defaultSeafoodCategories
 };
+
+let globalReceptionLogs: ReceptionEntry[] = defaultReceptionLogs;
 
 let globalBookings: Booking[] = [
   {
@@ -212,6 +214,46 @@ export async function saveSeafoodInventory(inventory: { updatedAt: string; categ
     if (error) console.error("Error saving seafood to Supabase:", error);
   } catch (err) {
     console.error("Error saving seafood to Supabase:", err);
+  }
+}
+
+export async function getReceptionLogs(): Promise<ReceptionEntry[]> {
+  try {
+    const { data, error } = await supabase.from('bookings').select('menu').eq('id', 'CONFIG_RECEPTION').single();
+    if (error || !data) {
+      return globalReceptionLogs;
+    }
+    const parsed = typeof data.menu === 'string' ? JSON.parse(data.menu) : data.menu;
+    if (Array.isArray(parsed)) {
+      return parsed;
+    }
+    return globalReceptionLogs;
+  } catch (err) {
+    return globalReceptionLogs;
+  }
+}
+
+export async function saveReceptionLogs(logs: ReceptionEntry[]) {
+  globalReceptionLogs = logs;
+  try {
+    const { error } = await supabase.from('bookings').upsert([{
+      id: 'CONFIG_RECEPTION',
+      customerName: 'RECEPTION_LOGS',
+      phone: '0000000000',
+      dateTime: new Date().toISOString(),
+      guestsCount: 0,
+      room: 'CONFIG',
+      menu: JSON.stringify(logs),
+      specialRequest: '',
+      decorRequest: '',
+      status: 'cancelled',
+      receptionStatus: 'done',
+      kitchenStatus: 'done',
+      floorStatus: 'done'
+    }]);
+    if (error) console.error("Error saving reception logs to Supabase:", error);
+  } catch (err) {
+    console.error("Error saving reception logs to Supabase:", err);
   }
 }
 

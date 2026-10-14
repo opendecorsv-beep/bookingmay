@@ -2,8 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
-import { getBookings, addBooking, updateBookingData, deleteBookingData, updateKitchenStatus, updateFloorStatus, updateBookingStatus, updateReceptionStatus, getSeafoodInventory, saveSeafoodInventory } from '@/lib/store';
-import { Booking, BookingStatus, TaskStatus, SeafoodCategory } from '@/lib/data';
+import { getBookings, addBooking, updateBookingData, deleteBookingData, updateKitchenStatus, updateFloorStatus, updateBookingStatus, updateReceptionStatus, getSeafoodInventory, saveSeafoodInventory, getReceptionLogs, saveReceptionLogs } from '@/lib/store';
+import { Booking, BookingStatus, TaskStatus, SeafoodCategory, ReceptionEntry, VisitStatus, ReceptionFeedback } from '@/lib/data';
 
 export async function loginAction(id: string, pass: string) {
   if (id.trim() === 'maybmt' && pass.trim() === '1122334455') {
@@ -196,5 +196,73 @@ export async function toggleSeafoodUrgentAction(catId: string, itemId: string, i
   await saveSeafoodInventory(updatedPayload);
   revalidatePath('/seafood');
   return { success: true, updatedPayload };
+}
+
+export async function fetchReceptionLogs(): Promise<ReceptionEntry[]> {
+  return getReceptionLogs();
+}
+
+export async function addReceptionEntryAction(data: Omit<ReceptionEntry, 'id' | 'createdAt' | 'updatedAt'>) {
+  const currentLogs = await getReceptionLogs();
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+  const randomSuffix = Math.floor(1000 + Math.random() * 9000).toString();
+  const id = `REC-${dateStr}-${randomSuffix}`;
+  
+  const newEntry: ReceptionEntry = {
+    ...data,
+    id,
+    createdAt: now.toISOString(),
+    updatedAt: now.toISOString(),
+  };
+
+  const updatedLogs = [newEntry, ...currentLogs];
+  await saveReceptionLogs(updatedLogs);
+  revalidatePath('/');
+  return { success: true, entry: newEntry };
+}
+
+export async function updateReceptionStatusAction(id: string, status: VisitStatus, feedback?: ReceptionFeedback) {
+  const currentLogs = await getReceptionLogs();
+  const updatedLogs = currentLogs.map(item => {
+    if (item.id === id) {
+      return {
+        ...item,
+        status,
+        ...(feedback ? { feedback } : {}),
+        updatedAt: new Date().toISOString()
+      };
+    }
+    return item;
+  });
+  await saveReceptionLogs(updatedLogs);
+  revalidatePath('/');
+  return { success: true };
+}
+
+export async function updateReceptionFeedbackAction(id: string, feedback: ReceptionFeedback) {
+  const currentLogs = await getReceptionLogs();
+  const updatedLogs = currentLogs.map(item => {
+    if (item.id === id) {
+      return {
+        ...item,
+        feedback,
+        status: 'left' as VisitStatus,
+        updatedAt: new Date().toISOString()
+      };
+    }
+    return item;
+  });
+  await saveReceptionLogs(updatedLogs);
+  revalidatePath('/');
+  return { success: true };
+}
+
+export async function deleteReceptionEntryAction(id: string) {
+  const currentLogs = await getReceptionLogs();
+  const updatedLogs = currentLogs.filter(item => item.id !== id);
+  await saveReceptionLogs(updatedLogs);
+  revalidatePath('/');
+  return { success: true };
 }
 
