@@ -2,7 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { fetchBookings } from "@/app/actions";
 import { format } from "date-fns";
-import { Users, CalendarDays, ClipboardList, PenLine, Archive, CheckCircle2 } from "lucide-react";
+import { Users, CalendarDays, ClipboardList, PenLine, Archive, CheckCircle2, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import AddBookingDialog from "@/components/AddBookingDialog";
@@ -100,6 +100,12 @@ export default async function BookingsPage() {
                         <div className="flex items-center gap-1">
                           <Users className="w-4 h-4"/> 
                           {b.guestsCount} khách
+                        </div>
+                        <div className="flex items-center gap-1 font-medium">
+                          <MapPin className="w-4 h-4 text-purple-600"/>
+                          <span className={b.room && b.room !== 'Chưa chọn' ? 'text-purple-700 font-semibold' : 'text-slate-400 italic'}>
+                            {b.room || 'Chưa chọn'}
+                          </span>
                         </div>
                         {(() => {
                            const sourceMatch = (b.specialRequest || "").match(/\[Nguồn:\s*([^\]]+)\]/);

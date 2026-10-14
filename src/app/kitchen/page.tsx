@@ -69,8 +69,13 @@ export default async function KitchenPage() {
             <CardHeader className={headerClass}>
               <div className="flex justify-between items-start">
                 <CardTitle className="text-lg flex flex-col gap-1">
-                  <span className="flex items-center gap-2">
+                  <span className="flex items-center gap-2 flex-wrap">
                     {cleanName} - {b.guestsCount} khách
+                    {b.room && b.room !== 'Chưa chọn' && (
+                      <span className="text-xs font-bold bg-orange-100 text-orange-800 px-2 py-0.5 rounded border border-orange-200">
+                        {b.room}
+                      </span>
+                    )}
                     {isSVIP && <span className="bg-yellow-500 text-white text-[10px] px-1.5 py-0.5 rounded font-black tracking-wider">SVIP</span>}
                     {isVIP && <span className="bg-fuchsia-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">VIP</span>}
                   </span>

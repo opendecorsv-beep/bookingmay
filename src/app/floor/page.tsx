@@ -2,12 +2,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { mockBookings } from "@/lib/data";
 import { format } from "date-fns";
-import { Sparkles, Users, CheckCircle } from "lucide-react";
+import { Sparkles, Users, CheckCircle, MapPin, DoorOpen, Clock, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import { setFloorStatus, fetchBookings } from "@/app/actions";
 
 import { isBookingArchived, getVietnamNow } from "@/lib/bookingUtils";
+
+function getFloorFromRoom(room?: string): string {
+  if (!room || room === 'Chưa chọn') return '';
+  if (room.startsWith('Mây 1')) return 'Khu vực Tầng 1';
+  if (room.startsWith('Mây 2')) return 'Khu vực Tầng 2';
+  if (room.startsWith('Mây 3')) return 'Khu vực Tầng 3';
+  if (room.startsWith('Bàn ')) return 'Khu vực Tầng 4 (Sân thượng)';
+  return '';
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -92,23 +101,84 @@ export default async function FloorPage() {
           return (
           <Card key={b.id} className={cardClass}>
             <CardHeader className={headerClass}>
-              <div className="flex justify-between items-start">
-                <CardTitle className="text-lg flex flex-col gap-1">
-                  <span className="text-purple-900 font-bold flex items-center gap-2">
-                    {cleanName}
-                    {isSVIP && <span className="bg-yellow-500 text-white text-[10px] px-1.5 py-0.5 rounded font-black tracking-wider">SVIP</span>}
-                    {isVIP && <span className="bg-fuchsia-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">VIP</span>}
-                  </span>
-                  <span className="text-sm font-normal text-slate-600 flex items-center gap-1">
-                    <Users className="w-4 h-4"/> {b.guestsCount} khách | {format(new Date(b.dateTime), "HH:mm - dd/MM")}
-                  </span>
+              <div className="flex justify-between items-start gap-2">
+                <CardTitle className="text-lg flex flex-col gap-1.5 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-purple-900 font-bold text-lg">
+                      {cleanName}
+                    </span>
+                    {isSVIP && <span className="bg-yellow-500 text-white text-[10px] px-1.5 py-0.5 rounded font-black tracking-wider shadow-xs">SVIP</span>}
+                    {isVIP && <span className="bg-fuchsia-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold shadow-xs">VIP</span>}
+                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold shadow-2xs ${
+                      b.room && b.room !== 'Chưa chọn'
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-amber-100 text-amber-800 border border-amber-200'
+                    }`}>
+                      <MapPin className="w-3.5 h-3.5" />
+                      {b.room && b.room !== 'Chưa chọn' ? b.room : 'Chưa xếp phòng'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm font-normal text-slate-600 flex-wrap">
+                    <span className="flex items-center gap-1 font-semibold text-purple-950">
+                      <Clock className="w-4 h-4 text-purple-600"/> {format(new Date(b.dateTime), "HH:mm")}
+                    </span>
+                    <span>•</span>
+                    <span className="flex items-center gap-1">
+                      <Users className="w-4 h-4 text-slate-500"/> {b.guestsCount} khách
+                    </span>
+                    {b.phone && (
+                      <>
+                        <span>•</span>
+                        <span className="flex items-center gap-1 text-slate-500 text-xs">
+                          <Phone className="w-3.5 h-3.5 text-slate-400"/> {b.phone}
+                        </span>
+                      </>
+                    )}
+                  </div>
                 </CardTitle>
-                <Badge variant={b.floorStatus === 'done' ? 'secondary' : (b.floorStatus === 'in_progress' ? 'default' : 'outline')} className={b.floorStatus === 'in_progress' ? 'bg-purple-600' : (b.floorStatus === 'done' ? 'bg-green-100 text-green-700 hover:bg-green-200' : '')}>
+                <Badge variant={b.floorStatus === 'done' ? 'secondary' : (b.floorStatus === 'in_progress' ? 'default' : 'outline')} className={b.floorStatus === 'in_progress' ? 'bg-purple-600 text-white' : (b.floorStatus === 'done' ? 'bg-green-100 text-green-700 hover:bg-green-200' : '')}>
                   {b.floorStatus === 'done' ? 'Đã hoàn thành' : (b.floorStatus === 'in_progress' ? 'Đang setup' : 'Chờ xử lý')}
                 </Badge>
               </div>
             </CardHeader>
             <CardContent className="pt-4 space-y-4">
+              {/* Box Thông tin Phòng & Vị trí setup chi tiết */}
+              <div className="bg-purple-50/80 border border-purple-200/90 rounded-lg p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                <div className="flex items-center gap-3">
+                  <div className="bg-purple-600 text-white p-2.5 rounded-lg shadow-xs shrink-0">
+                    <DoorOpen className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-bold text-purple-700 uppercase tracking-wider block">
+                      Phòng / Không gian Setup
+                    </span>
+                    <div className="text-base font-bold text-slate-800 flex items-center gap-2 flex-wrap mt-0.5">
+                      {b.room && b.room !== 'Chưa chọn' ? (
+                        <>
+                          <span className="text-purple-950">{b.room}</span>
+                          {(() => {
+                            const floorInfo = getFloorFromRoom(b.room);
+                            return floorInfo ? (
+                              <span className="text-xs font-semibold text-purple-700 bg-purple-100 px-2 py-0.5 rounded border border-purple-200">
+                                {floorInfo}
+                              </span>
+                            ) : null;
+                          })()}
+                        </>
+                      ) : (
+                        <span className="text-amber-700 font-semibold text-sm">
+                          ⚠️ Chưa chọn phòng / bàn (Cần liên hệ Lễ tân/Quản lý)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="sm:text-right border-t sm:border-t-0 pt-2 sm:pt-0 border-purple-200/60 shrink-0">
+                  <span className="text-xs text-slate-500 block">Thời gian tiệc</span>
+                  <span className="text-sm font-bold text-purple-950">{format(new Date(b.dateTime), "HH:mm - dd/MM/yyyy")}</span>
+                </div>
+              </div>
+
               <div>
                 <h4 className="font-semibold text-sm text-slate-700 mb-1">Yêu cầu Decor:</h4>
                 <div className="text-slate-700 bg-white p-3 rounded border border-slate-200 min-h-[60px] space-y-2">
