@@ -294,6 +294,7 @@ export default function EditBookingDialog({ booking }: { booking: Booking }) {
                 <option value="6">6 - Nơ Hồng</option>
                 <option value="7">7 - Free S4 1 (Miễn phí)</option>
                 <option value="8">8 - Free S4 2 (Miễn phí)</option>
+                <option value="9">9 - Hoa Tươi (2.500.000 đ)</option>
                 <option value="custom">Decor Yêu Cầu - (Tự nhập giá)</option>
               </select>
             </div>

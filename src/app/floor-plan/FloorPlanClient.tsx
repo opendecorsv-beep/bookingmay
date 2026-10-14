@@ -223,7 +223,8 @@ export default function FloorPlanClient({ initialBookings }: { initialBookings: 
                             "5": "Background Nâu", 
                             "6": "Nơ Hồng",
                             "7": "Free S4 1 (Miễn phí)",
-                            "8": "Free S4 2 (Miễn phí)"
+                            "8": "Free S4 2 (Miễn phí)",
+                            "9": "Hoa Tươi (2.500.000 đ)"
                           };
                           res += ` - Gói Mây ${pkg} (${pkgNames[pkg] || ""})`;
                         }

@@ -147,6 +147,8 @@ function removeVietnameseTones(str: string) {
   if (decorPackage) {
     if (decorPackage === '7' || decorPackage === '8') {
       decorTotal = 0;
+    } else if (decorPackage === '9') {
+      decorTotal = 2500000;
     } else if (decorPackage === 'custom') {
       decorTotal = parsePriceToNumber(customDecorPrice);
     } else {
@@ -255,14 +257,17 @@ function removeVietnameseTones(str: string) {
                   "5": "Background Nâu", 
                   "6": "Nơ Hồng", 
                   "7": "Free S4 1", 
-                  "8": "Free S4 2"
+                  "8": "Free S4 2",
+                  "9": "Hoa Tươi"
                 }[decorPackage] || ""}):`
               )}
             </span>
             <span className="font-semibold text-purple-600">
               {decorPackage === 'custom'
                 ? (decorTotal > 0 ? `${decorTotal.toLocaleString('vi-VN')} đ` : (customDecorPrice ? customDecorPrice : '0 đ'))
-                : ((decorPackage === '7' || decorPackage === '8') ? 'Miễn phí' : '3.700.000 đ')}
+                : ((decorPackage === '7' || decorPackage === '8') 
+                    ? 'Miễn phí' 
+                    : (decorPackage === '9' ? '2.500.000 đ' : '3.700.000 đ'))}
             </span>
           </div>
         )}

@@ -161,7 +161,8 @@ export default async function BookingsPage() {
                                   "5": "Background Nâu", 
                                   "6": "Nơ Hồng",
                                   "7": "Free S4 1 (Miễn phí)",
-                                  "8": "Free S4 2 (Miễn phí)"
+                                  "8": "Free S4 2 (Miễn phí)",
+                                  "9": "Hoa Tươi (2.500.000 đ)"
                                 };
                                 res += ` - Gói Mây ${pkg} (${pkgNames[pkg] || ""})`;
                               }
@@ -231,7 +232,11 @@ export default async function BookingsPage() {
                                    if (priceStr) {
                                      total += parsePriceToNumber(priceStr.replace('PRICE:', ''));
                                    }
-                                 } else if (pNum !== '7' && pNum !== '8') {
+                                 } else if (pNum === '7' || pNum === '8') {
+                                   // Free packages
+                                 } else if (pNum === '9') {
+                                   total += 2500000;
+                                 } else {
                                    total += 3700000;
                                  }
                                }

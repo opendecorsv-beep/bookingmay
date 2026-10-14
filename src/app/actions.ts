@@ -55,7 +55,7 @@ function checkDecorConflict(bookings: Booking[], newDateTimeStr: string, newDeco
     const diffHours = Math.abs(bTime - newTime) / (1000 * 60 * 60);
 
     if (diffHours < 5) {
-       const decorName = {"1": "Bướm Ngũ Sắc", "2": "Bướm Trắng", "3": "Bướm Đỏ", "4": "Nơ Trắng", "5": "Background Nâu", "6": "Nơ Hồng", "7": "Free S4 1", "8": "Free S4 2"}[newPkg] || `Số ${newPkg}`;
+       const decorName = {"1": "Bướm Ngũ Sắc", "2": "Bướm Trắng", "3": "Bướm Đỏ", "4": "Nơ Trắng", "5": "Background Nâu", "6": "Nơ Hồng", "7": "Free S4 1", "8": "Free S4 2", "9": "Hoa Tươi"}[newPkg] || `Số ${newPkg}`;
        const [d, t] = b.dateTime.split('T');
        let timeStr = b.dateTime;
        if (d && t) {
