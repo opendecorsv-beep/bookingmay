@@ -225,7 +225,7 @@ export async function getReceptionLogs(): Promise<ReceptionEntry[]> {
     }
     const parsed = typeof data.menu === 'string' ? JSON.parse(data.menu) : data.menu;
     if (Array.isArray(parsed)) {
-      return parsed;
+      return parsed.filter((item: any) => !item.id?.startsWith('REC-20261014-00') && !item.id?.startsWith('REC-20261013-00'));
     }
     return globalReceptionLogs;
   } catch (err) {

@@ -9,14 +9,9 @@ export default async function ReceptionPage() {
     fetchBookings()
   ]);
 
-  // Filter active/today bookings to easily assist receptionists auto-populating
-  const todayBookings = allBookings.filter(b => {
-    return b.status !== 'cancelled' && b.receptionStatus !== 'clean';
-  });
-
   return (
     <div className="max-w-6xl mx-auto">
-      <ReceptionClient initialLogs={logs} todayBookings={todayBookings} />
+      <ReceptionClient initialLogs={logs} allBookings={allBookings} />
     </div>
   );
 }

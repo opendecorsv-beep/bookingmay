@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
+import Link from 'next/link';
 import {
   Users,
   Calendar,
@@ -26,7 +27,8 @@ import {
   X,
   Filter,
   Check,
-  ChevronRight
+  ChevronRight,
+  LayoutGrid
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -50,6 +52,7 @@ import {
   ReceptionFeedback,
   Booking
 } from '@/lib/data';
+import { isBookingArchived } from '@/lib/bookingUtils';
 import {
   addReceptionEntryAction,
   updateReceptionStatusAction,
@@ -60,7 +63,7 @@ import * as XLSX from 'xlsx';
 
 interface ReceptionClientProps {
   initialLogs: ReceptionEntry[];
-  todayBookings: Booking[];
+  allBookings: Booking[];
 }
 
 const QUICK_TAGS = [
@@ -75,7 +78,7 @@ const QUICK_TAGS = [
   'Giá cả hợp lý'
 ];
 
-export default function ReceptionClient({ initialLogs, todayBookings }: ReceptionClientProps) {
+export default function ReceptionClient({ initialLogs, allBookings }: ReceptionClientProps) {
   const [logs, setLogs] = useState<ReceptionEntry[]>(initialLogs);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -117,7 +120,7 @@ export default function ReceptionClient({ initialLogs, todayBookings }: Receptio
 
   const currentMonthStr = useMemo(() => format(new Date(), 'yyyy-MM'), []);
 
-  // Filtered logs
+  // Filtered logs for display
   const filteredLogs = useMemo(() => {
     return logs.filter(log => {
       // Date filter
@@ -153,6 +156,35 @@ export default function ReceptionClient({ initialLogs, todayBookings }: Receptio
       return true;
     });
   }, [logs, selectedFilterTab, customDate, todayStr, yesterdayStr, currentMonthStr, typeFilter, statusFilter, searchQuery]);
+
+  // Set of booking IDs that have already checked in
+  const checkedInBookingIds = useMemo(() => {
+    const set = new Set<string>();
+    logs.forEach(log => {
+      if (log.bookingId) set.add(log.bookingId);
+    });
+    return set;
+  }, [logs]);
+
+  // Available bookings strictly for the selected check-in date:
+  // - Matches newDate (e.g. today or selected date)
+  // - Not cancelled
+  // - Not clean / archived
+  // - NOT already checked in
+  // - Sorted chronologically by time ascending
+  const availableDayBookings = useMemo(() => {
+    return allBookings
+      .filter(b => {
+        if (b.status === 'cancelled') return false;
+        if (b.receptionStatus === 'clean') return false;
+        if (isBookingArchived(b)) return false;
+        if (checkedInBookingIds.has(b.id)) return false;
+
+        const bDate = b.dateTime.split('T')[0];
+        return bDate === newDate;
+      })
+      .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
+  }, [allBookings, newDate, checkedInBookingIds]);
 
   // Daily / Filtered statistics
   const stats = useMemo(() => {
@@ -203,16 +235,16 @@ export default function ReceptionClient({ initialLogs, todayBookings }: Receptio
     setIsAddOpen(true);
   };
 
-  // Handle auto-populate from today's booking
+  // Handle auto-populate from available booking
   const handleSelectBooking = (bookingId: string) => {
     setSelectedBookingId(bookingId);
     if (!bookingId) return;
-    const b = todayBookings.find(item => item.id === bookingId);
+    const b = allBookings.find(item => item.id === bookingId);
     if (b) {
-      setNewCustomerName(b.customerName);
-      setNewPhone(b.phone);
-      setNewGuestsCount(b.guestsCount);
-      setNewRoom(b.room);
+      setNewCustomerName(b.customerName.replace(/\[(VIP|SVIP)\]/g, '').trim());
+      setNewPhone(b.phone || '');
+      setNewGuestsCount(b.guestsCount || 2);
+      setNewRoom(b.room === 'Chưa chọn' ? '' : b.room);
       const [d, t] = b.dateTime.split('T');
       if (d) setNewDate(d);
       if (t) setNewTime(t.substring(0, 5));
@@ -233,7 +265,7 @@ export default function ReceptionClient({ initialLogs, todayBookings }: Receptio
         date: newDate,
         time: newTime,
         type: newType,
-        bookingId: newType === 'booking' ? selectedBookingId : undefined,
+        bookingId: newType === 'booking' && selectedBookingId ? selectedBookingId : undefined,
         customerName: newCustomerName.trim(),
         phone: newPhone.trim(),
         guestsCount: Number(newGuestsCount) || 1,
@@ -254,7 +286,7 @@ export default function ReceptionClient({ initialLogs, todayBookings }: Receptio
     }
   };
 
-  // Quick mark departed & open feedback
+  // Open feedback modal
   const handleOpenFeedback = (entry: ReceptionEntry) => {
     setSelectedEntryForFeedback(entry);
     setFeedbackRating(entry.feedback?.rating || 'very_satisfied');
@@ -350,7 +382,7 @@ export default function ReceptionClient({ initialLogs, todayBookings }: Receptio
       const worksheet = XLSX.utils.json_to_sheet(exportData);
 
       // Auto-fit column widths
-      const colWidths = [
+      worksheet['!cols'] = [
         { wch: 6 },  // STT
         { wch: 12 }, // Ngày
         { wch: 10 }, // Giờ đón
@@ -365,7 +397,6 @@ export default function ReceptionClient({ initialLogs, todayBookings }: Receptio
         { wch: 30 }, // Tag
         { wch: 25 }, // Ghi chú
       ];
-      worksheet['!cols'] = colWidths;
 
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, 'LeTan_MayRestaurant');
@@ -404,12 +435,23 @@ export default function ReceptionClient({ initialLogs, todayBookings }: Receptio
           </p>
         </div>
 
-        <div className="flex items-center gap-2 self-stretch sm:self-auto">
+        <div className="flex items-center gap-2 self-stretch sm:self-auto flex-wrap">
+          <Link href="/floor-plan">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-10 border-slate-300 text-slate-700 hover:bg-slate-50 font-semibold"
+            >
+              <LayoutGrid className="w-4 h-4 mr-1.5 text-slate-500" />
+              Sơ Đồ Bàn
+            </Button>
+          </Link>
+
           <Button
             onClick={handleExportExcel}
             variant="outline"
             size="sm"
-            className="flex-1 sm:flex-initial h-10 border-emerald-300 text-emerald-700 hover:bg-emerald-50 font-semibold"
+            className="h-10 border-emerald-300 text-emerald-700 hover:bg-emerald-50 font-semibold"
           >
             <FileSpreadsheet className="w-4 h-4 mr-1.5 text-emerald-600" />
             Xuất Excel
@@ -418,7 +460,7 @@ export default function ReceptionClient({ initialLogs, todayBookings }: Receptio
           <Button
             onClick={handleOpenAdd}
             size="sm"
-            className="flex-1 sm:flex-initial h-10 bg-orange-600 hover:bg-orange-700 text-white font-bold shadow-md shadow-orange-100"
+            className="h-10 bg-orange-600 hover:bg-orange-700 text-white font-bold shadow-md shadow-orange-100"
           >
             <PlusCircle className="w-4 h-4 mr-1.5" />
             + Đón Khách
@@ -660,7 +702,7 @@ export default function ReceptionClient({ initialLogs, todayBookings }: Receptio
             <div className="w-12 h-12 rounded-full bg-orange-50 text-orange-500 flex items-center justify-center mx-auto">
               <Users className="w-6 h-6" />
             </div>
-            <h3 className="font-bold text-slate-700">Chưa có thông tin đón khách nào</h3>
+            <h3 className="font-bold text-slate-700">Chưa có lượt đón khách nào</h3>
             <p className="text-xs text-slate-500 max-w-sm mx-auto">
               Nhấn nút "+ Đón Khách" để ghi nhận thông tin khách mới vào nhà hàng.
             </p>
@@ -869,7 +911,10 @@ export default function ReceptionClient({ initialLogs, todayBookings }: Receptio
               <div className="grid grid-cols-2 gap-2 mt-1">
                 <button
                   type="button"
-                  onClick={() => setNewType('walkin')}
+                  onClick={() => {
+                    setNewType('walkin');
+                    setSelectedBookingId('');
+                  }}
                   className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all ${
                     newType === 'walkin'
                       ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
@@ -892,24 +937,70 @@ export default function ReceptionClient({ initialLogs, todayBookings }: Receptio
               </div>
             </div>
 
-            {/* If Booking: Option to select from today's booking */}
-            {newType === 'booking' && todayBookings.length > 0 && (
-              <div className="bg-blue-50/70 p-3 rounded-lg border border-blue-100 space-y-1.5">
-                <Label className="text-xs font-bold text-blue-900">
-                  Chọn Từ Tiệc Đã Đặt Hôm Nay (Tự động điền):
-                </Label>
+            {/* Date & Time (placed before or alongside booking selector so user can pick date) */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs font-bold text-slate-700">Ngày Đón</Label>
+                <Input
+                  type="date"
+                  value={newDate}
+                  onChange={(e) => {
+                    setNewDate(e.target.value);
+                    setSelectedBookingId(''); // reset selection when date changes
+                  }}
+                  className="h-9 text-xs mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-bold text-slate-700">Giờ Vào</Label>
+                <Input
+                  type="time"
+                  value={newTime}
+                  onChange={(e) => setNewTime(e.target.value)}
+                  className="h-9 text-xs mt-1"
+                />
+              </div>
+            </div>
+
+            {/* If Booking: ONLY show bookings on newDate, ordered chronologically, excluding already checked-in */}
+            {newType === 'booking' && (
+              <div className="bg-blue-50/70 p-3 rounded-lg border border-blue-200 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-bold text-blue-900">
+                    Chọn Tiệc Đã Đặt Trong Ngày ({availableDayBookings.length} tiệc chưa đón):
+                  </Label>
+                  <span className="text-[10px] text-blue-600 font-medium">Theo giờ tiệc</span>
+                </div>
+
                 <select
                   value={selectedBookingId}
                   onChange={(e) => handleSelectBooking(e.target.value)}
-                  className="w-full h-9 text-xs bg-white border border-blue-200 rounded-md px-2 text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-full h-9 text-xs bg-white border border-blue-300 rounded-md px-2 text-slate-800 font-medium focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-xs"
                 >
-                  <option value="">-- Hoặc tự nhập thông tin bên dưới --</option>
-                  {todayBookings.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.room} - {b.customerName} ({b.guestsCount} khách) - {b.dateTime.replace('T', ' ')}
+                  {availableDayBookings.length === 0 ? (
+                    <option value="">
+                      -- Không có tiệc đặt nào chưa đón trong ngày {newDate} --
                     </option>
-                  ))}
+                  ) : (
+                    <>
+                      <option value="">-- Bấm để chọn tiệc đặt ({availableDayBookings.length} tiệc) --</option>
+                      {availableDayBookings.map((b) => {
+                        const timeStr = b.dateTime.includes('T') ? b.dateTime.split('T')[1].substring(0, 5) : '';
+                        const cleanName = b.customerName.replace(/\[(VIP|SVIP)\]/g, '').trim();
+                        const isVip = b.customerName.includes('[VIP]') || b.customerName.includes('[SVIP]');
+                        return (
+                          <option key={b.id} value={b.id}>
+                            ⏰ {timeStr} | {b.room} - {isVip ? '⭐ ' : ''}{cleanName} ({b.guestsCount} khách)
+                          </option>
+                        );
+                      })}
+                    </>
+                  )}
                 </select>
+
+                <p className="text-[10px] text-blue-600/80">
+                  * Tự động điền thông tin và ẩn khỏi danh sách sau khi đón xong để không bị trùng lặp.
+                </p>
               </div>
             )}
 
@@ -968,7 +1059,7 @@ export default function ReceptionClient({ initialLogs, todayBookings }: Receptio
                         onClick={() => setNewGuestsCount(num)}
                         className={`h-9 px-2 text-xs rounded border ${
                           newGuestsCount === num
-                            ? 'bg-slate-800 text-white border-slate-800'
+                            ? 'bg-slate-800 text-white border-slate-800 font-bold'
                             : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                         }`}
                       >
@@ -977,28 +1068,6 @@ export default function ReceptionClient({ initialLogs, todayBookings }: Receptio
                     ))}
                   </div>
                 </div>
-              </div>
-            </div>
-
-            {/* Date & Time */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs font-bold text-slate-700">Ngày Đón</Label>
-                <Input
-                  type="date"
-                  value={newDate}
-                  onChange={(e) => setNewDate(e.target.value)}
-                  className="h-9 text-xs mt-1"
-                />
-              </div>
-              <div>
-                <Label className="text-xs font-bold text-slate-700">Giờ Vào</Label>
-                <Input
-                  type="time"
-                  value={newTime}
-                  onChange={(e) => setNewTime(e.target.value)}
-                  className="h-9 text-xs mt-1"
-                />
               </div>
             </div>
 
