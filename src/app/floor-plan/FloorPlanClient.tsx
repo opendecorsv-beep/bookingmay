@@ -25,9 +25,63 @@ import {
   TrendingUp,
   MessageSquare,
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  AlertCircle,
+  FileText,
+  Phone
 } from "lucide-react";
 import { isBookingArchived, isVisitExpired, getVietnamTodayString } from "@/lib/bookingUtils";
+
+const DECOR_PACKAGE_NAMES: Record<string, string> = {
+  "1": "Mây 1 - Bướm Ngũ Sắc",
+  "2": "Mây 2 - Bướm Trắng",
+  "3": "Mây 3 - Bướm Đỏ",
+  "4": "Mây 4 - Nơ Trắng",
+  "5": "Mây 5 - Background Nâu",
+  "6": "Mây 6 - Nơ Hồng",
+  "7": "Free S4 1 (Miễn phí sảnh 4)",
+  "8": "Free S4 2 (Miễn phí sảnh 4)",
+  "9": "Gói Hoa Tươi (2.500.000 đ)",
+  "custom": "Decor Theo Yêu Cầu Riêng (Tự nhập giá)"
+};
+
+function parseSpecialRequest(raw: string = "") {
+  let cleanNotes = raw || "";
+  const depositMatch = cleanNotes.match(/\[Cọc:\s*([^\]]+)\]/i);
+  const discountMatch = cleanNotes.match(/\[Giảm giá:\s*([^\]]+)\]/i);
+  const sourceMatch = cleanNotes.match(/\[Nguồn:\s*([^\]]+)\]/i);
+
+  cleanNotes = cleanNotes
+    .replace(/\[Cọc:\s*[^\]]+\]/gi, "")
+    .replace(/\[Giảm giá:\s*[^\]]+\]/gi, "")
+    .replace(/\[Nguồn:\s*[^\]]+\]/gi, "")
+    .trim();
+
+  return {
+    cleanNotes,
+    deposit: depositMatch ? depositMatch[1].trim() : null,
+    discount: discountMatch ? discountMatch[1].trim() : null,
+    source: sourceMatch ? sourceMatch[1].trim() : null,
+  };
+}
+
+function parseDecorRequest(raw: string = "") {
+  if (!raw || raw === "Không có") {
+    return { occasion: "Không có", pkg: "", price: "", note: "" };
+  }
+  let occasion = "Không có";
+  let pkg = "";
+  let price = "";
+  let note = "";
+  const parts = raw.split("|");
+  occasion = parts[0] || "Không có";
+  parts.forEach((p) => {
+    if (p.startsWith("PKG:")) pkg = p.replace("PKG:", "").trim();
+    if (p.startsWith("PRICE:")) price = p.replace("PRICE:", "").trim();
+    if (p.startsWith("NOTE:")) note = p.replace("NOTE:", "").trim();
+  });
+  return { occasion, pkg, price, note };
+}
 
 const FLOORS = [
   { name: "Tầng 1", rooms: ["Mây 101", "Mây 102", "Mây 103", "Mây 104", "Mây 105", "Mây 106"] },
@@ -53,6 +107,7 @@ export default function FloorPlanClient({
   const [selectedRoomDetail, setSelectedRoomDetail] = useState<{
     roomName: string;
     booking?: Booking;
+    bookings?: Booking[];
     reception?: ReceptionEntry;
   } | null>(null);
 
@@ -371,6 +426,7 @@ export default function FloorPlanClient({
                         setSelectedRoomDetail({
                           roomName: room,
                           booking: roomBookings[0],
+                          bookings: roomBookings,
                           reception: roomReception,
                         })
                       }
@@ -414,6 +470,8 @@ export default function FloorPlanClient({
                               .replace(/\[(VIP|SVIP)\]/g, "")
                               .trim();
 
+                            const bookingNotes = parseSpecialRequest(booking.specialRequest).cleanNotes;
+
                             return (
                               <div
                                 key={booking.id}
@@ -440,6 +498,11 @@ export default function FloorPlanClient({
                                     • {format(new Date(booking.dateTime), "HH:mm")}
                                   </span>
                                 </div>
+                                {bookingNotes && (
+                                  <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-amber-800 bg-amber-100/90 px-1.5 py-0.5 rounded-sm border border-amber-300/80 mt-0.5 max-w-full truncate shadow-2xs">
+                                    📝 Có dặn dò
+                                  </span>
+                                )}
                               </div>
                             );
                           })}
@@ -472,7 +535,7 @@ export default function FloorPlanClient({
         open={!!selectedRoomDetail}
         onOpenChange={(open) => !open && setSelectedRoomDetail(null)}
       >
-        <DialogContent className="sm:max-w-[450px] p-5">
+        <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto p-5">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-lg font-bold text-slate-800">
               <Home className="w-5 h-5 text-orange-500" />
@@ -516,8 +579,8 @@ export default function FloorPlanClient({
                       <Badge
                         className={
                           selectedRoomDetail.reception.type === "booking"
-                            ? "bg-blue-600"
-                            : "bg-emerald-600"
+                            ? "bg-blue-600 text-white"
+                            : "bg-emerald-600 text-white"
                         }
                       >
                         {selectedRoomDetail.reception.type === "booking"
@@ -548,8 +611,12 @@ export default function FloorPlanClient({
                     </div>
 
                     {selectedRoomDetail.reception.notes && (
-                      <div className="text-xs text-slate-600 pt-1 border-t border-slate-200">
-                        <span className="font-semibold">Ghi chú lễ tân:</span> {selectedRoomDetail.reception.notes}
+                      <div className="text-xs text-amber-900 bg-amber-50 p-2.5 rounded-lg border border-amber-200 mt-2">
+                        <span className="font-bold flex items-center gap-1 mb-0.5">
+                          <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                          Ghi chú lễ tân lúc đón khách:
+                        </span>
+                        <span className="whitespace-pre-line font-medium">{selectedRoomDetail.reception.notes}</span>
                       </div>
                     )}
 
@@ -589,62 +656,178 @@ export default function FloorPlanClient({
               })()}
 
               {/* Booking Details if scheduled */}
-              {selectedRoomDetail.booking ? (
-                <div className="space-y-3 pt-2">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-xs font-semibold text-slate-500">Khách đặt trước</h4>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="font-bold text-base text-slate-800">
-                          {selectedRoomDetail.booking.customerName.replace(/\[(VIP|SVIP)\]/g, "").trim()}
-                        </span>
-                        {selectedRoomDetail.booking.customerName.includes("[SVIP]") && (
-                          <Badge className="bg-yellow-500 hover:bg-yellow-600">SVIP</Badge>
-                        )}
-                        {selectedRoomDetail.booking.customerName.includes("[VIP]") &&
-                          !selectedRoomDetail.booking.customerName.includes("[SVIP]") && (
-                            <Badge className="bg-fuchsia-600 hover:bg-fuchsia-700">VIP</Badge>
-                          )}
-                      </div>
-                      <div className="text-xs text-slate-600 mt-0.5">
-                        SĐT: {selectedRoomDetail.booking.phone}
-                      </div>
-                    </div>
+              {((selectedRoomDetail.bookings && selectedRoomDetail.bookings.length > 0) || selectedRoomDetail.booking) ? (
+                <div className="space-y-4 pt-1">
+                  {(selectedRoomDetail.bookings && selectedRoomDetail.bookings.length > 0
+                    ? selectedRoomDetail.bookings
+                    : [selectedRoomDetail.booking!]
+                  ).map((booking, bIdx, arr) => {
+                    const parsedReq = parseSpecialRequest(booking.specialRequest);
+                    const decorParsed = parseDecorRequest(booking.decorRequest);
+                    const isVIP = booking.customerName.includes("[VIP]");
+                    const isSVIP = booking.customerName.includes("[SVIP]");
+                    const cleanCustomerName = booking.customerName.replace(/\[(VIP|SVIP)\]/g, "").trim();
 
-                    <div className="text-right">
-                      <span className="text-xs font-semibold text-slate-500 block">Thời gian tiệc</span>
-                      <span className="font-bold text-orange-600 text-sm">
-                        {format(new Date(selectedRoomDetail.booking.dateTime), "HH:mm")}
-                      </span>
-                      <span className="text-xs text-slate-500 block">
-                        {selectedRoomDetail.booking.guestsCount} khách
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Menu */}
-                  {selectedRoomDetail.booking.menu && selectedRoomDetail.booking.menu.length > 0 && (
-                    <div>
-                      <h4 className="text-xs font-semibold text-slate-500 mb-1">Thực đơn đã gọi:</h4>
-                      <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 max-h-36 overflow-y-auto space-y-1">
-                        {selectedRoomDetail.booking.menu.map((item, idx) => (
-                          <div key={idx} className="text-xs text-slate-700 pb-1 border-b border-slate-200 last:border-0 last:pb-0">
-                            • {item}
+                    return (
+                      <div
+                        key={booking.id || bIdx}
+                        className={`space-y-3 ${
+                          arr.length > 1
+                            ? "p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 shadow-2xs"
+                            : ""
+                        }`}
+                      >
+                        {arr.length > 1 && (
+                          <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                            <span className="font-extrabold text-xs text-orange-600 uppercase tracking-wider">
+                              Tiệc {bIdx + 1}: {format(new Date(booking.dateTime), "HH:mm")}
+                            </span>
+                            <Badge variant="outline" className="text-[10px] bg-white">
+                              {booking.guestsCount} khách
+                            </Badge>
                           </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                        )}
 
-                  {/* Decor Request */}
-                  {selectedRoomDetail.booking.decorRequest && (
-                    <div>
-                      <h4 className="text-xs font-semibold text-slate-500 mb-1">Gói Decor:</h4>
-                      <p className="text-xs bg-purple-50 text-purple-800 p-2 rounded border border-purple-100">
-                        {selectedRoomDetail.booking.decorRequest}
-                      </p>
-                    </div>
-                  )}
+                        {/* Customer Header */}
+                        <div className="flex items-center justify-between gap-2">
+                          <div>
+                            <span className="text-[11px] font-semibold text-slate-500 block uppercase tracking-wider">
+                              Khách đặt trước
+                            </span>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="font-bold text-base text-slate-900">
+                                {cleanCustomerName}
+                              </span>
+                              {isSVIP && (
+                                <Badge className="bg-yellow-500 hover:bg-yellow-600 text-[10px] font-black text-white">
+                                  SVIP
+                                </Badge>
+                              )}
+                              {isVIP && !isSVIP && (
+                                <Badge className="bg-fuchsia-600 hover:bg-fuchsia-700 text-[10px] font-bold text-white">
+                                  VIP
+                                </Badge>
+                              )}
+                            </div>
+                            {booking.phone && (
+                              <div className="text-xs text-blue-600 flex items-center gap-1 mt-0.5">
+                                <Phone className="w-3 h-3 text-blue-500 shrink-0" />
+                                <a href={`tel:${booking.phone}`} className="hover:underline font-medium">
+                                  {booking.phone}
+                                </a>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="text-right">
+                            <span className="text-xs font-semibold text-slate-500 block">Thời gian tiệc</span>
+                            <span className="font-bold text-orange-600 text-base">
+                              {format(new Date(booking.dateTime), "HH:mm")}
+                            </span>
+                            <span className="text-xs text-slate-600 font-medium block">
+                              👥 {booking.guestsCount} khách
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* HIGHLIGHTED NOTE / DẶN DÒ CỦA KHÁCH - GIÁM SÁT / PHỤC VỤ / BẾP */}
+                        {parsedReq.cleanNotes ? (
+                          <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-3.5 space-y-2 shadow-xs">
+                            <div className="flex items-center gap-1.5 text-amber-900 font-extrabold text-xs uppercase tracking-wide">
+                              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                              <span>Lưu Ý &amp; Dặn Dò Của Khách (Quan Trọng)</span>
+                            </div>
+                            <div className="bg-white/95 p-3 rounded-lg border border-amber-200 text-xs sm:text-sm font-semibold text-amber-950 whitespace-pre-line leading-relaxed shadow-2xs">
+                              {parsedReq.cleanNotes}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="bg-slate-50 border border-slate-200 rounded-lg p-2.5 flex items-center gap-2 text-xs text-slate-500">
+                            <FileText className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span>Ghi chú dặn dò: <span className="italic text-slate-400">Không có yêu cầu riêng</span></span>
+                          </div>
+                        )}
+
+                        {/* Menu */}
+                        {booking.menu && booking.menu.length > 0 && (
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <h4 className="text-xs font-bold text-slate-700">
+                                Thực đơn đã gọi ({booking.menu.length} món):
+                              </h4>
+                            </div>
+                            <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200 max-h-40 overflow-y-auto space-y-1">
+                              {booking.menu.map((item, idx) => (
+                                <div
+                                  key={idx}
+                                  className="text-xs text-slate-700 pb-1 border-b border-slate-200/60 last:border-0 last:pb-0 font-medium"
+                                >
+                                  • {item}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Decor Request Details */}
+                        <div className="bg-purple-50/80 border border-purple-200 rounded-xl p-3 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-purple-900 flex items-center gap-1.5">
+                              <Sparkles className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                              Yêu Cầu Decor
+                            </span>
+                            {decorParsed.occasion && decorParsed.occasion !== "Không có" && (
+                              <Badge className="bg-purple-600 text-white text-[10px]">
+                                {decorParsed.occasion}
+                              </Badge>
+                            )}
+                          </div>
+
+                          {decorParsed.pkg ? (
+                            <div className="text-xs font-semibold text-purple-950">
+                              {DECOR_PACKAGE_NAMES[decorParsed.pkg] || `Gói: ${decorParsed.pkg}`}
+                              {decorParsed.price && (
+                                <span className="text-orange-600 ml-1.5 font-bold">
+                                  ({decorParsed.price})
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            decorParsed.occasion === "Không có" && (
+                              <p className="text-xs text-slate-500 italic">Không có yêu cầu decor</p>
+                            )
+                          )}
+
+                          {decorParsed.note && (
+                            <div className="text-xs text-purple-900 bg-white/90 p-2.5 rounded-lg border border-purple-200 whitespace-pre-line">
+                              <span className="font-bold text-purple-950">Ghi chú Decor:</span> {decorParsed.note}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Deposit, Discount, Source summary if present */}
+                        {(parsedReq.deposit || parsedReq.discount || parsedReq.source) && (
+                          <div className="flex items-center gap-2 text-xs pt-1 border-t border-slate-100 flex-wrap">
+                            {parsedReq.deposit && (
+                              <span className="bg-orange-50 text-orange-700 px-2 py-0.5 rounded border border-orange-200 font-semibold text-[11px]">
+                                💵 Cọc: {parsedReq.deposit}
+                              </span>
+                            )}
+                            {parsedReq.discount && (
+                              <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded border border-emerald-200 font-semibold text-[11px]">
+                                🏷️ Giảm: {parsedReq.discount}
+                              </span>
+                            )}
+                            {parsedReq.source && (
+                              <span className="text-slate-400 text-[11px] italic ml-auto">
+                                Nguồn: {parsedReq.source}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
                 !selectedRoomDetail.reception && (
