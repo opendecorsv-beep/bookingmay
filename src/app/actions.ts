@@ -219,6 +219,7 @@ export async function addReceptionEntryAction(data: Omit<ReceptionEntry, 'id' | 
   const updatedLogs = [newEntry, ...currentLogs];
   await saveReceptionLogs(updatedLogs);
   revalidatePath('/');
+  revalidatePath('/floor-plan');
   return { success: true, entry: newEntry };
 }
 
@@ -237,6 +238,7 @@ export async function updateReceptionStatusAction(id: string, status: VisitStatu
   });
   await saveReceptionLogs(updatedLogs);
   revalidatePath('/');
+  revalidatePath('/floor-plan');
   return { success: true };
 }
 
@@ -255,6 +257,7 @@ export async function updateReceptionFeedbackAction(id: string, feedback: Recept
   });
   await saveReceptionLogs(updatedLogs);
   revalidatePath('/');
+  revalidatePath('/floor-plan');
   return { success: true };
 }
 
@@ -263,6 +266,7 @@ export async function deleteReceptionEntryAction(id: string) {
   const updatedLogs = currentLogs.filter(item => item.id !== id);
   await saveReceptionLogs(updatedLogs);
   revalidatePath('/');
+  revalidatePath('/floor-plan');
   return { success: true };
 }
 

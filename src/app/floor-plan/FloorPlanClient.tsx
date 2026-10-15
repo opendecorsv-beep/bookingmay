@@ -27,7 +27,7 @@ import {
   Sparkles,
   ArrowRight
 } from "lucide-react";
-import { isBookingArchived } from "@/lib/bookingUtils";
+import { isBookingArchived, isVisitExpired, getVietnamTodayString } from "@/lib/bookingUtils";
 
 const FLOORS = [
   { name: "Tầng 1", rooms: ["Mây 101", "Mây 102", "Mây 103", "Mây 104", "Mây 105", "Mây 106"] },
@@ -56,10 +56,14 @@ export default function FloorPlanClient({
     reception?: ReceptionEntry;
   } | null>(null);
 
+  const todayStr = useMemo(() => getVietnamTodayString(), []);
+
   const selectedDate = useMemo(
-    () => selectedDateTime.split("T")[0] || format(new Date(), "yyyy-MM-dd"),
-    [selectedDateTime]
+    () => selectedDateTime.split("T")[0] || todayStr,
+    [selectedDateTime, todayStr]
   );
+
+  const isSelectedToday = selectedDate === todayStr;
 
   // Reception logs for the selected date
   const dayReceptionLogs = useMemo(() => {
@@ -77,16 +81,22 @@ export default function FloorPlanClient({
 
   // Combined Restaurant Statistics (Lễ Tân + Sơ Đồ Bàn Thống Nhất)
   const unifiedStats = useMemo(() => {
-    // 1. Guests currently dining in restaurant
-    const diningLogs = dayReceptionLogs.filter((l) => l.status === "dining");
+    // 1. Guests currently dining in restaurant - ONLY for TODAY and NOT expired
+    const diningLogs = isSelectedToday
+      ? dayReceptionLogs.filter((l) => l.status === "dining" && !isVisitExpired(l.date, l.time))
+      : [];
     const diningGuests = diningLogs.reduce(
       (sum, l) => sum + (l.guestsCount || 0),
       0
     );
     const diningTables = diningLogs.length;
 
-    // 2. Guests who have departed
-    const leftLogs = dayReceptionLogs.filter((l) => l.status === "left");
+    // 2. Guests who have departed:
+    // If today: all with status === 'left' or expired
+    // If past day: all logs on that day have completed/departed
+    const leftLogs = isSelectedToday
+      ? dayReceptionLogs.filter((l) => l.status === "left" || isVisitExpired(l.date, l.time))
+      : dayReceptionLogs;
     const leftGuests = leftLogs.reduce(
       (sum, l) => sum + (l.guestsCount || 0),
       0
@@ -97,20 +107,21 @@ export default function FloorPlanClient({
     const checkedInBookingIds = new Set(
       dayReceptionLogs.map((l) => l.bookingId).filter(Boolean)
     );
-    const pendingBookings = activeBookings.filter(
-      (b) => !checkedInBookingIds.has(b.id)
-    );
+    const pendingBookings = isSelectedToday
+      ? activeBookings.filter((b) => !checkedInBookingIds.has(b.id))
+      : [];
     const pendingGuests = pendingBookings.reduce(
       (sum, b) => sum + (b.guestsCount || 0),
       0
     );
 
     // 4. Totals for the day
-    const totalDayGuests = diningGuests + leftGuests + pendingGuests;
-    const totalDayTables = diningTables + leftTables + pendingBookings.length;
+    const notCheckedInCount = activeBookings.filter((b) => !checkedInBookingIds.has(b.id)).length;
+    const totalDayGuests = diningGuests + leftGuests + (isSelectedToday ? pendingGuests : 0);
+    const totalDayTables = diningTables + leftTables + (isSelectedToday ? pendingBookings.length : 0);
 
     const walkinCount = dayReceptionLogs.filter((l) => l.type === "walkin").length;
-    const bookingCount = dayReceptionLogs.filter((l) => l.type === "booking").length + pendingBookings.length;
+    const bookingCount = dayReceptionLogs.filter((l) => l.type === "booking").length + (isSelectedToday ? pendingBookings.length : notCheckedInCount);
 
     return {
       diningGuests,
@@ -124,7 +135,7 @@ export default function FloorPlanClient({
       walkinCount,
       bookingCount,
     };
-  }, [dayReceptionLogs, activeBookings]);
+  }, [dayReceptionLogs, activeBookings, isSelectedToday]);
 
   // Helper to find bookings for a room
   const getRoomBookings = (roomName: string) => {
@@ -316,8 +327,19 @@ export default function FloorPlanClient({
                   const roomBookings = getRoomBookings(room);
                   const roomReception = getRoomReception(room);
 
-                  const isDiningNow = roomReception && roomReception.status === "dining";
-                  const isLeft = roomReception && roomReception.status === "left";
+                  // LIVE dining: strictly only when viewing today AND status is dining AND not expired
+                  const isDiningNow = Boolean(
+                    isSelectedToday &&
+                    roomReception &&
+                    roomReception.status === "dining" &&
+                    !isVisitExpired(roomReception.date, roomReception.time)
+                  );
+                  const isLeft = Boolean(
+                    roomReception &&
+                    (roomReception.status === "left" ||
+                     isVisitExpired(roomReception.date, roomReception.time) ||
+                     !isSelectedToday)
+                  );
                   const isBooked = roomBookings.length > 0;
 
                   // Styling logic
@@ -461,98 +483,110 @@ export default function FloorPlanClient({
           {selectedRoomDetail && (
             <div className="space-y-4 py-2 text-xs sm:text-sm">
               {/* Reception Live Visit Status */}
-              {selectedRoomDetail.reception && (
-                <div className="bg-emerald-50 border border-emerald-200 p-3.5 rounded-xl space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-emerald-900 text-sm flex items-center gap-1.5">
-                      {selectedRoomDetail.reception.status === "dining" ? (
-                        <>
-                          <span className="relative flex h-2.5 w-2.5">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                          </span>
-                          Đang Có Khách Ngồi Dùng Bữa
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle2 className="w-4 h-4 text-slate-500" />
-                          Khách Đã Ra Về ({selectedRoomDetail.reception.time})
-                        </>
-                      )}
-                    </span>
-                    <Badge
-                      className={
-                        selectedRoomDetail.reception.type === "booking"
-                          ? "bg-blue-600"
-                          : "bg-emerald-600"
-                      }
-                    >
-                      {selectedRoomDetail.reception.type === "booking"
-                        ? "Booking"
-                        : "Khách Vãng Lai"}
-                    </Badge>
-                  </div>
+              {selectedRoomDetail.reception && (() => {
+                const isDialogDining = Boolean(
+                  isSelectedToday &&
+                  selectedRoomDetail.reception.status === "dining" &&
+                  !isVisitExpired(selectedRoomDetail.reception.date, selectedRoomDetail.reception.time)
+                );
 
-                  <div className="grid grid-cols-2 gap-2 text-slate-700 pt-1">
-                    <div>
-                      <span className="text-slate-500 text-[11px] block">Khách đại diện:</span>
-                      <span className="font-bold">{selectedRoomDetail.reception.customerName}</span>
+                return (
+                  <div className={`p-3.5 rounded-xl space-y-2 border ${
+                    isDialogDining ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <span className={`font-bold text-sm flex items-center gap-1.5 ${
+                        isDialogDining ? 'text-emerald-900' : 'text-slate-800'
+                      }`}>
+                        {isDialogDining ? (
+                          <>
+                            <span className="relative flex h-2.5 w-2.5">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                            </span>
+                            Đang Có Khách Ngồi Dùng Bữa
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle2 className="w-4 h-4 text-slate-500" />
+                            Khách Đã Ra Về ({selectedRoomDetail.reception.time})
+                          </>
+                        )}
+                      </span>
+                      <Badge
+                        className={
+                          selectedRoomDetail.reception.type === "booking"
+                            ? "bg-blue-600"
+                            : "bg-emerald-600"
+                        }
+                      >
+                        {selectedRoomDetail.reception.type === "booking"
+                          ? "Booking"
+                          : "Khách Vãng Lai"}
+                      </Badge>
                     </div>
-                    <div>
-                      <span className="text-slate-500 text-[11px] block">Số lượng khách:</span>
-                      <span className="font-bold">{selectedRoomDetail.reception.guestsCount} người</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-500 text-[11px] block">Giờ vào:</span>
-                      <span className="font-medium">{selectedRoomDetail.reception.time}</span>
-                    </div>
-                    {selectedRoomDetail.reception.phone && (
+
+                    <div className="grid grid-cols-2 gap-2 text-slate-700 pt-1">
                       <div>
-                        <span className="text-slate-500 text-[11px] block">Số điện thoại:</span>
-                        <span className="font-medium text-blue-600">{selectedRoomDetail.reception.phone}</span>
+                        <span className="text-slate-500 text-[11px] block">Khách đại diện:</span>
+                        <span className="font-bold">{selectedRoomDetail.reception.customerName}</span>
                       </div>
-                    )}
-                  </div>
-
-                  {selectedRoomDetail.reception.notes && (
-                    <div className="text-xs text-slate-600 pt-1 border-t border-emerald-200/60">
-                      <span className="font-semibold">Ghi chú lễ tân:</span> {selectedRoomDetail.reception.notes}
-                    </div>
-                  )}
-
-                  {/* Customer Feedback if departed */}
-                  {selectedRoomDetail.reception.feedback &&
-                    selectedRoomDetail.reception.feedback.rating &&
-                    selectedRoomDetail.reception.feedback.rating !== "none" && (
-                      <div className="mt-2 pt-2 border-t border-emerald-200/80 bg-white/80 p-2.5 rounded-lg">
-                        <div className="flex items-center gap-1 font-bold text-xs text-slate-800">
-                          <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                          <span>Cảm nhận khách hàng:</span>
-                          <span className="text-emerald-700 ml-1">
-                            {selectedRoomDetail.reception.feedback.rating === "very_satisfied" && "🤩 Rất hài lòng"}
-                            {selectedRoomDetail.reception.feedback.rating === "satisfied" && "😊 Hài lòng"}
-                            {selectedRoomDetail.reception.feedback.rating === "neutral" && "😐 Bình thường"}
-                            {selectedRoomDetail.reception.feedback.rating === "unsatisfied" && "🙁 Cần cải thiện"}
-                          </span>
+                      <div>
+                        <span className="text-slate-500 text-[11px] block">Số lượng khách:</span>
+                        <span className="font-bold">{selectedRoomDetail.reception.guestsCount} người</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 text-[11px] block">Giờ vào:</span>
+                        <span className="font-medium">{selectedRoomDetail.reception.time}</span>
+                      </div>
+                      {selectedRoomDetail.reception.phone && (
+                        <div>
+                          <span className="text-slate-500 text-[11px] block">Số điện thoại:</span>
+                          <span className="font-medium text-blue-600">{selectedRoomDetail.reception.phone}</span>
                         </div>
-                        {selectedRoomDetail.reception.feedback.comment && (
-                          <p className="text-xs text-slate-600 italic mt-1">
-                            &ldquo;{selectedRoomDetail.reception.feedback.comment}&rdquo;
-                          </p>
-                        )}
-                        {selectedRoomDetail.reception.feedback.tags && (
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {selectedRoomDetail.reception.feedback.tags.map((t, idx) => (
-                              <span key={idx} className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">
-                                {t}
-                              </span>
-                            ))}
-                          </div>
-                        )}
+                      )}
+                    </div>
+
+                    {selectedRoomDetail.reception.notes && (
+                      <div className="text-xs text-slate-600 pt-1 border-t border-slate-200">
+                        <span className="font-semibold">Ghi chú lễ tân:</span> {selectedRoomDetail.reception.notes}
                       </div>
                     )}
-                </div>
-              )}
+
+                    {/* Customer Feedback if departed */}
+                    {selectedRoomDetail.reception.feedback &&
+                      selectedRoomDetail.reception.feedback.rating &&
+                      selectedRoomDetail.reception.feedback.rating !== "none" && (
+                        <div className="mt-2 pt-2 border-t border-slate-200 bg-white p-2.5 rounded-lg">
+                          <div className="flex items-center gap-1 font-bold text-xs text-slate-800">
+                            <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                            <span>Cảm nhận khách hàng:</span>
+                            <span className="text-emerald-700 ml-1">
+                              {selectedRoomDetail.reception.feedback.rating === "very_satisfied" && "🤩 Rất hài lòng"}
+                              {selectedRoomDetail.reception.feedback.rating === "satisfied" && "😊 Hài lòng"}
+                              {selectedRoomDetail.reception.feedback.rating === "neutral" && "😐 Bình thường"}
+                              {selectedRoomDetail.reception.feedback.rating === "unsatisfied" && "🙁 Cần cải thiện"}
+                            </span>
+                          </div>
+                          {selectedRoomDetail.reception.feedback.comment && (
+                            <p className="text-xs text-slate-600 italic mt-1">
+                              &ldquo;{selectedRoomDetail.reception.feedback.comment}&rdquo;
+                            </p>
+                          )}
+                          {selectedRoomDetail.reception.feedback.tags && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {selectedRoomDetail.reception.feedback.tags.map((t, idx) => (
+                                <span key={idx} className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">
+                                  {t}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                  </div>
+                );
+              })()}
 
               {/* Booking Details if scheduled */}
               {selectedRoomDetail.booking ? (

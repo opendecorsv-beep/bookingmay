@@ -85,6 +85,30 @@ export function isPast8Hours(dateTimeStr: string): boolean {
  * 2. Tiệc đã qua ngày (hôm qua hoặc trước đó)
  * 3. Tiệc đã qua thời gian tổ chức tiệc trên 8 tiếng
  */
+/**
+ * Kiểm tra xem một lượt đón khách / tiệc đã kết thúc chưa:
+ * 1. Tiệc đã qua ngày (dateStr < today theo giờ VN)
+ * 2. Hoặc nếu cùng ngày nhưng đã quá 6 tiếng tính từ giờ vào / giờ tiệc
+ */
+export function isVisitExpired(dateStr: string, timeStr?: string): boolean {
+  if (!dateStr) return true;
+  const today = getVietnamTodayString();
+  if (dateStr < today) return true;
+  if (dateStr > today) return false;
+  
+  // Nếu trong ngày hôm nay: kiểm tra xem đã qua hơn 6 tiếng chưa
+  if (timeStr) {
+    try {
+      const entryTime = parseBookingDate(`${dateStr}T${timeStr}`);
+      const diffHours = (Date.now() - entryTime.getTime()) / (1000 * 60 * 60);
+      return diffHours >= 6;
+    } catch {
+      return false;
+    }
+  }
+  return false;
+}
+
 export function isBookingArchived(b: Booking, _unusedNow?: Date): boolean {
   // 1. Giám sát đã bấm chọn dọn xong (clean)
   if (b.receptionStatus === 'clean') return true;

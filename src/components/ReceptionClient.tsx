@@ -52,7 +52,7 @@ import {
   ReceptionFeedback,
   Booking
 } from '@/lib/data';
-import { isBookingArchived } from '@/lib/bookingUtils';
+import { isBookingArchived, isVisitExpired, getVietnamTodayString } from '@/lib/bookingUtils';
 import {
   addReceptionEntryAction,
   updateReceptionStatusAction,
@@ -83,7 +83,7 @@ export default function ReceptionClient({ initialLogs, allBookings }: ReceptionC
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Filter states
-  const todayStr = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
+  const todayStr = useMemo(() => getVietnamTodayString(), []);
   const [selectedFilterTab, setSelectedFilterTab] = useState<'today' | 'yesterday' | 'month' | 'all'>('today');
   const [customDate, setCustomDate] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -111,14 +111,23 @@ export default function ReceptionClient({ initialLogs, allBookings }: ReceptionC
   const [feedbackComment, setFeedbackComment] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
-  // Yesterday date string
+  // Yesterday date string (Vietnam timezone)
   const yesterdayStr = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 1);
-    return format(d, 'yyyy-MM-dd');
+    const today = getVietnamTodayString();
+    const [y, m, d] = today.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    date.setDate(date.getDate() - 1);
+    return format(date, 'yyyy-MM-dd');
   }, []);
 
-  const currentMonthStr = useMemo(() => format(new Date(), 'yyyy-MM'), []);
+  const currentMonthStr = useMemo(() => getVietnamTodayString().substring(0, 7), []);
+
+  // Helper to determine real-time status: any past day or >6h dining is automatically considered 'left'
+  const getEffectiveStatus = (entry: ReceptionEntry): VisitStatus => {
+    if (entry.status === 'left') return 'left';
+    if (isVisitExpired(entry.date, entry.time)) return 'left';
+    return 'dining';
+  };
 
   // Filtered logs for display
   const filteredLogs = useMemo(() => {
@@ -138,7 +147,7 @@ export default function ReceptionClient({ initialLogs, allBookings }: ReceptionC
       if (typeFilter !== 'all' && log.type !== typeFilter) return false;
 
       // Status filter
-      if (statusFilter !== 'all' && log.status !== statusFilter) return false;
+      if (statusFilter !== 'all' && getEffectiveStatus(log) !== statusFilter) return false;
 
       // Search query
       if (searchQuery.trim()) {
@@ -193,8 +202,8 @@ export default function ReceptionClient({ initialLogs, allBookings }: ReceptionC
     const totalGuests = list.reduce((sum, item) => sum + (item.guestsCount || 0), 0);
     const bookingEntries = list.filter(item => item.type === 'booking').length;
     const walkinEntries = list.filter(item => item.type === 'walkin').length;
-    const diningEntries = list.filter(item => item.status === 'dining').length;
-    const leftEntries = list.filter(item => item.status === 'left').length;
+    const diningEntries = list.filter(item => getEffectiveStatus(item) === 'dining').length;
+    const leftEntries = list.filter(item => getEffectiveStatus(item) === 'left').length;
 
     const feedbackList = list.filter(item => item.feedback && item.feedback.rating && item.feedback.rating !== 'none');
     const satisfiedCount = feedbackList.filter(item => item.feedback?.rating === 'very_satisfied' || item.feedback?.rating === 'satisfied').length;
@@ -371,7 +380,7 @@ export default function ReceptionClient({ initialLogs, allBookings }: ReceptionC
           'Số điện thoại': item.phone || '',
           'Số lượng khách': item.guestsCount,
           'Phòng / Bàn': item.room || '',
-          'Trạng thái': item.status === 'dining' ? 'Đang dùng bữa' : 'Đã ra về',
+          'Trạng thái': getEffectiveStatus(item) === 'dining' ? 'Đang dùng bữa' : 'Đã ra về',
           'Đánh giá Feedback': ratingText,
           'Ý kiến / Góp ý': item.feedback?.comment || '',
           'Tag đánh giá': (item.feedback?.tags || []).join(', '),
@@ -714,7 +723,7 @@ export default function ReceptionClient({ initialLogs, allBookings }: ReceptionC
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {filteredLogs.map((entry) => {
-              const isDining = entry.status === 'dining';
+              const isDining = getEffectiveStatus(entry) === 'dining';
               const hasFeedback = entry.feedback && entry.feedback.rating && entry.feedback.rating !== 'none';
 
               return (

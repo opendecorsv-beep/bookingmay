@@ -1,5 +1,6 @@
-import { Booking, BookingStatus, TaskStatus, SeafoodCategory, defaultSeafoodCategories, ReceptionEntry, defaultReceptionLogs } from './data';
+import { Booking, BookingStatus, TaskStatus, SeafoodCategory, defaultSeafoodCategories, ReceptionEntry, defaultReceptionLogs, VisitStatus } from './data';
 import { supabase } from './supabase';
+import { isVisitExpired } from './bookingUtils';
 
 let globalSeafoodData: { updatedAt: string; categories: SeafoodCategory[] } = {
   updatedAt: new Date().toISOString(),
@@ -217,19 +218,40 @@ export async function saveSeafoodInventory(inventory: { updatedAt: string; categ
   }
 }
 
+function normalizeReceptionList(logs: ReceptionEntry[]): { normalized: ReceptionEntry[]; hasChanges: boolean } {
+  let hasChanges = false;
+  const normalized = logs.map(item => {
+    if (item.status === 'dining' && isVisitExpired(item.date, item.time)) {
+      hasChanges = true;
+      return {
+        ...item,
+        status: 'left' as VisitStatus,
+        updatedAt: item.updatedAt || new Date().toISOString()
+      };
+    }
+    return item;
+  });
+  return { normalized, hasChanges };
+}
+
 export async function getReceptionLogs(): Promise<ReceptionEntry[]> {
   try {
     const { data, error } = await supabase.from('bookings').select('menu').eq('id', 'CONFIG_RECEPTION').single();
     if (error || !data) {
-      return globalReceptionLogs;
+      return normalizeReceptionList(globalReceptionLogs).normalized;
     }
     const parsed = typeof data.menu === 'string' ? JSON.parse(data.menu) : data.menu;
     if (Array.isArray(parsed)) {
-      return parsed.filter((item: any) => !item.id?.startsWith('REC-20261014-00') && !item.id?.startsWith('REC-20261013-00'));
+      const filtered = parsed.filter((item: any) => !item.id?.startsWith('REC-20261014-00') && !item.id?.startsWith('REC-20261013-00'));
+      const { normalized, hasChanges } = normalizeReceptionList(filtered);
+      if (hasChanges) {
+        saveReceptionLogs(normalized).catch(err => console.error("Error auto-updating expired reception logs:", err));
+      }
+      return normalized;
     }
-    return globalReceptionLogs;
+    return normalizeReceptionList(globalReceptionLogs).normalized;
   } catch (err) {
-    return globalReceptionLogs;
+    return normalizeReceptionList(globalReceptionLogs).normalized;
   }
 }
 
