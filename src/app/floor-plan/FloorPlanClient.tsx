@@ -38,6 +38,7 @@ import {
   parseSpecialRequest,
   parseDecorRequest
 } from "@/lib/bookingUtils";
+import { transferReceptionRoomAction } from "@/app/actions";
 
 const FLOORS = [
   { name: "Tầng 1", rooms: ["Mây 101", "Mây 102", "Mây 103", "Mây 104", "Mây 105", "Mây 106"] },
@@ -66,6 +67,31 @@ export default function FloorPlanClient({
     bookings?: Booking[];
     reception?: ReceptionEntry;
   } | null>(null);
+
+  const [transferRoom, setTransferRoom] = useState<string>("");
+  const [isTransferring, setIsTransferring] = useState<boolean>(false);
+
+  const ALL_ROOM_OPTIONS = useMemo(() => {
+    return FLOORS.flatMap(f => f.rooms);
+  }, []);
+
+  const handleTransfer = async (receptionId: string, currentRoom: string) => {
+    if (!transferRoom || transferRoom === currentRoom) {
+      alert("Vui lòng chọn bàn/phòng mới để chuyển!");
+      return;
+    }
+    setIsTransferring(true);
+    try {
+      await transferReceptionRoomAction(receptionId, transferRoom);
+      setSelectedRoomDetail(null);
+      setTransferRoom("");
+    } catch (err) {
+      console.error(err);
+      alert("Có lỗi khi chuyển bàn!");
+    } finally {
+      setIsTransferring(false);
+    }
+  };
 
   const todayStr = useMemo(() => getVietnamTodayString(), []);
 
@@ -612,6 +638,36 @@ export default function FloorPlanClient({
                         </div>
                       )}
                     </div>
+
+                    {/* Quick Transfer Room Control for Live Dining */}
+                    {isDialogDining && (
+                      <div className="pt-2 border-t border-emerald-200/90 mt-2 bg-white/80 p-2.5 rounded-lg border flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                        <span className="text-xs font-bold text-slate-700 whitespace-nowrap flex items-center gap-1">
+                          <Home className="w-3.5 h-3.5 text-orange-600" />
+                          Đổi sang bàn/phòng:
+                        </span>
+                        <select
+                          value={transferRoom}
+                          onChange={(e) => setTransferRoom(e.target.value)}
+                          className="text-xs h-8 px-2 py-1 bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-orange-500 flex-1 font-semibold text-slate-800"
+                        >
+                          <option value="">-- Chọn bàn / phòng mới --</option>
+                          {ALL_ROOM_OPTIONS.map((r) => (
+                            <option key={r} value={r} disabled={r === selectedRoomDetail.roomName}>
+                              {r} {r === selectedRoomDetail.roomName ? "(Đang ngồi)" : ""}
+                            </option>
+                          ))}
+                        </select>
+                        <Button
+                          size="sm"
+                          disabled={!transferRoom || transferRoom === selectedRoomDetail.roomName || isTransferring}
+                          onClick={() => handleTransfer(selectedRoomDetail.reception!.id, selectedRoomDetail.roomName)}
+                          className="h-8 text-xs font-bold bg-orange-600 hover:bg-orange-700 text-white shrink-0 shadow-2xs"
+                        >
+                          {isTransferring ? "Đang đổi..." : "Chuyển Bàn Ngay"}
+                        </Button>
+                      </div>
+                    )}
 
                     {selectedRoomDetail.reception.notes && (
                       <div className="text-xs text-amber-900 bg-amber-50 p-2.5 rounded-lg border border-amber-200 mt-2">

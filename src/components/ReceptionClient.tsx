@@ -29,7 +29,8 @@ import {
   Check,
   ChevronRight,
   LayoutGrid,
-  AlertCircle
+  AlertCircle,
+  RefreshCw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -58,7 +59,8 @@ import {
   addReceptionEntryAction,
   updateReceptionStatusAction,
   updateReceptionFeedbackAction,
-  deleteReceptionEntryAction
+  deleteReceptionEntryAction,
+  transferReceptionRoomAction
 } from '@/app/actions';
 import * as XLSX from 'xlsx';
 
@@ -66,6 +68,13 @@ interface ReceptionClientProps {
   initialLogs: ReceptionEntry[];
   allBookings: Booking[];
 }
+
+const ALL_TRANSFER_ROOMS = [
+  "Mây 101", "Mây 102", "Mây 103", "Mây 104", "Mây 105", "Mây 106",
+  "Mây 201", "Mây 202", "Mây 203", "Mây 204",
+  "Mây 301", "Mây 302", "Mây 303", "Mây 304",
+  ...Array.from({ length: 25 }, (_, i) => `Bàn ${i + 1}`)
+];
 
 const QUICK_TAGS = [
   'Đồ ăn rất ngon',
@@ -95,6 +104,8 @@ export default function ReceptionClient({ initialLogs, allBookings }: ReceptionC
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const [selectedEntryForFeedback, setSelectedEntryForFeedback] = useState<ReceptionEntry | null>(null);
+  const [transferTargetEntry, setTransferTargetEntry] = useState<ReceptionEntry | null>(null);
+  const [transferTargetRoom, setTransferTargetRoom] = useState<string>('');
 
   // New entry form state
   const [newType, setNewType] = useState<CustomerType>('walkin');
@@ -111,6 +122,34 @@ export default function ReceptionClient({ initialLogs, allBookings }: ReceptionC
   const [feedbackRating, setFeedbackRating] = useState<FeedbackRating>('very_satisfied');
   const [feedbackComment, setFeedbackComment] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+
+  const handleTransferRoom = async () => {
+    if (!transferTargetEntry || !transferTargetRoom || transferTargetRoom === transferTargetEntry.room) {
+      alert('Vui lòng chọn bàn/phòng mới để chuyển!');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      await transferReceptionRoomAction(transferTargetEntry.id, transferTargetRoom);
+      setLogs(prev => prev.map(item => {
+        if (item.id === transferTargetEntry.id) {
+          return {
+            ...item,
+            room: transferTargetRoom,
+            updatedAt: new Date().toISOString()
+          };
+        }
+        return item;
+      }));
+      setTransferTargetEntry(null);
+      setTransferTargetRoom('');
+    } catch (err) {
+      console.error(err);
+      alert('Có lỗi khi chuyển bàn!');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   // Yesterday date string (Vietnam timezone)
   const yesterdayStr = useMemo(() => {
@@ -738,11 +777,26 @@ export default function ReceptionClient({ initialLogs, allBookings }: ReceptionC
                 >
                   {/* Top Bar: Room & Type & Time */}
                   <div className="flex items-center justify-between gap-2 mb-2">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="bg-slate-800 text-white font-black text-xs px-2.5 py-1 rounded-md flex items-center gap-1">
                         <Home className="w-3 h-3 text-orange-400" />
                         {entry.room || 'Sảnh chung'}
                       </span>
+
+                      {isDining && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTransferTargetEntry(entry);
+                            setTransferTargetRoom(entry.room || '');
+                          }}
+                          className="text-[11px] font-semibold text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 px-2 py-0.5 rounded-md flex items-center gap-1 transition-colors"
+                          title="Đổi bàn / phòng khác"
+                        >
+                          <RefreshCw className="w-3 h-3 text-orange-600" />
+                          Đổi bàn
+                        </button>
+                      )}
 
                       {entry.type === 'booking' ? (
                         <Badge className="bg-blue-600 hover:bg-blue-700 text-[11px] font-semibold text-white">
@@ -1297,6 +1351,84 @@ export default function ReceptionClient({ initialLogs, allBookings }: ReceptionC
               </Button>
             </DialogFooter>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Transfer Room Dialog */}
+      <Dialog open={!!transferTargetEntry} onOpenChange={(open) => !open && setTransferTargetEntry(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-slate-800 text-base">
+              <RefreshCw className="w-5 h-5 text-orange-600" />
+              Đổi Bàn / Phòng Cho Khách
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Chuyển bàn ăn hiện tại của khách sang bàn hoặc phòng khác. Hệ thống sẽ tự động đồng bộ tức thì sang Sơ đồ bàn và Danh sách Đặt bàn.
+            </DialogDescription>
+          </DialogHeader>
+
+          {transferTargetEntry && (
+            <div className="space-y-4 pt-2">
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Khách hàng:</span>
+                  <span className="font-bold text-slate-800">{transferTargetEntry.customerName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Vị trí hiện tại:</span>
+                  <span className="font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded border border-orange-200">
+                    {transferTargetEntry.room || 'Sảnh chung'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Số lượng khách:</span>
+                  <span className="font-semibold text-slate-700">{transferTargetEntry.guestsCount} khách</span>
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-xs font-bold text-slate-700">Chọn Bàn / Phòng Mới:</Label>
+                <select
+                  value={transferTargetRoom}
+                  onChange={(e) => setTransferTargetRoom(e.target.value)}
+                  className="w-full mt-1.5 h-10 text-sm font-semibold bg-white border border-slate-300 rounded-lg px-3 text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                >
+                  <option value="">-- Chọn bàn hoặc phòng --</option>
+                  <optgroup label="Phòng VIP / Tầng">
+                    {["Mây 101", "Mây 102", "Mây 103", "Mây 104", "Mây 105", "Mây 106",
+                      "Mây 201", "Mây 202", "Mây 203", "Mây 204",
+                      "Mây 301", "Mây 302", "Mây 303", "Mây 304"].map((r) => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Bàn Sảnh">
+                    {Array.from({ length: 25 }, (_, i) => `Bàn ${i + 1}`).map((b) => (
+                      <option key={b} value={b}>{b}</option>
+                    ))}
+                  </optgroup>
+                </select>
+              </div>
+
+              <DialogFooter className="pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setTransferTargetEntry(null)}
+                  className="h-9 text-xs"
+                >
+                  Hủy Bỏ
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleTransferRoom}
+                  disabled={isSubmitting || !transferTargetRoom || transferTargetRoom === transferTargetEntry.room}
+                  className="h-9 text-xs bg-orange-600 hover:bg-orange-700 text-white font-bold"
+                >
+                  {isSubmitting ? 'Đang chuyển...' : 'Xác Nhận Đổi Bàn'}
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

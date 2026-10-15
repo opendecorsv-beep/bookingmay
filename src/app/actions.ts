@@ -98,22 +98,101 @@ export async function updateExistingBooking(id: string, data: Partial<Omit<Booki
   }
 
   await updateBookingData(id, data);
+
+  // Tự động đồng bộ sang Lễ tân (CONFIG_RECEPTION):
+  // Khi đổi phòng/bàn, số khách, tên khách hoặc thời gian tiệc, đồng bộ ngay lập tức sang lượt đón khách
+  try {
+    const currentLogs = await getReceptionLogs();
+    let hasChanges = false;
+    const updatedLogs = currentLogs.map(item => {
+      if (item.bookingId === id) {
+        hasChanges = true;
+        const [d, t] = data.dateTime ? data.dateTime.split('T') : [item.date, item.time];
+        return {
+          ...item,
+          ...(data.room ? { room: data.room } : {}),
+          ...(data.customerName ? { customerName: data.customerName.replace(/\[(VIP|SVIP)\]/g, '').trim() } : {}),
+          ...(data.phone ? { phone: data.phone } : {}),
+          ...(data.guestsCount ? { guestsCount: data.guestsCount } : {}),
+          ...(d ? { date: d } : {}),
+          ...(t ? { time: t.substring(0, 5) } : {}),
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return item;
+    });
+    if (hasChanges) {
+      await saveReceptionLogs(updatedLogs);
+    }
+  } catch (err) {
+    console.error("Error syncing reception logs on updateExistingBooking:", err);
+  }
+
   revalidatePath('/');
   revalidatePath('/bookings');
   revalidatePath('/kitchen');
   revalidatePath('/floor');
   revalidatePath('/floor-plan');
+  revalidatePath('/archive');
   return { success: true };
 }
 
 export async function deleteBookingAction(id: string) {
   await verifyAuthPermission();
   await deleteBookingData(id);
+
+  // Đồng bộ: nếu xóa booking, tự động xóa lượt đón khách lễ tân tương ứng
+  try {
+    const currentLogs = await getReceptionLogs();
+    const updatedLogs = currentLogs.filter(item => item.bookingId !== id);
+    if (updatedLogs.length !== currentLogs.length) {
+      await saveReceptionLogs(updatedLogs);
+    }
+  } catch (err) {
+    console.error("Error removing linked reception log on delete:", err);
+  }
+
   revalidatePath('/');
   revalidatePath('/bookings');
   revalidatePath('/kitchen');
   revalidatePath('/floor');
   revalidatePath('/floor-plan');
+  revalidatePath('/archive');
+}
+
+export async function transferReceptionRoomAction(id: string, newRoom: string) {
+  const currentLogs = await getReceptionLogs();
+  let linkedBookingId: string | undefined;
+
+  const updatedLogs = currentLogs.map(item => {
+    if (item.id === id) {
+      if (item.bookingId) linkedBookingId = item.bookingId;
+      return {
+        ...item,
+        room: newRoom,
+        updatedAt: new Date().toISOString()
+      };
+    }
+    return item;
+  });
+  await saveReceptionLogs(updatedLogs);
+
+  // Nếu lượt đón gắn với booking, cập nhật phòng cho booking tương ứng
+  if (linkedBookingId) {
+    try {
+      await updateBookingData(linkedBookingId, { room: newRoom });
+    } catch (err) {
+      console.error("Error syncing booking room on transferReceptionRoom:", err);
+    }
+  }
+
+  revalidatePath('/');
+  revalidatePath('/bookings');
+  revalidatePath('/floor-plan');
+  revalidatePath('/archive');
+  revalidatePath('/floor');
+  revalidatePath('/kitchen');
+  return { success: true };
 }
 
 export async function setReceptionStatus(id: string, status: TaskStatus) {
