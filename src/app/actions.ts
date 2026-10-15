@@ -118,7 +118,32 @@ export async function deleteBookingAction(id: string) {
 
 export async function setReceptionStatus(id: string, status: TaskStatus) {
   await verifyAuthPermission();
-  updateReceptionStatus(id, status);
+  await updateReceptionStatus(id, status);
+
+  // Đồng bộ hai chiều: Khi Giám sát bấm Dọn xong (clean), đồng bộ lượt đón khách lễ tân sang 'left' (đã về)
+  if (status === 'clean') {
+    try {
+      const currentLogs = await getReceptionLogs();
+      let hasChange = false;
+      const updatedLogs = currentLogs.map(item => {
+        if (item.bookingId === id && item.status === 'dining') {
+          hasChange = true;
+          return {
+            ...item,
+            status: 'left' as VisitStatus,
+            updatedAt: new Date().toISOString()
+          };
+        }
+        return item;
+      });
+      if (hasChange) {
+        await saveReceptionLogs(updatedLogs);
+      }
+    } catch (err) {
+      console.error("Error auto-syncing reception log on clean:", err);
+    }
+  }
+
   revalidatePath('/');
   revalidatePath('/bookings');
   revalidatePath('/floor-plan');
@@ -129,25 +154,27 @@ export async function setReceptionStatus(id: string, status: TaskStatus) {
 
 export async function setKitchenStatus(id: string, status: TaskStatus) {
   await verifyAuthPermission();
-  updateKitchenStatus(id, status);
+  await updateKitchenStatus(id, status);
   revalidatePath('/');
   revalidatePath('/bookings');
+  revalidatePath('/floor-plan');
   revalidatePath('/kitchen');
   revalidatePath('/archive');
 }
 
 export async function setFloorStatus(id: string, status: TaskStatus) {
   await verifyAuthPermission();
-  updateFloorStatus(id, status);
+  await updateFloorStatus(id, status);
   revalidatePath('/');
   revalidatePath('/bookings');
+  revalidatePath('/floor-plan');
   revalidatePath('/floor');
   revalidatePath('/archive');
 }
 
 export async function setBookingStatus(id: string, status: BookingStatus) {
   await verifyAuthPermission();
-  updateBookingStatus(id, status);
+  await updateBookingStatus(id, status);
   revalidatePath('/');
   revalidatePath('/bookings');
   revalidatePath('/floor-plan');
@@ -156,7 +183,7 @@ export async function setBookingStatus(id: string, status: BookingStatus) {
 
 export async function restoreBookingAction(id: string) {
   await verifyAuthPermission();
-  updateReceptionStatus(id, 'done');
+  await updateReceptionStatus(id, 'done');
   revalidatePath('/');
   revalidatePath('/bookings');
   revalidatePath('/floor-plan');
@@ -218,15 +245,30 @@ export async function addReceptionEntryAction(data: Omit<ReceptionEntry, 'id' | 
 
   const updatedLogs = [newEntry, ...currentLogs];
   await saveReceptionLogs(updatedLogs);
+
+  // Nếu khách đặt bàn (booking) đã đến nhận bàn, chuyển trạng thái phục vụ sang 'in_progress'
+  if (data.type === 'booking' && data.bookingId) {
+    try {
+      await updateReceptionStatus(data.bookingId, 'in_progress');
+    } catch (err) {
+      console.error("Error setting booking in_progress on checkin:", err);
+    }
+  }
+
   revalidatePath('/');
+  revalidatePath('/bookings');
   revalidatePath('/floor-plan');
+  revalidatePath('/archive');
   return { success: true, entry: newEntry };
 }
 
 export async function updateReceptionStatusAction(id: string, status: VisitStatus, feedback?: ReceptionFeedback) {
   const currentLogs = await getReceptionLogs();
+  let linkedBookingId: string | undefined;
+
   const updatedLogs = currentLogs.map(item => {
     if (item.id === id) {
+      if (item.bookingId) linkedBookingId = item.bookingId;
       return {
         ...item,
         status,
@@ -237,15 +279,32 @@ export async function updateReceptionStatusAction(id: string, status: VisitStatu
     return item;
   });
   await saveReceptionLogs(updatedLogs);
+
+  // Nếu khách ra về và là khách booking, đồng bộ trạng thái booking sang 'clean' (đã dọn xong)
+  if (status === 'left' && linkedBookingId) {
+    try {
+      await updateReceptionStatus(linkedBookingId, 'clean');
+    } catch (err) {
+      console.error("Error setting booking clean on reception left:", err);
+    }
+  }
+
   revalidatePath('/');
+  revalidatePath('/bookings');
   revalidatePath('/floor-plan');
+  revalidatePath('/archive');
+  revalidatePath('/floor');
+  revalidatePath('/kitchen');
   return { success: true };
 }
 
 export async function updateReceptionFeedbackAction(id: string, feedback: ReceptionFeedback) {
   const currentLogs = await getReceptionLogs();
+  let linkedBookingId: string | undefined;
+
   const updatedLogs = currentLogs.map(item => {
     if (item.id === id) {
+      if (item.bookingId) linkedBookingId = item.bookingId;
       return {
         ...item,
         feedback,
@@ -256,8 +315,22 @@ export async function updateReceptionFeedbackAction(id: string, feedback: Recept
     return item;
   });
   await saveReceptionLogs(updatedLogs);
+
+  // Khi có feedback (khách ra về), tự động đồng bộ trạng thái booking sang 'clean' (đã dọn xong)
+  if (linkedBookingId) {
+    try {
+      await updateReceptionStatus(linkedBookingId, 'clean');
+    } catch (err) {
+      console.error("Error setting booking clean on feedback left:", err);
+    }
+  }
+
   revalidatePath('/');
+  revalidatePath('/bookings');
   revalidatePath('/floor-plan');
+  revalidatePath('/archive');
+  revalidatePath('/floor');
+  revalidatePath('/kitchen');
   return { success: true };
 }
 
@@ -267,6 +340,7 @@ export async function deleteReceptionEntryAction(id: string) {
   await saveReceptionLogs(updatedLogs);
   revalidatePath('/');
   revalidatePath('/floor-plan');
+  revalidatePath('/bookings');
   return { success: true };
 }
 

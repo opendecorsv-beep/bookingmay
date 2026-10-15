@@ -81,10 +81,10 @@ export default function FloorPlanClient({
     return initialReceptionLogs.filter((log) => log.date === selectedDate);
   }, [initialReceptionLogs, selectedDate]);
 
-  // Bookings for the selected date (shows all bookings scheduled for the picked date)
-  const activeBookings = useMemo(() => {
+  // All bookings for the selected date (excluding CONFIG rows & cancelled)
+  const allDayBookings = useMemo(() => {
     return initialBookings.filter((b) => {
-      if (!b || b.room === "CONFIG") return false;
+      if (!b || b.room === "CONFIG" || b.status === "cancelled") return false;
       const bDate = (b.dateTime || "").split("T")[0];
       return bDate === selectedDate;
     });
@@ -114,12 +114,17 @@ export default function FloorPlanClient({
     );
     const leftTables = leftLogs.length;
 
-    // 3. Bookings for today not checked-in yet
+    // 3. Bookings for today not checked-in yet AND not cleaned/archived
     const checkedInBookingIds = new Set(
       dayReceptionLogs.map((l) => l.bookingId).filter(Boolean)
     );
     const pendingBookings = isSelectedToday
-      ? activeBookings.filter((b) => !checkedInBookingIds.has(b.id))
+      ? allDayBookings.filter(
+          (b) =>
+            !checkedInBookingIds.has(b.id) &&
+            b.receptionStatus !== "clean" &&
+            !isBookingArchived(b)
+        )
       : [];
     const pendingGuests = pendingBookings.reduce(
       (sum, b) => sum + (b.guestsCount || 0),
@@ -127,12 +132,13 @@ export default function FloorPlanClient({
     );
 
     // 4. Totals for the day
-    const notCheckedInCount = activeBookings.filter((b) => !checkedInBookingIds.has(b.id)).length;
     const totalDayGuests = diningGuests + leftGuests + (isSelectedToday ? pendingGuests : 0);
     const totalDayTables = diningTables + leftTables + (isSelectedToday ? pendingBookings.length : 0);
 
     const walkinCount = dayReceptionLogs.filter((l) => l.type === "walkin").length;
-    const bookingCount = dayReceptionLogs.filter((l) => l.type === "booking").length + (isSelectedToday ? pendingBookings.length : notCheckedInCount);
+    const bookingCount =
+      dayReceptionLogs.filter((l) => l.type === "booking").length +
+      (isSelectedToday ? pendingBookings.length : allDayBookings.length);
 
     return {
       diningGuests,
@@ -146,11 +152,11 @@ export default function FloorPlanClient({
       walkinCount,
       bookingCount,
     };
-  }, [dayReceptionLogs, activeBookings, isSelectedToday]);
+  }, [dayReceptionLogs, allDayBookings, isSelectedToday]);
 
-  // Helper to find bookings for a room
-  const getRoomBookings = (roomName: string) => {
-    return activeBookings
+  // Helper to find all bookings for a room on selected date
+  const getAllRoomBookings = (roomName: string) => {
+    return allDayBookings
       .filter((b) => {
         const bRoom = (b.room || "").toLowerCase().trim();
         const rName = roomName.toLowerCase().trim();
@@ -161,11 +167,30 @@ export default function FloorPlanClient({
       );
   };
 
-  // Helper to find reception entry for a room
-  const getRoomReception = (roomName: string) => {
+  // Helper to find active upcoming bookings for a room on selected date
+  const getActiveUpcomingRoomBookings = (roomName: string) => {
+    const list = getAllRoomBookings(roomName);
+    return list.filter((b) => {
+      if (b.receptionStatus === "clean") return false;
+      if (isSelectedToday && isBookingArchived(b)) return false;
+      return true;
+    });
+  };
+
+  // Helper to find dining reception entry for a room
+  const getRoomDiningReception = (roomName: string) => {
+    const rName = roomName.toLowerCase().trim();
     return dayReceptionLogs.find((l) => {
       const lRoom = (l.room || "").toLowerCase().trim();
-      const rName = roomName.toLowerCase().trim();
+      return lRoom === rName && l.status === "dining" && !isVisitExpired(l.date, l.time);
+    });
+  };
+
+  // Helper to find latest reception entry for a room (whether dining or left)
+  const getRoomLatestReception = (roomName: string) => {
+    const rName = roomName.toLowerCase().trim();
+    return dayReceptionLogs.find((l) => {
+      const lRoom = (l.room || "").toLowerCase().trim();
       return lRoom === rName;
     });
   };
@@ -312,6 +337,10 @@ export default function FloorPlanClient({
                 <span className="whitespace-nowrap">SVIP</span>
               </div>
               <div className="flex items-center gap-1.5">
+                <div className="w-3.5 h-3.5 bg-slate-100 border border-slate-300 rounded shrink-0"></div>
+                <span className="whitespace-nowrap font-medium text-slate-700">⚪ Đã dọn xong</span>
+              </div>
+              <div className="flex items-center gap-1.5">
                 <div className="w-3.5 h-3.5 bg-green-100 border border-green-200 rounded shrink-0"></div>
                 <span className="whitespace-nowrap">Trống</span>
               </div>
@@ -335,23 +364,32 @@ export default function FloorPlanClient({
             <CardContent className="p-4 bg-[#f8efe6]">
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {floor.rooms.map((room) => {
-                  const roomBookings = getRoomBookings(room);
-                  const roomReception = getRoomReception(room);
+                  const allRoomBookings = getAllRoomBookings(room);
+                  const activeRoomBookings = getActiveUpcomingRoomBookings(room);
+                  const diningReception = isSelectedToday ? getRoomDiningReception(room) : undefined;
+                  const latestReception = getRoomLatestReception(room);
 
                   // LIVE dining: strictly only when viewing today AND status is dining AND not expired
-                  const isDiningNow = Boolean(
-                    isSelectedToday &&
-                    roomReception &&
-                    roomReception.status === "dining" &&
-                    !isVisitExpired(roomReception.date, roomReception.time)
+                  const isDiningNow = Boolean(isSelectedToday && diningReception);
+
+                  // Upcoming active bookings
+                  const hasActiveBooking = activeRoomBookings.length > 0;
+
+                  // Cleaned or completed visit today
+                  const cleanedBooking = allRoomBookings.find(
+                    (b) => b.receptionStatus === "clean" || (isSelectedToday && isBookingArchived(b))
                   );
-                  const isLeft = Boolean(
-                    roomReception &&
-                    (roomReception.status === "left" ||
-                     isVisitExpired(roomReception.date, roomReception.time) ||
-                     !isSelectedToday)
+                  const isLeftReception = Boolean(
+                    latestReception &&
+                      (latestReception.status === "left" ||
+                        isVisitExpired(latestReception.date, latestReception.time) ||
+                        !isSelectedToday)
                   );
-                  const isBooked = roomBookings.length > 0;
+                  const isCleanedToday = Boolean(
+                    !isDiningNow &&
+                      !hasActiveBooking &&
+                      (isLeftReception || cleanedBooking)
+                  );
 
                   // Styling logic
                   let bgClass = "bg-white border-green-200 text-slate-700 hover:border-green-300";
@@ -360,9 +398,9 @@ export default function FloorPlanClient({
                   if (isDiningNow) {
                     // LIVE: Customers are eating right now!
                     bgClass = "bg-emerald-50/90 border-emerald-500 text-emerald-950 shadow-md ring-2 ring-emerald-400";
-                  } else if (isBooked) {
-                    const hasSVIP = roomBookings.some((b) => b.customerName.includes("[SVIP]"));
-                    const hasVIP = roomBookings.some((b) => b.customerName.includes("[VIP]"));
+                  } else if (hasActiveBooking) {
+                    const hasSVIP = activeRoomBookings.some((b) => b.customerName.includes("[SVIP]"));
+                    const hasVIP = activeRoomBookings.some((b) => b.customerName.includes("[VIP]"));
 
                     if (hasSVIP) {
                       bgClass = "bg-gradient-to-br from-amber-100 to-yellow-300 border-yellow-500 text-yellow-950 ring-2 ring-yellow-400 shadow-yellow-200 shadow-lg";
@@ -371,8 +409,8 @@ export default function FloorPlanClient({
                     } else {
                       bgClass = "bg-red-50 border-red-200 text-red-900";
                     }
-                  } else if (isLeft) {
-                    bgClass = "bg-slate-50 border-slate-300 text-slate-600";
+                  } else if (isCleanedToday) {
+                    bgClass = "bg-slate-50 border-slate-300 text-slate-600 hover:border-slate-400";
                   }
 
                   return (
@@ -381,9 +419,9 @@ export default function FloorPlanClient({
                       onClick={() =>
                         setSelectedRoomDetail({
                           roomName: room,
-                          booking: roomBookings[0],
-                          bookings: roomBookings,
-                          reception: roomReception,
+                          booking: activeRoomBookings[0] || allRoomBookings[0],
+                          bookings: allRoomBookings,
+                          reception: diningReception || latestReception,
                         })
                       }
                       className={`p-3.5 rounded-xl border-2 flex flex-col items-center justify-start text-center min-h-[105px] transition-all cursor-pointer hover:scale-[1.02] ${bgClass} ${borderRing}`}
@@ -404,22 +442,22 @@ export default function FloorPlanClient({
                           <span className="bg-emerald-600 text-white text-[10px] px-1.5 py-0.5 rounded font-black tracking-wider leading-none self-center">
                             🟢 ĐANG CÓ KHÁCH
                           </span>
-                          <span className="font-bold text-xs truncate" title={roomReception.customerName}>
-                            {roomReception.customerName}
+                          <span className="font-bold text-xs truncate" title={diningReception!.customerName}>
+                            {diningReception!.customerName}
                           </span>
                           <div className="flex items-center justify-center gap-1.5 text-[11px] opacity-90 font-medium">
-                            <span>👥 {roomReception.guestsCount} khách</span>
-                            <span>• {roomReception.time}</span>
+                            <span>👥 {diningReception!.guestsCount} khách</span>
+                            <span>• {diningReception!.time}</span>
                           </div>
-                          {roomReception.type === "walkin" && (
+                          {diningReception!.type === "walkin" && (
                             <span className="text-[10px] text-emerald-700 italic">
                               (Khách vãng lai)
                             </span>
                           )}
                         </div>
-                      ) : isBooked ? (
+                      ) : hasActiveBooking ? (
                         <div className="flex flex-col gap-2 w-full mt-1">
-                          {roomBookings.map((booking) => {
+                          {activeRoomBookings.map((booking) => {
                             const isVIP = booking.customerName.includes("[VIP]");
                             const isSVIP = booking.customerName.includes("[SVIP]");
                             let displayName = booking.customerName
@@ -463,13 +501,22 @@ export default function FloorPlanClient({
                             );
                           })}
                         </div>
-                      ) : isLeft ? (
-                        <div className="mt-auto mb-auto flex flex-col items-center gap-0.5">
-                          <span className="text-[11px] text-slate-500 font-semibold">
-                            ⚪ Đã dọn xong
+                      ) : isCleanedToday ? (
+                        <div className="mt-auto mb-auto flex flex-col items-center gap-1">
+                          <span className="text-[11px] text-slate-600 font-bold flex items-center gap-1">
+                            ⚪ Đã dọn xong (Clean)
                           </span>
-                          <span className="text-[10px] text-slate-400">
-                            Khách về lúc {roomReception.time}
+                          {latestReception?.time ? (
+                            <span className="text-[10px] text-slate-500 font-medium">
+                              Khách về lúc {latestReception.time}
+                            </span>
+                          ) : cleanedBooking ? (
+                            <span className="text-[10px] text-slate-500 font-medium">
+                              Tiệc {format(new Date(cleanedBooking.dateTime), "HH:mm")} đã dọn
+                            </span>
+                          ) : null}
+                          <span className="text-[9px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 font-semibold">
+                            Sẵn sàng đón khách mới
                           </span>
                         </div>
                       ) : (
@@ -650,7 +697,7 @@ export default function FloorPlanClient({
                             <span className="text-[11px] font-semibold text-slate-500 block uppercase tracking-wider">
                               Khách đặt trước
                             </span>
-                            <div className="flex items-center gap-2 mt-0.5">
+                            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                               <span className="font-bold text-base text-slate-900">
                                 {cleanCustomerName}
                               </span>
@@ -662,6 +709,26 @@ export default function FloorPlanClient({
                               {isVIP && !isSVIP && (
                                 <Badge className="bg-fuchsia-600 hover:bg-fuchsia-700 text-[10px] font-bold text-white">
                                   VIP
+                                </Badge>
+                              )}
+                              {booking.receptionStatus === 'clean' && (
+                                <Badge className="bg-slate-600 hover:bg-slate-700 text-[10px] font-bold text-white">
+                                  ⚪ Đã dọn xong (Clean)
+                                </Badge>
+                              )}
+                              {booking.receptionStatus === 'done' && (
+                                <Badge className="bg-emerald-600 hover:bg-emerald-700 text-[10px] font-bold text-white">
+                                  🟢 Hoàn thành
+                                </Badge>
+                              )}
+                              {booking.receptionStatus === 'in_progress' && (
+                                <Badge className="bg-yellow-600 hover:bg-yellow-700 text-[10px] font-bold text-white">
+                                  🟡 Đang phục vụ
+                                </Badge>
+                              )}
+                              {(!booking.receptionStatus || booking.receptionStatus === 'pending') && (
+                                <Badge className="bg-blue-600 hover:bg-blue-700 text-[10px] font-bold text-white">
+                                  🕒 Chờ đón tiếp
                                 </Badge>
                               )}
                             </div>

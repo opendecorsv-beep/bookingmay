@@ -121,6 +121,7 @@ export async function addBooking(booking: Omit<Booking, 'id'>) {
 }
 
 export async function updateBookingData(id: string, data: Partial<Omit<Booking, 'id'>>) {
+  globalBookings = globalBookings.map(b => b.id === id ? { ...b, ...data } : b);
   try {
     const updatePayload: any = { ...data };
     if (data.menu) {
@@ -129,52 +130,57 @@ export async function updateBookingData(id: string, data: Partial<Omit<Booking, 
     const { error } = await supabase.from('bookings').update(updatePayload).eq('id', id);
     if (error) throw error;
   } catch (err) {
-    globalBookings = globalBookings.map(b => b.id === id ? { ...b, ...data } : b);
+    console.error("Supabase updateBookingData error:", err);
   }
 }
 
 export async function deleteBookingData(id: string) {
+  globalBookings = globalBookings.filter(b => b.id !== id);
   try {
     const { error } = await supabase.from('bookings').delete().eq('id', id);
     if (error) throw error;
   } catch (err) {
-    globalBookings = globalBookings.filter(b => b.id !== id);
+    console.error("Supabase deleteBookingData error:", err);
   }
 }
 
 export async function updateKitchenStatus(id: string, status: TaskStatus) {
+  globalBookings = globalBookings.map(b => b.id === id ? { ...b, kitchenStatus: status } : b);
   try {
     const { error } = await supabase.from('bookings').update({ kitchenStatus: status }).eq('id', id);
     if (error) throw error;
   } catch (err) {
-    globalBookings = globalBookings.map(b => b.id === id ? { ...b, kitchenStatus: status } : b);
+    console.error("Supabase updateKitchenStatus error:", err);
   }
 }
 
 export async function updateReceptionStatus(id: string, status: TaskStatus) {
+  globalBookings = globalBookings.map(b => b.id === id ? { ...b, receptionStatus: status } : b);
   try {
     const { error } = await supabase.from('bookings').update({ receptionStatus: status }).eq('id', id);
     if (error) throw error;
   } catch (err) {
-    globalBookings = globalBookings.map(b => b.id === id ? { ...b, receptionStatus: status } : b);
+    console.error("Supabase updateReceptionStatus error:", err);
   }
 }
 
 export async function updateFloorStatus(id: string, status: TaskStatus) {
+  globalBookings = globalBookings.map(b => b.id === id ? { ...b, floorStatus: status } : b);
   try {
     const { error } = await supabase.from('bookings').update({ floorStatus: status }).eq('id', id);
     if (error) throw error;
   } catch (err) {
-    globalBookings = globalBookings.map(b => b.id === id ? { ...b, floorStatus: status } : b);
+    console.error("Supabase updateFloorStatus error:", err);
   }
 }
 
 export async function updateBookingStatus(id: string, status: BookingStatus) {
+  globalBookings = globalBookings.map(b => b.id === id ? { ...b, status } : b);
   try {
     const { error } = await supabase.from('bookings').update({ status }).eq('id', id);
     if (error) throw error;
   } catch (err) {
-    globalBookings = globalBookings.map(b => b.id === id ? { ...b, status } : b);
+    console.error("Supabase updateBookingStatus error:", err);
   }
 }
 
