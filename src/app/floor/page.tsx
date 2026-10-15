@@ -2,12 +2,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { mockBookings } from "@/lib/data";
 import { format } from "date-fns";
-import { Sparkles, Users, CheckCircle, MapPin, DoorOpen, Clock, Phone } from "lucide-react";
+import { Sparkles, Users, CheckCircle, MapPin, DoorOpen, Clock, Phone, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import { setFloorStatus, fetchBookings } from "@/app/actions";
 
-import { isBookingArchived, getVietnamNow } from "@/lib/bookingUtils";
+import { isBookingArchived, getVietnamNow, parseSpecialRequest } from "@/lib/bookingUtils";
 
 function getFloorFromRoom(room?: string): string {
   if (!room || room === 'Chưa chọn') return '';
@@ -95,8 +95,7 @@ export default async function FloorPage() {
             headerClass += 'bg-fuchsia-100/50';
           }
 
-          // Also remove deposit and discount from special request here, decor only needs notes
-          const cleanSpecialRequest = b.specialRequest ? b.specialRequest.replace(/\[Cọc:\s*[^\]]+\]/g, '').replace(/\[Nguồn:\s*[^\]]+\]/g, '').replace(/\[Giảm giá:\s*[^\]]+\]/g, '').trim() : '';
+          const cleanSpecialRequest = parseSpecialRequest(b.specialRequest).cleanNotes;
 
           return (
           <Card key={b.id} className={cardClass}>
@@ -117,6 +116,11 @@ export default async function FloorPage() {
                       <MapPin className="w-3.5 h-3.5" />
                       {b.room && b.room !== 'Chưa chọn' ? b.room : 'Chưa xếp phòng'}
                     </span>
+                    {cleanSpecialRequest && (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded border border-amber-300 shadow-2xs">
+                        📝 Có dặn dò
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center gap-3 text-sm font-normal text-slate-600 flex-wrap">
                     <span className="flex items-center gap-1 font-semibold text-purple-950">
@@ -224,11 +228,14 @@ export default async function FloorPage() {
               )}
               
               {cleanSpecialRequest && (
-                <div>
-                  <h4 className="font-semibold text-sm text-slate-700 mb-1">Ghi chú riêng:</h4>
-                  <p className="text-slate-600 italic bg-yellow-50 p-2 rounded text-sm border border-yellow-100">
+                <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-3.5 space-y-1.5 shadow-2xs">
+                  <div className="flex items-center gap-1.5 text-amber-900 font-extrabold text-xs uppercase tracking-wide">
+                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>Lưu Ý &amp; Dặn Dò Của Khách (Quan Trọng):</span>
+                  </div>
+                  <div className="bg-white/95 p-2.5 rounded-lg border border-amber-200 text-xs sm:text-sm font-semibold text-amber-950 whitespace-pre-line leading-relaxed shadow-2xs">
                     {cleanSpecialRequest}
-                  </p>
+                  </div>
                 </div>
               )}
 

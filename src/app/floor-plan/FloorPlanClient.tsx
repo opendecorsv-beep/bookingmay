@@ -30,58 +30,14 @@ import {
   FileText,
   Phone
 } from "lucide-react";
-import { isBookingArchived, isVisitExpired, getVietnamTodayString } from "@/lib/bookingUtils";
-
-const DECOR_PACKAGE_NAMES: Record<string, string> = {
-  "1": "Mây 1 - Bướm Ngũ Sắc",
-  "2": "Mây 2 - Bướm Trắng",
-  "3": "Mây 3 - Bướm Đỏ",
-  "4": "Mây 4 - Nơ Trắng",
-  "5": "Mây 5 - Background Nâu",
-  "6": "Mây 6 - Nơ Hồng",
-  "7": "Free S4 1 (Miễn phí sảnh 4)",
-  "8": "Free S4 2 (Miễn phí sảnh 4)",
-  "9": "Gói Hoa Tươi (2.500.000 đ)",
-  "custom": "Decor Theo Yêu Cầu Riêng (Tự nhập giá)"
-};
-
-function parseSpecialRequest(raw: string = "") {
-  let cleanNotes = raw || "";
-  const depositMatch = cleanNotes.match(/\[Cọc:\s*([^\]]+)\]/i);
-  const discountMatch = cleanNotes.match(/\[Giảm giá:\s*([^\]]+)\]/i);
-  const sourceMatch = cleanNotes.match(/\[Nguồn:\s*([^\]]+)\]/i);
-
-  cleanNotes = cleanNotes
-    .replace(/\[Cọc:\s*[^\]]+\]/gi, "")
-    .replace(/\[Giảm giá:\s*[^\]]+\]/gi, "")
-    .replace(/\[Nguồn:\s*[^\]]+\]/gi, "")
-    .trim();
-
-  return {
-    cleanNotes,
-    deposit: depositMatch ? depositMatch[1].trim() : null,
-    discount: discountMatch ? discountMatch[1].trim() : null,
-    source: sourceMatch ? sourceMatch[1].trim() : null,
-  };
-}
-
-function parseDecorRequest(raw: string = "") {
-  if (!raw || raw === "Không có") {
-    return { occasion: "Không có", pkg: "", price: "", note: "" };
-  }
-  let occasion = "Không có";
-  let pkg = "";
-  let price = "";
-  let note = "";
-  const parts = raw.split("|");
-  occasion = parts[0] || "Không có";
-  parts.forEach((p) => {
-    if (p.startsWith("PKG:")) pkg = p.replace("PKG:", "").trim();
-    if (p.startsWith("PRICE:")) price = p.replace("PRICE:", "").trim();
-    if (p.startsWith("NOTE:")) note = p.replace("NOTE:", "").trim();
-  });
-  return { occasion, pkg, price, note };
-}
+import {
+  isBookingArchived,
+  isVisitExpired,
+  getVietnamTodayString,
+  DECOR_PACKAGE_NAMES,
+  parseSpecialRequest,
+  parseDecorRequest
+} from "@/lib/bookingUtils";
 
 const FLOORS = [
   { name: "Tầng 1", rooms: ["Mây 101", "Mây 102", "Mây 103", "Mây 104", "Mây 105", "Mây 106"] },
@@ -125,11 +81,11 @@ export default function FloorPlanClient({
     return initialReceptionLogs.filter((log) => log.date === selectedDate);
   }, [initialReceptionLogs, selectedDate]);
 
-  // Active bookings for the selected date
+  // Bookings for the selected date (shows all bookings scheduled for the picked date)
   const activeBookings = useMemo(() => {
     return initialBookings.filter((b) => {
-      if (isBookingArchived(b)) return false;
-      const bDate = b.dateTime.split("T")[0];
+      if (!b || b.room === "CONFIG") return false;
+      const bDate = (b.dateTime || "").split("T")[0];
       return bDate === selectedDate;
     });
   }, [initialBookings, selectedDate]);

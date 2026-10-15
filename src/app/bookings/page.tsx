@@ -2,7 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { fetchBookings } from "@/app/actions";
 import { format } from "date-fns";
-import { Users, CalendarDays, ClipboardList, PenLine, Archive, CheckCircle2, MapPin } from "lucide-react";
+import { Users, CalendarDays, ClipboardList, PenLine, Archive, CheckCircle2, MapPin, AlertCircle, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import AddBookingDialog from "@/components/AddBookingDialog";
@@ -10,7 +10,7 @@ import EditBookingDialog from "@/components/EditBookingDialog";
 import DeleteBookingButton from "@/components/DeleteBookingButton";
 import StatusSelect from "@/components/StatusSelect";
 import ConfirmBookingButton from "@/components/ConfirmBookingButton";
-import { isBookingArchived, getVietnamNow, parsePriceToNumber } from "@/lib/bookingUtils";
+import { isBookingArchived, getVietnamNow, parsePriceToNumber, parseSpecialRequest } from "@/lib/bookingUtils";
 
 export const dynamic = 'force-dynamic';
 
@@ -72,7 +72,9 @@ export default async function BookingsPage() {
               <Badge variant="secondary" className="ml-2 bg-orange-100 text-orange-800 hover:bg-orange-200">{dayBookings.length} tiệc</Badge>
             </h2>
             <div className="grid grid-cols-1 gap-4">
-              {dayBookings.map((b) => (
+              {dayBookings.map((b) => {
+                const parsedReq = parseSpecialRequest(b.specialRequest);
+                return (
           <Card key={b.id}>
             <CardContent className="p-6">
               <div className="flex flex-col md:flex-row gap-6 justify-between">
@@ -92,7 +94,7 @@ export default async function BookingsPage() {
                           {b.status === 'confirmed' ? 'Đã chốt' : 'Đang chờ'}
                         </Badge>
                       </h2>
-                      <div className="flex items-center gap-4 text-sm text-slate-600 mt-2">
+                      <div className="flex items-center gap-3 sm:gap-4 text-sm text-slate-600 mt-2 flex-wrap">
                         <div className="flex items-center gap-1">
                           <CalendarDays className="w-4 h-4"/> 
                           {format(new Date(b.dateTime), "HH:mm - dd/MM/yyyy")}
@@ -107,17 +109,16 @@ export default async function BookingsPage() {
                             {b.room || 'Chưa chọn'}
                           </span>
                         </div>
-                        {(() => {
-                           const sourceMatch = (b.specialRequest || "").match(/\[Nguồn:\s*([^\]]+)\]/);
-                           if (sourceMatch) {
-                             return (
-                               <div className="flex items-center gap-1 text-blue-600 font-medium bg-blue-50 px-2 py-0.5 rounded text-xs border border-blue-100">
-                                 {sourceMatch[1]}
-                               </div>
-                             );
-                           }
-                           return null;
-                        })()}
+                        {parsedReq.source && (
+                          <div className="flex items-center gap-1 text-blue-600 font-medium bg-blue-50 px-2 py-0.5 rounded text-xs border border-blue-100">
+                            📱 {parsedReq.source}
+                          </div>
+                        )}
+                        {parsedReq.cleanNotes && (
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded border border-amber-300 shadow-2xs">
+                            📝 Có dặn dò
+                          </span>
+                        )}
                       </div>
                     </div>
                     {b.status === 'pending' && (
@@ -262,10 +263,22 @@ export default async function BookingsPage() {
                         </p>
                       </div>
                       <div>
-                        <h4 className="font-semibold text-sm text-slate-700 mb-1">Yêu cầu Riêng (Ghi chú):</h4>
-                        <p className="text-sm text-slate-600 italic">
-                          {(b.specialRequest || "").replace(/\[Cọc:\s*[^\]]+\]/g, '').replace(/\[Nguồn:\s*[^\]]+\]/g, '').replace(/\[Giảm giá:\s*[^\]]+\]/g, '').trim() || "Không có"}
-                        </p>
+                        {parsedReq.cleanNotes ? (
+                          <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-3.5 space-y-1.5 shadow-2xs">
+                            <div className="flex items-center gap-1.5 text-amber-900 font-extrabold text-xs uppercase tracking-wide">
+                              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                              <span>Lưu Ý &amp; Dặn Dò Của Khách (Quan Trọng)</span>
+                            </div>
+                            <div className="bg-white/95 p-2.5 rounded-lg border border-amber-200 text-xs sm:text-sm font-semibold text-amber-950 whitespace-pre-line leading-relaxed shadow-2xs">
+                              {parsedReq.cleanNotes}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="bg-slate-50 border border-slate-200 rounded-lg p-2.5 flex items-center gap-2 text-xs text-slate-500">
+                            <FileText className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span>Ghi chú dặn dò: <span className="italic text-slate-400">Không có yêu cầu riêng</span></span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -290,7 +303,8 @@ export default async function BookingsPage() {
               </div>
             </CardContent>
           </Card>
-        ))}
+        );
+      })}
             </div>
           </div>
         ))}

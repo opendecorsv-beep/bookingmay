@@ -2,12 +2,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { mockBookings } from "@/lib/data";
 import { format } from "date-fns";
-import { Clock, ChefHat, CheckSquare } from "lucide-react";
+import { Clock, ChefHat, CheckSquare, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import { setKitchenStatus, fetchBookings } from "@/app/actions";
 
-import { isBookingArchived, getVietnamNow } from "@/lib/bookingUtils";
+import { isBookingArchived, getVietnamNow, parseSpecialRequest } from "@/lib/bookingUtils";
 
 export const dynamic = 'force-dynamic';
 
@@ -61,8 +61,7 @@ export default async function KitchenPage() {
             headerClass += 'bg-fuchsia-50/50';
           }
 
-          // Filter out the deposit, source, and discount info from specialRequest so kitchen doesn't need to see it
-          const cleanSpecialRequest = b.specialRequest ? b.specialRequest.replace(/\[Cọc:\s*[^\]]+\]/g, '').replace(/\[Nguồn:\s*[^\]]+\]/g, '').replace(/\[Giảm giá:\s*[^\]]+\]/g, '').trim() : '';
+          const cleanSpecialRequest = parseSpecialRequest(b.specialRequest).cleanNotes;
 
           return (
           <Card key={b.id} className={cardClass}>
@@ -78,6 +77,11 @@ export default async function KitchenPage() {
                     )}
                     {isSVIP && <span className="bg-yellow-500 text-white text-[10px] px-1.5 py-0.5 rounded font-black tracking-wider">SVIP</span>}
                     {isVIP && <span className="bg-fuchsia-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">VIP</span>}
+                    {cleanSpecialRequest && (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded border border-amber-300 shadow-2xs">
+                        📝 Có dặn dò
+                      </span>
+                    )}
                   </span>
                   <span className="text-sm font-normal text-slate-500 flex items-center gap-1">
                     <Clock className="w-4 h-4"/> {format(new Date(b.dateTime), "HH:mm - dd/MM")}
@@ -102,8 +106,14 @@ export default async function KitchenPage() {
               </div>
               
               {cleanSpecialRequest && (
-                <div className="bg-red-50 text-red-700 p-3 rounded-md text-sm italic border border-red-100">
-                  <span className="font-bold">Lưu ý Bếp:</span> {cleanSpecialRequest}
+                <div className="bg-red-50 border-2 border-red-300 text-red-950 p-3.5 rounded-xl text-sm shadow-xs space-y-1.5">
+                  <div className="flex items-center gap-1.5 font-extrabold text-xs text-red-800 uppercase tracking-wide">
+                    <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                    <span>Lưu ý Bếp (Dặn Dò Quan Trọng):</span>
+                  </div>
+                  <div className="bg-white/95 p-2.5 rounded-lg border border-red-200 font-semibold whitespace-pre-line leading-relaxed shadow-2xs">
+                    {cleanSpecialRequest}
+                  </div>
                 </div>
               )}
 

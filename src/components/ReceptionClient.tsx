@@ -28,7 +28,8 @@ import {
   Filter,
   Check,
   ChevronRight,
-  LayoutGrid
+  LayoutGrid,
+  AlertCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -52,7 +53,7 @@ import {
   ReceptionFeedback,
   Booking
 } from '@/lib/data';
-import { isBookingArchived, isVisitExpired, getVietnamTodayString } from '@/lib/bookingUtils';
+import { isBookingArchived, isVisitExpired, getVietnamTodayString, parseSpecialRequest } from '@/lib/bookingUtils';
 import {
   addReceptionEntryAction,
   updateReceptionStatusAction,
@@ -788,11 +789,30 @@ export default function ReceptionClient({ initialLogs, allBookings }: ReceptionC
                   </div>
 
                   {/* Notes if any */}
-                  {entry.notes && (
-                    <div className="mt-2 text-xs text-slate-600 bg-slate-50 p-2 rounded border border-slate-100">
-                      <span className="font-semibold text-slate-700">Ghi chú:</span> {entry.notes}
-                    </div>
-                  )}
+                  {(() => {
+                    const linkedBooking = entry.bookingId ? allBookings.find(b => b.id === entry.bookingId) : null;
+                    const bookingNotes = linkedBooking ? parseSpecialRequest(linkedBooking.specialRequest).cleanNotes : '';
+                    if (!entry.notes && !bookingNotes) return null;
+
+                    return (
+                      <div className="mt-2 space-y-1.5">
+                        {bookingNotes && (
+                          <div className="text-xs text-amber-950 bg-amber-50/90 p-2 rounded-lg border border-amber-200">
+                            <span className="font-bold flex items-center gap-1 text-amber-900 mb-0.5">
+                              <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                              Dặn dò lúc đặt tiệc:
+                            </span>
+                            <div className="whitespace-pre-line font-medium">{bookingNotes}</div>
+                          </div>
+                        )}
+                        {entry.notes && (
+                          <div className="text-xs text-slate-700 bg-slate-50 p-2 rounded border border-slate-100">
+                            <span className="font-semibold text-slate-800">Ghi chú lúc đón khách:</span> {entry.notes}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* Status Indicator */}
                   <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2">
@@ -997,9 +1017,10 @@ export default function ReceptionClient({ initialLogs, allBookings }: ReceptionC
                         const timeStr = b.dateTime.includes('T') ? b.dateTime.split('T')[1].substring(0, 5) : '';
                         const cleanName = b.customerName.replace(/\[(VIP|SVIP)\]/g, '').trim();
                         const isVip = b.customerName.includes('[VIP]') || b.customerName.includes('[SVIP]');
+                        const hasNotes = Boolean(parseSpecialRequest(b.specialRequest).cleanNotes);
                         return (
                           <option key={b.id} value={b.id}>
-                            ⏰ {timeStr} | {b.room} - {isVip ? '⭐ ' : ''}{cleanName} ({b.guestsCount} khách)
+                            ⏰ {timeStr} | {b.room} - {isVip ? '⭐ ' : ''}{cleanName} ({b.guestsCount} khách){hasNotes ? ' 📝 [Có dặn dò]' : ''}
                           </option>
                         );
                       })}
@@ -1010,6 +1031,24 @@ export default function ReceptionClient({ initialLogs, allBookings }: ReceptionC
                 <p className="text-[10px] text-blue-600/80">
                   * Tự động điền thông tin và ẩn khỏi danh sách sau khi đón xong để không bị trùng lặp.
                 </p>
+
+                {(() => {
+                  if (!selectedBookingId) return null;
+                  const selectedB = allBookings.find(item => item.id === selectedBookingId);
+                  const selectedNotes = selectedB ? parseSpecialRequest(selectedB.specialRequest).cleanNotes : '';
+                  if (!selectedNotes) return null;
+                  return (
+                    <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-3 text-xs text-amber-950 space-y-1 mt-2 shadow-2xs">
+                      <span className="font-extrabold text-amber-900 flex items-center gap-1.5 uppercase tracking-wide text-[11px]">
+                        <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                        Lưu ý &amp; Dặn dò của khách từ lúc đặt bàn:
+                      </span>
+                      <div className="bg-white/95 p-2 rounded-md border border-amber-200 whitespace-pre-line font-semibold text-amber-950 leading-relaxed shadow-2xs">
+                        {selectedNotes}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             )}
 

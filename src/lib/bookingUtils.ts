@@ -147,8 +147,75 @@ export function parsePriceToNumber(raw: string | number | undefined | null): num
     if (!isNaN(val)) return Math.round(val * 1000);
   }
 
-  // Chuỗi số thông thường loại bỏ dấu chấm/phẩy/chữ
+// Chuỗi số thông thường loại bỏ dấu chấm/phẩy/chữ
   const num = parseInt(s.replace(/[^\d]/g, ''));
   return isNaN(num) ? 0 : num;
+}
+
+export const DECOR_PACKAGE_NAMES: Record<string, string> = {
+  "1": "Mây 1 - Bướm Ngũ Sắc",
+  "2": "Mây 2 - Bướm Trắng",
+  "3": "Mây 3 - Bướm Đỏ",
+  "4": "Mây 4 - Nơ Trắng",
+  "5": "Mây 5 - Background Nâu",
+  "6": "Mây 6 - Nơ Hồng",
+  "7": "Free S4 1 (Miễn phí sảnh 4)",
+  "8": "Free S4 2 (Miễn phí sảnh 4)",
+  "9": "Gói Hoa Tươi (2.500.000 đ)",
+  "custom": "Decor Theo Yêu Cầu Riêng (Tự nhập giá)"
+};
+
+export interface ParsedSpecialRequest {
+  cleanNotes: string;
+  deposit: string | null;
+  discount: string | null;
+  source: string | null;
+}
+
+export function parseSpecialRequest(raw: string = ""): ParsedSpecialRequest {
+  let cleanNotes = raw || "";
+  const depositMatch = cleanNotes.match(/\[Cọc:\s*([^\]]+)\]/i);
+  const discountMatch = cleanNotes.match(/\[Giảm giá:\s*([^\]]+)\]/i);
+  const sourceMatch = cleanNotes.match(/\[Nguồn:\s*([^\]]+)\]/i);
+
+  cleanNotes = cleanNotes
+    .replace(/\[Cọc:\s*[^\]]+\]/gi, "")
+    .replace(/\[Giảm giá:\s*[^\]]+\]/gi, "")
+    .replace(/\[Nguồn:\s*[^\]]+\]/gi, "")
+    .trim();
+
+  return {
+    cleanNotes,
+    deposit: depositMatch ? depositMatch[1].trim() : null,
+    discount: discountMatch ? discountMatch[1].trim() : null,
+    source: sourceMatch ? sourceMatch[1].trim() : null,
+  };
+}
+
+export interface ParsedDecorRequest {
+  occasion: string;
+  pkg: string;
+  price: string;
+  note: string;
+  pkgName?: string;
+}
+
+export function parseDecorRequest(raw: string = ""): ParsedDecorRequest {
+  if (!raw || raw === "Không có") {
+    return { occasion: "Không có", pkg: "", price: "", note: "" };
+  }
+  let occasion = "Không có";
+  let pkg = "";
+  let price = "";
+  let note = "";
+  const parts = raw.split("|");
+  occasion = parts[0] || "Không có";
+  parts.forEach((p) => {
+    if (p.startsWith("PKG:")) pkg = p.replace("PKG:", "").trim();
+    if (p.startsWith("PRICE:")) price = p.replace("PRICE:", "").trim();
+    if (p.startsWith("NOTE:")) note = p.replace("NOTE:", "").trim();
+  });
+  const pkgName = pkg ? DECOR_PACKAGE_NAMES[pkg] || `Gói Mây ${pkg}` : undefined;
+  return { occasion, pkg, price, note, pkgName };
 }
 

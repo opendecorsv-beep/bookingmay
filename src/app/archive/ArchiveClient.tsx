@@ -24,10 +24,12 @@ import {
   Clock,
   MapPin,
   CheckCircle2,
-  ClockAlert
+  ClockAlert,
+  AlertCircle,
+  FileText
 } from "lucide-react";
 import { restoreBookingAction, deleteBookingAction } from '@/app/actions';
-import { parsePriceToNumber } from '@/lib/bookingUtils';
+import { parsePriceToNumber, parseSpecialRequest } from '@/lib/bookingUtils';
 
 interface ArchiveClientProps {
   initialBookings: Booking[];
@@ -271,8 +273,9 @@ export default function ArchiveClient({ initialBookings }: ArchiveClientProps) {
                     }
                   }
 
-                  const depositMatch = (b.specialRequest || "").match(/\[Cọc:\s*([^\]]+)\]/);
-                  const sourceMatch = (b.specialRequest || "").match(/\[Nguồn:\s*([^\]]+)\]/);
+                  const parsedReq = parseSpecialRequest(b.specialRequest);
+                  const depositMatch = parsedReq.deposit ? [null, parsedReq.deposit] : null;
+                  const sourceMatch = parsedReq.source ? [null, parsedReq.source] : null;
 
                   return (
                     <Card key={b.id} className="bg-white border-slate-200 shadow-xs hover:border-slate-300 transition-colors">
@@ -307,6 +310,12 @@ export default function ArchiveClient({ initialBookings }: ArchiveClientProps) {
                                 {sourceMatch && (
                                   <span className="text-xs font-medium text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
                                     Nguồn: {sourceMatch[1]}
+                                  </span>
+                                )}
+
+                                {parsedReq.cleanNotes && (
+                                  <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded border border-amber-300 shadow-2xs">
+                                    📝 Có dặn dò
                                   </span>
                                 )}
                               </div>
@@ -429,16 +438,20 @@ export default function ArchiveClient({ initialBookings }: ArchiveClientProps) {
                                   </span>
                                 </div>
 
-                                {b.specialRequest && (
-                                  <div>
-                                    <span className="text-xs text-slate-500 block">Yêu cầu đặc biệt:</span>
-                                    <p className="text-xs text-slate-600 italic">
-                                      {b.specialRequest
-                                        .replace(/\[Cọc:\s*[^\]]+\]/g, '')
-                                        .replace(/\[Nguồn:\s*[^\]]+\]/g, '')
-                                        .replace(/\[Giảm giá:\s*[^\]]+\]/g, '')
-                                        .trim() || 'Không có'}
-                                    </p>
+                                {parsedReq.cleanNotes ? (
+                                  <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-3 space-y-1.5 shadow-2xs mt-2">
+                                    <div className="flex items-center gap-1.5 text-amber-900 font-extrabold text-xs uppercase tracking-wide">
+                                      <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                                      <span>Lưu Ý &amp; Dặn Dò Của Khách (Quan Trọng)</span>
+                                    </div>
+                                    <div className="bg-white/95 p-2.5 rounded-lg border border-amber-200 text-xs font-semibold text-amber-950 whitespace-pre-line leading-relaxed shadow-2xs">
+                                      {parsedReq.cleanNotes}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-2.5 flex items-center gap-2 text-xs text-slate-500 mt-2">
+                                    <FileText className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                    <span>Ghi chú dặn dò: <span className="italic text-slate-400">Không có yêu cầu riêng</span></span>
                                   </div>
                                 )}
                               </div>
