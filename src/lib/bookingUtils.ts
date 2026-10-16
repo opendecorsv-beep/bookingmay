@@ -96,12 +96,12 @@ export function isVisitExpired(dateStr: string, timeStr?: string): boolean {
   if (dateStr < today) return true;
   if (dateStr > today) return false;
   
-  // Nếu trong ngày hôm nay: kiểm tra xem đã qua hơn 6 tiếng chưa
+  // Nếu trong ngày hôm nay: kiểm tra xem đã qua hơn 10 tiếng chưa (tránh ngắt sớm các tiệc trưa ngồi lâu đến chiều tối)
   if (timeStr) {
     try {
       const entryTime = parseBookingDate(`${dateStr}T${timeStr}`);
       const diffHours = (Date.now() - entryTime.getTime()) / (1000 * 60 * 60);
-      return diffHours >= 6;
+      return diffHours >= 10;
     } catch {
       return false;
     }

@@ -700,11 +700,25 @@ export default function FloorPlanClient({
                   const diningReception = isSelectedToday ? getRoomDiningReception(room) : undefined;
                   const latestReception = getRoomLatestReception(room);
 
-                  // LIVE dining: strictly only when viewing today AND status is dining AND not expired
-                  const isDiningNow = Boolean(isSelectedToday && diningReception);
+                  // An in-progress booking means guests are actively dining in the room!
+                  const inProgressBooking = isSelectedToday ? activeRoomBookings.find(b => b.receptionStatus === 'in_progress') : undefined;
 
-                  // Upcoming active bookings
-                  const hasActiveBooking = activeRoomBookings.length > 0;
+                  // LIVE dining: strictly only when viewing today AND (status is dining in reception OR a booking is currently in_progress)
+                  const isDiningNow = Boolean(isSelectedToday && (diningReception || inProgressBooking));
+
+                  // Active dining data source
+                  const activeDiningSource = diningReception || (inProgressBooking ? {
+                    customerName: inProgressBooking.customerName.replace(/\[(VIP|SVIP)\]/g, '').trim(),
+                    guestsCount: inProgressBooking.guestsCount,
+                    time: format(new Date(inProgressBooking.dateTime), "HH:mm"),
+                    type: 'booking' as const,
+                    isVIP: inProgressBooking.customerName.includes("[VIP]"),
+                    isSVIP: inProgressBooking.customerName.includes("[SVIP]")
+                  } : undefined);
+
+                  // Upcoming active bookings (excluding the one actively dining)
+                  const pendingUpcomingBookings = activeRoomBookings.filter(b => b.receptionStatus !== 'in_progress');
+                  const hasActiveBooking = !isDiningNow && pendingUpcomingBookings.length > 0;
 
                   // Cleaned or completed visit today
                   const cleanedBooking = allRoomBookings.find(
@@ -727,11 +741,11 @@ export default function FloorPlanClient({
                   let borderRing = "";
 
                   if (isDiningNow) {
-                    // LIVE: Customers are eating right now!
+                    // LIVE: Customers are eating right now! Uniform emerald background with live indicator
                     bgClass = "bg-emerald-50/90 border-emerald-500 text-emerald-950 shadow-md ring-2 ring-emerald-400";
                   } else if (hasActiveBooking) {
-                    const hasSVIP = activeRoomBookings.some((b) => b.customerName.includes("[SVIP]"));
-                    const hasVIP = activeRoomBookings.some((b) => b.customerName.includes("[VIP]"));
+                    const hasSVIP = pendingUpcomingBookings.some((b) => b.customerName.includes("[SVIP]"));
+                    const hasVIP = pendingUpcomingBookings.some((b) => b.customerName.includes("[VIP]"));
 
                     if (hasSVIP) {
                       bgClass = "bg-gradient-to-br from-amber-100 to-yellow-300 border-yellow-500 text-yellow-950 ring-2 ring-yellow-400 shadow-yellow-200 shadow-lg";
@@ -768,20 +782,28 @@ export default function FloorPlanClient({
                       </div>
 
                       {/* Display content */}
-                      {isDiningNow ? (
+                      {isDiningNow && activeDiningSource ? (
                         <div className="flex flex-col gap-1 w-full mt-1">
-                          <span className="bg-emerald-600 text-white text-[10px] px-1.5 py-0.5 rounded font-black tracking-wider leading-none self-center">
+                          <span className="bg-emerald-600 text-white text-[10px] px-1.5 py-0.5 rounded font-black tracking-wider leading-none self-center shadow-xs">
                             🟢 ĐANG CÓ KHÁCH
                           </span>
-                          <span className="font-bold text-xs truncate" title={diningReception!.customerName}>
-                            {diningReception!.customerName}
-                          </span>
-                          <div className="flex items-center justify-center gap-1.5 text-[11px] opacity-90 font-medium">
-                            <span>👥 {diningReception!.guestsCount} khách</span>
-                            <span>• {diningReception!.time}</span>
+                          <div className="flex items-center justify-center gap-1">
+                            {(activeDiningSource as any).isSVIP && (
+                              <span className="bg-yellow-500 text-white text-[9px] px-1 py-0.2 rounded font-black">SVIP</span>
+                            )}
+                            {(activeDiningSource as any).isVIP && !(activeDiningSource as any).isSVIP && (
+                              <span className="bg-fuchsia-600 text-white text-[9px] px-1 py-0.2 rounded font-bold">VIP</span>
+                            )}
+                            <span className="font-bold text-xs truncate max-w-[120px]" title={activeDiningSource.customerName}>
+                              {activeDiningSource.customerName}
+                            </span>
                           </div>
-                          {diningReception!.type === "walkin" && (
-                            <span className="text-[10px] text-emerald-700 italic">
+                          <div className="flex items-center justify-center gap-1.5 text-[11px] opacity-90 font-medium">
+                            <span>👥 {activeDiningSource.guestsCount} khách</span>
+                            {activeDiningSource.time && <span>• {activeDiningSource.time}</span>}
+                          </div>
+                          {activeDiningSource.type === "walkin" && (
+                            <span className="text-[10px] text-emerald-700 italic font-semibold">
                               (Khách vãng lai)
                             </span>
                           )}
@@ -1009,10 +1031,15 @@ export default function FloorPlanClient({
 
                 {/* Reception Live Visit Status */}
                 {selectedRoomDetail.reception && (() => {
+                  const isBookingLinkedDining = (selectedRoomDetail.bookings || (selectedRoomDetail.booking ? [selectedRoomDetail.booking] : []))
+                    .some(b => b.receptionStatus === 'in_progress');
                   const isDialogDining = Boolean(
                     isSelectedToday &&
-                    selectedRoomDetail.reception.status === "dining" &&
-                    !isVisitExpired(selectedRoomDetail.reception.date, selectedRoomDetail.reception.time)
+                    (
+                      (selectedRoomDetail.reception.status === "dining" &&
+                       !isVisitExpired(selectedRoomDetail.reception.date, selectedRoomDetail.reception.time)) ||
+                      isBookingLinkedDining
+                    )
                   );
 
                 return (
