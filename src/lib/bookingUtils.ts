@@ -109,12 +109,82 @@ export function isVisitExpired(dateStr: string, timeStr?: string): boolean {
   return false;
 }
 
+/**
+ * Chuẩn hóa tên phòng/bàn thông minh để toàn bộ hệ thống đồng bộ nhất quán:
+ * - "3", "03", "b3", "ban 3", "bàn 03" -> "Bàn 3"
+ * - "101", "m101", "may 101", "mây 101" -> "Mây 101"
+ * - "203", "304" -> "Mây 203", "Mây 304"
+ */
+export function normalizeRoomName(raw: string | undefined | null): string {
+  if (!raw) return '';
+  const s = raw.trim();
+  if (!s || s === 'Chưa chọn' || s === 'Sảnh chung') return s;
+
+  const lower = s.toLowerCase().replace(/\s+/g, ' ');
+
+  // 1. Khớp phòng tầng VIP: "mây 101", "may 101", "m101", "m 101", "101", "203", "304"
+  const mayMatch = lower.match(/^(?:m(?:ây|ay)?\s*)?([1-3]\d{2})$/i);
+  if (mayMatch) {
+    return `Mây ${mayMatch[1]}`;
+  }
+
+  // 2. Khớp số bàn: "bàn 3", "ban 3", "b3", "b 3", "b03", "bàn 03", "3", "03", "25"
+  const banMatch = lower.match(/^(?:b(?:àn|an)?\s*)?0*(\d{1,2})$/i);
+  if (banMatch) {
+    const num = parseInt(banMatch[1], 10);
+    if (num >= 1 && num <= 50) {
+      return `Bàn ${num}`;
+    }
+  }
+
+  // 3. Nếu bắt đầu bằng "bàn " hoặc "ban " với số
+  if (/^b(?:àn|an)\s+\d+/i.test(lower)) {
+    const num = lower.replace(/^b(?:àn|an)\s+/i, '').trim();
+    const parsed = parseInt(num, 10);
+    if (!isNaN(parsed)) return `Bàn ${parsed}`;
+  }
+
+  // 4. Nếu bắt đầu bằng "mây " hoặc "may "
+  if (/^m(?:ây|ay)\s+\d+/i.test(lower)) {
+    const num = lower.replace(/^m(?:ây|ay)\s+/i, '').trim();
+    return `Mây ${num}`;
+  }
+
+  return s;
+}
+
+/**
+ * So sánh 2 phòng/bàn xem có trùng nhau không (bất kể định dạng viết tắt, hoa thường).
+ * Ví dụ: isSameRoom("3", "Bàn 3") -> true
+ *         isSameRoom("m101", "Mây 101") -> true
+ */
+export function isSameRoom(roomA: string | undefined | null, roomB: string | undefined | null): boolean {
+  if (!roomA || !roomB) return false;
+  const a = roomA.trim();
+  const b = roomB.trim();
+  if (a.toLowerCase() === b.toLowerCase()) return true;
+
+  const normA = normalizeRoomName(a);
+  const normB = normalizeRoomName(b);
+  if (normA && normB && normA.toLowerCase() === normB.toLowerCase()) {
+    return true;
+  }
+  return false;
+}
+
 export function isBookingArchived(b: Booking, _unusedNow?: Date): boolean {
   // 1. Giám sát đã bấm chọn dọn xong (clean)
   if (b.receptionStatus === 'clean') return true;
-  // 2. Tự động chuyển vào lưu trữ nếu tiệc đã qua ngày (hôm qua hoặc trước đó)
+
+  // 2. Tiệc đã được quản lý khôi phục thủ công ([RESTORED])
+  // Giữ lại ở danh sách hoạt động để phục vụ/sửa thông tin cho đến khi được bấm dọn xong (clean) lại
+  if ((b.specialRequest || '').includes('[RESTORED]')) {
+    return false;
+  }
+
+  // 3. Tự động chuyển vào lưu trữ nếu tiệc đã qua ngày (hôm qua hoặc trước đó)
   if (isPastDay(b.dateTime)) return true;
-  // 3. Tự động chuyển vào lưu trữ nếu đã qua thời gian tổ chức tiệc trên 8 tiếng
+  // 4. Tự động chuyển vào lưu trữ nếu đã qua thời gian tổ chức tiệc trên 8 tiếng
   return isPast8Hours(b.dateTime);
 }
 
@@ -170,6 +240,7 @@ export interface ParsedSpecialRequest {
   deposit: string | null;
   discount: string | null;
   source: string | null;
+  isRestored: boolean;
 }
 
 export function parseSpecialRequest(raw: string = ""): ParsedSpecialRequest {
@@ -177,11 +248,13 @@ export function parseSpecialRequest(raw: string = ""): ParsedSpecialRequest {
   const depositMatch = cleanNotes.match(/\[Cọc:\s*([^\]]+)\]/i);
   const discountMatch = cleanNotes.match(/\[Giảm giá:\s*([^\]]+)\]/i);
   const sourceMatch = cleanNotes.match(/\[Nguồn:\s*([^\]]+)\]/i);
+  const isRestored = /\[RESTORED\]/i.test(cleanNotes);
 
   cleanNotes = cleanNotes
     .replace(/\[Cọc:\s*[^\]]+\]/gi, "")
     .replace(/\[Giảm giá:\s*[^\]]+\]/gi, "")
     .replace(/\[Nguồn:\s*[^\]]+\]/gi, "")
+    .replace(/\[RESTORED\]/gi, "")
     .trim();
 
   return {
@@ -189,6 +262,7 @@ export function parseSpecialRequest(raw: string = ""): ParsedSpecialRequest {
     deposit: depositMatch ? depositMatch[1].trim() : null,
     discount: discountMatch ? discountMatch[1].trim() : null,
     source: sourceMatch ? sourceMatch[1].trim() : null,
+    isRestored,
   };
 }
 

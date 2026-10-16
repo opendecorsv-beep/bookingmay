@@ -26,10 +26,13 @@ import {
   CheckCircle2,
   ClockAlert,
   AlertCircle,
-  FileText
+  FileText,
+  Trash2,
+  PenLine
 } from "lucide-react";
 import { restoreBookingAction, deleteBookingAction } from '@/app/actions';
 import { parsePriceToNumber, parseSpecialRequest } from '@/lib/bookingUtils';
+import EditBookingDialog from '@/components/EditBookingDialog';
 
 interface ArchiveClientProps {
   initialBookings: Booking[];
@@ -96,9 +99,24 @@ export default function ArchiveClient({ initialBookings }: ArchiveClientProps) {
       openLoginModal();
       return;
     }
-    if (confirm(`Bạn có chắc muốn khôi phục tiệc của "${name.replace(/\[S?VIP\] /g, '')}" quay lại Danh Sách Đặt Bàn?`)) {
+    const cleanName = name.replace(/\[S?VIP\] /g, '');
+    if (confirm(`Bạn có chắc muốn khôi phục tiệc của "${cleanName}" quay lại Danh Sách Đặt Bàn?`)) {
       startTransition(async () => {
         await restoreBookingAction(id);
+        alert(`Đã khôi phục thành công tiệc của "${cleanName}"! Tiệc đã được đưa trở lại Danh Sách Đặt Bàn.`);
+      });
+    }
+  };
+
+  const handleDelete = (id: string, name: string) => {
+    if (!isLoggedIn) {
+      openLoginModal();
+      return;
+    }
+    const cleanName = name.replace(/\[S?VIP\] /g, '');
+    if (confirm(`Bạn có chắc chắn muốn XÓA VĨNH VIỄN tiệc của "${cleanName}" khỏi hệ thống không? Hành động này không thể hoàn tác.`)) {
+      startTransition(async () => {
+        await deleteBookingAction(id);
       });
     }
   };
@@ -490,12 +508,40 @@ export default function ArchiveClient({ initialBookings }: ArchiveClientProps) {
                                 size="sm"
                                 onClick={() => handleRestore(b.id, b.customerName)}
                                 disabled={isPending}
-                                className="w-full text-xs text-amber-700 border-amber-300 hover:bg-amber-50 hover:text-amber-800 flex items-center justify-center gap-1.5"
-                                title="Đưa tiệc này trở lại Danh Sách Đặt Bàn"
+                                className="w-full text-xs font-bold text-amber-700 bg-amber-50/70 border-amber-300 hover:bg-amber-100 hover:text-amber-900 flex items-center justify-center gap-1.5 shadow-2xs"
+                                title="Đưa tiệc này trở lại Danh Sách Đặt Bàn để theo dõi/chỉnh sửa"
                               >
                                 <RotateCcw className="w-3.5 h-3.5" />
                                 Khôi phục tiệc
                               </Button>
+                              <div className="flex items-center gap-1.5">
+                                <div className="flex-1">
+                                  <EditBookingDialog
+                                    booking={b}
+                                    trigger={
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="w-full text-xs font-medium text-slate-700 border-slate-300 hover:bg-slate-50 flex items-center justify-center gap-1 h-8"
+                                        title="Chỉnh sửa chi tiết tiệc này"
+                                      >
+                                        <PenLine className="w-3.5 h-3.5 text-slate-500" />
+                                        Sửa tiệc
+                                      </Button>
+                                    }
+                                  />
+                                </div>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDelete(b.id, b.customerName)}
+                                  disabled={isPending}
+                                  className="text-xs text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 flex items-center justify-center px-2.5 h-8"
+                                  title="Xóa vĩnh viễn tiệc này khỏi cơ sở dữ liệu"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         </div>

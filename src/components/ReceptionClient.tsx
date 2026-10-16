@@ -54,7 +54,7 @@ import {
   ReceptionFeedback,
   Booking
 } from '@/lib/data';
-import { isBookingArchived, isVisitExpired, getVietnamTodayString, parseSpecialRequest } from '@/lib/bookingUtils';
+import { isBookingArchived, isVisitExpired, getVietnamTodayString, parseSpecialRequest, normalizeRoomName } from '@/lib/bookingUtils';
 import {
   addReceptionEntryAction,
   updateReceptionStatusAction,
@@ -318,7 +318,7 @@ export default function ReceptionClient({ initialLogs, allBookings }: ReceptionC
         customerName: newCustomerName.trim(),
         phone: newPhone.trim(),
         guestsCount: Number(newGuestsCount) || 1,
-        room: newRoom.trim() || 'Sảnh chung',
+        room: normalizeRoomName(newRoom.trim() || 'Sảnh chung'),
         status: 'dining',
         notes: newNotes.trim()
       });
@@ -1133,14 +1133,43 @@ export default function ReceptionClient({ initialLogs, allBookings }: ReceptionC
             {/* Room/Table & Guest count */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <Label className="text-xs font-bold text-slate-700">Phòng / Bàn *</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-bold text-slate-700">Phòng / Bàn *</Label>
+                  <span className="text-[10px] text-slate-400">Gõ số bàn hoặc chọn nhanh</span>
+                </div>
                 <Input
                   required
-                  placeholder="Ví dụ: Mây 101, Bàn 06..."
+                  list="reception-rooms-datalist"
+                  placeholder="Ví dụ: Bàn 3, Mây 101, hoặc gõ 3, 6..."
                   value={newRoom}
                   onChange={(e) => setNewRoom(e.target.value)}
-                  className="h-9 text-xs sm:text-sm mt-1"
+                  onBlur={() => {
+                    if (newRoom) setNewRoom(normalizeRoomName(newRoom));
+                  }}
+                  className="h-9 text-xs sm:text-sm mt-1 font-semibold"
                 />
+                <datalist id="reception-rooms-datalist">
+                  {ALL_TRANSFER_ROOMS.map((r) => (
+                    <option key={r} value={r} />
+                  ))}
+                </datalist>
+                <div className="flex flex-wrap gap-1 mt-1.5 max-h-16 overflow-y-auto p-1 bg-slate-50 rounded border border-slate-200">
+                  <span className="text-[10px] text-slate-400 self-center mr-1">Bàn:</span>
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25].map(num => (
+                    <button
+                      key={num}
+                      type="button"
+                      onClick={() => setNewRoom(`Bàn ${num}`)}
+                      className={`px-1.5 py-0.5 text-[11px] rounded border transition-colors ${
+                        newRoom === `Bàn ${num}`
+                          ? 'bg-orange-600 text-white border-orange-600 font-bold'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      B{num}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div>
                 <Label className="text-xs font-bold text-slate-700">Số Lượng Khách *</Label>

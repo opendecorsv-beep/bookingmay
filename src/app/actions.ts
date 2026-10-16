@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { getBookings, addBooking, updateBookingData, deleteBookingData, updateKitchenStatus, updateFloorStatus, updateBookingStatus, updateReceptionStatus, getSeafoodInventory, saveSeafoodInventory, getReceptionLogs, saveReceptionLogs } from '@/lib/store';
 import { Booking, BookingStatus, TaskStatus, SeafoodCategory, ReceptionEntry, VisitStatus, ReceptionFeedback } from '@/lib/data';
+import { normalizeRoomName, isSameRoom } from '@/lib/bookingUtils';
 
 export async function loginAction(id: string, pass: string) {
   if (id.trim() === 'maybmt' && pass.trim() === '1122334455') {
@@ -74,7 +75,11 @@ export async function createNewBooking(data: Omit<Booking, 'id'>) {
   const error = checkDecorConflict(bookings, data.dateTime, data.decorRequest || "");
   if (error) return { error };
 
-  await addBooking(data);
+  const normalizedRoom = normalizeRoomName(data.room || 'Chưa chọn');
+  await addBooking({
+    ...data,
+    room: normalizedRoom
+  });
   revalidatePath('/');
   revalidatePath('/bookings');
   revalidatePath('/kitchen');
@@ -97,7 +102,12 @@ export async function updateExistingBooking(id: string, data: Partial<Omit<Booki
     }
   }
 
-  await updateBookingData(id, data);
+  const updateData = { ...data };
+  if (updateData.room) {
+    updateData.room = normalizeRoomName(updateData.room);
+  }
+
+  await updateBookingData(id, updateData);
 
   // Tự động đồng bộ sang Lễ tân (CONFIG_RECEPTION):
   // Khi đổi phòng/bàn, số khách, tên khách hoặc thời gian tiệc, đồng bộ ngay lập tức sang lượt đón khách
@@ -107,13 +117,13 @@ export async function updateExistingBooking(id: string, data: Partial<Omit<Booki
     const updatedLogs = currentLogs.map(item => {
       if (item.bookingId === id) {
         hasChanges = true;
-        const [d, t] = data.dateTime ? data.dateTime.split('T') : [item.date, item.time];
+        const [d, t] = updateData.dateTime ? updateData.dateTime.split('T') : [item.date, item.time];
         return {
           ...item,
-          ...(data.room ? { room: data.room } : {}),
-          ...(data.customerName ? { customerName: data.customerName.replace(/\[(VIP|SVIP)\]/g, '').trim() } : {}),
-          ...(data.phone ? { phone: data.phone } : {}),
-          ...(data.guestsCount ? { guestsCount: data.guestsCount } : {}),
+          ...(updateData.room ? { room: updateData.room } : {}),
+          ...(updateData.customerName ? { customerName: updateData.customerName.replace(/\[(VIP|SVIP)\]/g, '').trim() } : {}),
+          ...(updateData.phone ? { phone: updateData.phone } : {}),
+          ...(updateData.guestsCount ? { guestsCount: updateData.guestsCount } : {}),
           ...(d ? { date: d } : {}),
           ...(t ? { time: t.substring(0, 5) } : {}),
           updatedAt: new Date().toISOString()
@@ -163,13 +173,14 @@ export async function deleteBookingAction(id: string) {
 export async function transferReceptionRoomAction(id: string, newRoom: string) {
   const currentLogs = await getReceptionLogs();
   let linkedBookingId: string | undefined;
+  const normalizedNewRoom = normalizeRoomName(newRoom);
 
   const updatedLogs = currentLogs.map(item => {
     if (item.id === id) {
       if (item.bookingId) linkedBookingId = item.bookingId;
       return {
         ...item,
-        room: newRoom,
+        room: normalizedNewRoom,
         updatedAt: new Date().toISOString()
       };
     }
@@ -180,7 +191,7 @@ export async function transferReceptionRoomAction(id: string, newRoom: string) {
   // Nếu lượt đón gắn với booking, cập nhật phòng cho booking tương ứng
   if (linkedBookingId) {
     try {
-      await updateBookingData(linkedBookingId, { room: newRoom });
+      await updateBookingData(linkedBookingId, { room: normalizedNewRoom });
     } catch (err) {
       console.error("Error syncing booking room on transferReceptionRoom:", err);
     }
@@ -249,7 +260,7 @@ export async function cleanRoomTableAction(params: {
     const updatedLogs = currentLogs.map(item => {
       const isTarget = receptionId
         ? item.id === receptionId
-        : (item.room?.toLowerCase().trim() === roomName.toLowerCase().trim() &&
+        : (isSameRoom(item.room, roomName) &&
            (!targetDate || item.date === targetDate) &&
            item.status === 'dining');
 
@@ -279,7 +290,7 @@ export async function cleanRoomTableAction(params: {
     // Nếu không truyền bookingId cụ thể, tìm các booking chưa clean trong phòng đó vào ngày đó
     if (targetBookingIds.size === 0 && roomName && targetDate) {
       allBookings.forEach(b => {
-        if (b.room?.toLowerCase().trim() === roomName.toLowerCase().trim()) {
+        if (isSameRoom(b.room, roomName)) {
           const bDate = (b.dateTime || '').split('T')[0];
           if (bDate === targetDate && b.status !== 'cancelled' && b.receptionStatus !== 'clean') {
             targetBookingIds.add(b.id);
@@ -327,7 +338,7 @@ export async function resetCleanRoomAction(params: {
 
     if (targetBookingIds.size === 0 && roomName && targetDate) {
       allBookings.forEach(b => {
-        if (b.room?.toLowerCase().trim() === roomName.toLowerCase().trim()) {
+        if (isSameRoom(b.room, roomName)) {
           const bDate = (b.dateTime || '').split('T')[0];
           if (bDate === targetDate && b.status !== 'cancelled' && b.receptionStatus === 'clean') {
             targetBookingIds.add(b.id);
@@ -387,7 +398,17 @@ export async function setBookingStatus(id: string, status: BookingStatus) {
 
 export async function restoreBookingAction(id: string) {
   await verifyAuthPermission();
-  await updateReceptionStatus(id, 'done');
+  const allBookings = await getBookings();
+  const existing = allBookings.find(b => b.id === id);
+  let updatedSpecialRequest = existing?.specialRequest || '';
+  if (!updatedSpecialRequest.includes('[RESTORED]')) {
+    updatedSpecialRequest = `${updatedSpecialRequest}\n[RESTORED]`.trim();
+  }
+  await updateBookingData(id, {
+    receptionStatus: 'pending',
+    floorStatus: 'pending',
+    specialRequest: updatedSpecialRequest
+  });
   revalidatePath('/');
   revalidatePath('/bookings');
   revalidatePath('/floor-plan');
@@ -439,9 +460,11 @@ export async function addReceptionEntryAction(data: Omit<ReceptionEntry, 'id' | 
   const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
   const randomSuffix = Math.floor(1000 + Math.random() * 9000).toString();
   const id = `REC-${dateStr}-${randomSuffix}`;
+  const normalizedRoom = normalizeRoomName(data.room || 'Sảnh chung');
   
   const newEntry: ReceptionEntry = {
     ...data,
+    room: normalizedRoom,
     id,
     createdAt: now.toISOString(),
     updatedAt: now.toISOString(),

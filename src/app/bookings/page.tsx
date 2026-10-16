@@ -85,6 +85,11 @@ export default async function BookingsPage() {
                         {b.customerName.replace(/\[S?VIP\] /g, '')}
                         {b.customerName.includes('[SVIP]') && <span className="bg-yellow-500 text-white text-[12px] px-2 py-0.5 rounded font-black tracking-wider shadow-sm">SVIP</span>}
                         {b.customerName.includes('[VIP]') && <span className="bg-fuchsia-600 text-white text-[12px] px-2 py-0.5 rounded font-bold shadow-sm">VIP</span>}
+                        {parsedReq.isRestored && (
+                          <span className="bg-amber-100 text-amber-800 border border-amber-300 text-[11px] px-2 py-0.5 rounded font-bold shadow-2xs">
+                            🔄 Đã khôi phục
+                          </span>
+                        )}
                         - {b.phone}
                         <div className="flex items-center gap-1 ml-2">
                           <EditBookingDialog booking={b} />

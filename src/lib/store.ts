@@ -1,6 +1,6 @@
 import { Booking, BookingStatus, TaskStatus, SeafoodCategory, defaultSeafoodCategories, ReceptionEntry, defaultReceptionLogs, VisitStatus } from './data';
 import { supabase } from './supabase';
-import { isVisitExpired } from './bookingUtils';
+import { isVisitExpired, normalizeRoomName } from './bookingUtils';
 
 let globalSeafoodData: { updatedAt: string; categories: SeafoodCategory[] } = {
   updatedAt: new Date().toISOString(),
@@ -227,15 +227,22 @@ export async function saveSeafoodInventory(inventory: { updatedAt: string; categ
 function normalizeReceptionList(logs: ReceptionEntry[]): { normalized: ReceptionEntry[]; hasChanges: boolean } {
   let hasChanges = false;
   const normalized = logs.map(item => {
-    if (item.status === 'dining' && isVisitExpired(item.date, item.time)) {
+    let current = { ...item };
+
+    // 1. Tự động chuẩn hóa tên phòng/bàn (ví dụ: "3" -> "Bàn 3", "6" -> "Bàn 6")
+    const normRoom = normalizeRoomName(current.room);
+    if (normRoom && normRoom !== current.room) {
       hasChanges = true;
-      return {
-        ...item,
-        status: 'left' as VisitStatus,
-        updatedAt: item.updatedAt || new Date().toISOString()
-      };
+      current.room = normRoom;
     }
-    return item;
+
+    // 2. Chuyển trạng thái sang 'left' nếu tiệc đã kết thúc/hết hạn
+    if (current.status === 'dining' && isVisitExpired(current.date, current.time)) {
+      hasChanges = true;
+      current.status = 'left' as VisitStatus;
+      current.updatedAt = current.updatedAt || new Date().toISOString();
+    }
+    return current;
   });
   return { normalized, hasChanges };
 }

@@ -38,7 +38,9 @@ import {
   getVietnamTodayString,
   DECOR_PACKAGE_NAMES,
   parseSpecialRequest,
-  parseDecorRequest
+  parseDecorRequest,
+  isSameRoom,
+  normalizeRoomName
 } from "@/lib/bookingUtils";
 import { transferReceptionRoomAction, cleanRoomTableAction, resetCleanRoomAction } from "@/app/actions";
 
@@ -161,7 +163,7 @@ export default function FloorPlanClient({
         if (receptionId && item.id === receptionId) {
           return { ...item, status: 'left' as VisitStatus, updatedAt: new Date().toISOString() };
         }
-        if (!receptionId && item.room?.toLowerCase().trim() === roomName.toLowerCase().trim() && item.date === selectedDate && item.status === 'dining') {
+        if (!receptionId && isSameRoom(item.room, roomName) && item.date === selectedDate && item.status === 'dining') {
           return { ...item, status: 'left' as VisitStatus, updatedAt: new Date().toISOString() };
         }
         return item;
@@ -171,7 +173,7 @@ export default function FloorPlanClient({
         if (bookingId && b.id === bookingId) {
           return { ...b, receptionStatus: 'clean' as const, floorStatus: 'clean' as const };
         }
-        if (!bookingId && b.room?.toLowerCase().trim() === roomName.toLowerCase().trim() && (b.dateTime || '').startsWith(selectedDate)) {
+        if (!bookingId && isSameRoom(b.room, roomName) && (b.dateTime || '').startsWith(selectedDate)) {
           return { ...b, receptionStatus: 'clean' as const, floorStatus: 'clean' as const };
         }
         return b;
@@ -217,7 +219,7 @@ export default function FloorPlanClient({
         if (bookingId && b.id === bookingId) {
           return { ...b, receptionStatus: 'pending' as const, floorStatus: 'pending' as const };
         }
-        if (!bookingId && b.room?.toLowerCase().trim() === roomName.toLowerCase().trim() && (b.dateTime || '').startsWith(selectedDate)) {
+        if (!bookingId && isSameRoom(b.room, roomName) && (b.dateTime || '').startsWith(selectedDate)) {
           return { ...b, receptionStatus: 'pending' as const, floorStatus: 'pending' as const };
         }
         return b;
@@ -350,11 +352,7 @@ export default function FloorPlanClient({
   // Helper to find all bookings for a room on selected date
   const getAllRoomBookings = (roomName: string) => {
     return allDayBookings
-      .filter((b) => {
-        const bRoom = (b.room || "").toLowerCase().trim();
-        const rName = roomName.toLowerCase().trim();
-        return bRoom === rName;
-      })
+      .filter((b) => isSameRoom(b.room, roomName))
       .sort(
         (a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime()
       );
@@ -372,20 +370,14 @@ export default function FloorPlanClient({
 
   // Helper to find dining reception entry for a room
   const getRoomDiningReception = (roomName: string) => {
-    const rName = roomName.toLowerCase().trim();
     return dayReceptionLogs.find((l) => {
-      const lRoom = (l.room || "").toLowerCase().trim();
-      return lRoom === rName && l.status === "dining" && !isVisitExpired(l.date, l.time);
+      return isSameRoom(l.room, roomName) && l.status === "dining" && !isVisitExpired(l.date, l.time);
     });
   };
 
   // Helper to find latest reception entry for a room (whether dining or left)
   const getRoomLatestReception = (roomName: string) => {
-    const rName = roomName.toLowerCase().trim();
-    return dayReceptionLogs.find((l) => {
-      const lRoom = (l.room || "").toLowerCase().trim();
-      return lRoom === rName;
-    });
+    return dayReceptionLogs.find((l) => isSameRoom(l.room, roomName));
   };
 
   return (

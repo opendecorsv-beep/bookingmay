@@ -21,7 +21,7 @@ function formatDateTimeForInput(isoString: string) {
   }
 }
 
-export default function EditBookingDialog({ booking }: { booking: Booking }) {
+export default function EditBookingDialog({ booking, trigger }: { booking: Booking; trigger?: React.ReactNode }) {
   const { isLoggedIn, openLoginModal } = useAuth();
   const [open, setOpen] = useState(false);
 
@@ -159,9 +159,11 @@ export default function EditBookingDialog({ booking }: { booking: Booking }) {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:text-orange-600">
-          <PenLine className="w-4 h-4" />
-        </Button>
+        {trigger || (
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:text-orange-600">
+            <PenLine className="w-4 h-4" />
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
