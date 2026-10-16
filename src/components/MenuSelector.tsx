@@ -1,12 +1,15 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Trash2 } from 'lucide-react';
+import { Trash2, ChefHat, Settings, Plus } from 'lucide-react';
 import menuData from '@/lib/menuData.json';
 import { parsePriceToNumber } from '@/lib/bookingUtils';
+import { PartyMenuSet, defaultPartyMenuSets } from '@/lib/data';
+import { fetchPartyMenuSetsAction } from '@/app/actions';
+import PartyMenuModal from './PartyMenuModal';
 
 type MenuItem = {
   name: string;
@@ -62,18 +65,30 @@ export default function MenuSelector({
 
   const [selectedItems, setSelectedItems] = useState<SelectedItem[]>(parsedInitial);
   const [searchTerm, setSearchTerm] = useState("");
+  const [partySets, setPartySets] = useState<PartyMenuSet[]>(defaultPartyMenuSets);
+  const [isPartyModalOpen, setIsPartyModalOpen] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    fetchPartyMenuSetsAction().then(res => {
+      if (mounted && res && res.length > 0) {
+        setPartySets(res);
+      }
+    }).catch(err => console.error("Error loading party sets:", err));
+    return () => { mounted = false; };
+  }, []);
 
   const allItems = useMemo(() => {
     return menuData.flatMap(cat => cat.items.map(item => ({...item, category: cat.name})));
   }, []);
 
-function removeVietnameseTones(str: string) {
-  return str
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/đ/g, 'd')
-    .replace(/Đ/g, 'D');
-}
+  function removeVietnameseTones(str: string) {
+    return str
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/đ/g, 'd')
+      .replace(/Đ/g, 'D');
+  }
 
   const filteredItems = useMemo(() => {
     if (!searchTerm.trim()) return [];
@@ -142,6 +157,55 @@ function removeVietnameseTones(str: string) {
     }));
   };
 
+  const updateItemName = (id: string, name: string) => {
+    setSelectedItems(prev => prev.map(i => i.id === id ? { ...i, name } : i));
+  };
+
+  const handleSelectPartySet = (set: PartyMenuSet, asItems: boolean) => {
+    if (asItems && set.items && set.items.length > 0) {
+      const newItems: SelectedItem[] = [
+        {
+          id: 'party-set-' + Date.now(),
+          name: `[SET] ${set.title} (${set.paxRange || '8 - 10 Người/ Mâm'})`,
+          price: set.price,
+          priceText: `${set.price.toLocaleString('vi-VN')} đ`,
+          qty: 1,
+          isCustomPrice: false
+        },
+        ...set.items.map((it, idx) => ({
+          id: `party-dish-${Date.now()}-${idx}`,
+          name: `↳ ${it.name} (${it.unit} x ${it.quantity})`,
+          price: 0,
+          priceText: "Theo Set",
+          qty: 1,
+          isCustomPrice: false
+        }))
+      ];
+      setSelectedItems(prev => [...prev, ...newItems]);
+    } else {
+      setSelectedItems(prev => [...prev, {
+        id: 'party-set-' + Date.now(),
+        name: `[SET] ${set.title} (${set.paxRange || '8 - 10 Người/ Mâm'})`,
+        price: set.price,
+        priceText: `${set.price.toLocaleString('vi-VN')} đ`,
+        qty: 1,
+        isCustomPrice: false
+      }]);
+    }
+  };
+
+  const handleAddCustomItem = () => {
+    setSelectedItems(prev => [...prev, {
+      id: 'custom-' + Date.now(),
+      name: '',
+      price: 0,
+      priceText: 'Tự nhập',
+      qty: 1,
+      isCustomPrice: true,
+      customPriceRaw: ''
+    }]);
+  };
+
   const foodTotal = selectedItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
   let decorTotal = 0;
   if (decorPackage) {
@@ -159,13 +223,85 @@ function removeVietnameseTones(str: string) {
 
   return (
     <div className="space-y-4 border rounded-md p-4 bg-slate-50/50">
+      {/* Quick Party Menu Section */}
+      <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-lg p-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+          <div className="flex items-center gap-2">
+            <span className="p-1 rounded bg-amber-500 text-white shadow-xs">
+              <ChefHat className="w-4 h-4" />
+            </span>
+            <div>
+              <div className="text-xs font-bold uppercase tracking-wider text-amber-900 flex items-center gap-1.5">
+                Menu Tiệc / Set 10 Người
+                <span className="bg-amber-200 text-amber-900 text-[10px] px-1.5 py-0.2 rounded-full font-semibold">Hot</span>
+              </div>
+              <div className="text-[11px] text-amber-700">Chọn set chuẩn hoặc bấm Quản lý để tự thêm/sửa menu & giá</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsPartyModalOpen(true)}
+              className="h-7 text-xs border-amber-300 text-amber-800 hover:bg-amber-100 flex items-center gap-1 font-medium bg-white shadow-2xs"
+            >
+              <Settings className="w-3.5 h-3.5 text-amber-600" />
+              Quản lý Menu Tiệc
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          {partySets.map(set => (
+            <div key={set.id} className="flex items-center gap-1 bg-white border border-amber-200 hover:border-amber-400 rounded-md p-1 pl-2 shadow-2xs text-xs">
+              <span className="font-semibold text-slate-800">{set.title}:</span>
+              <span className="font-bold text-orange-600">{(set.price / 1000000).toLocaleString('vi-VN')}tr</span>
+              <div className="flex items-center ml-1 pl-1 border-l border-slate-200 gap-0.5">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleSelectPartySet(set, false)}
+                  className="h-6 px-1.5 text-[11px] text-slate-600 hover:text-orange-700 hover:bg-orange-50 font-medium"
+                  title="Thêm trọn gói 1 set"
+                >
+                  + Set
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleSelectPartySet(set, true)}
+                  className="h-6 px-1.5 text-[11px] text-emerald-700 bg-emerald-50 hover:bg-emerald-100 font-medium"
+                  title="Thêm set + bung danh sách 9 món chi tiết"
+                >
+                  + Chi tiết
+                </Button>
+              </div>
+            </div>
+          ))}
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleAddCustomItem}
+            className="h-7 text-xs border-dashed border-orange-300 text-orange-700 hover:bg-orange-100/70 bg-white/80 flex items-center gap-1 font-medium"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            + Tự nhập Món / Giá
+          </Button>
+        </div>
+      </div>
+
       <div>
-        <Label>Tìm & Thêm món ăn</Label>
+        <Label>Tìm & Thêm món lẻ</Label>
         <div className="relative mt-1">
           <Input 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Gõ tên món (vd: Gà, Lẩu, Bò...)"
+            placeholder="Gõ tên món (vd: Gà, Lẩu, Bò, Càng Cua...)"
           />
           {searchTerm.length > 0 && (
             <div className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-y-auto">
@@ -210,8 +346,20 @@ function removeVietnameseTones(str: string) {
             />
             <span className="text-sm text-slate-500">x</span>
             <div className="flex-1 text-sm font-medium leading-tight">
-              {item.name}
-              <input type="hidden" name="menuItem" value={`${item.qty} x ${item.name} - ${item.priceText}`} />
+              {item.isCustomPrice && (!item.name || item.name.startsWith('Tự nhập') || item.id.startsWith('custom-')) ? (
+                <Input 
+                  type="text"
+                  value={item.name}
+                  onChange={(e) => updateItemName(item.id, e.target.value)}
+                  placeholder="Nhập tên món / Set tiệc..."
+                  className="h-8 text-sm px-2 w-full"
+                />
+              ) : (
+                <div className={item.name.startsWith('↳') ? 'text-slate-600 pl-2 text-xs italic' : item.name.startsWith('[SET]') ? 'font-bold text-amber-900' : ''}>
+                  {item.name}
+                </div>
+              )}
+              <input type="hidden" name="menuItem" value={`${item.qty} x ${item.name || 'Món tự nhập'} - ${item.priceText}`} />
             </div>
             <div className="text-sm font-semibold text-slate-700 whitespace-nowrap">
               {item.isCustomPrice ? (
@@ -276,6 +424,12 @@ function removeVietnameseTones(str: string) {
           <span className="text-orange-600">{grandTotal.toLocaleString('vi-VN')} đ</span>
         </div>
       </div>
+
+      <PartyMenuModal
+        isOpen={isPartyModalOpen}
+        onClose={() => setIsPartyModalOpen(false)}
+        onSelectSet={handleSelectPartySet}
+      />
     </div>
   );
 }

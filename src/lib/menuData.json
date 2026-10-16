@@ -1,5 +1,50 @@
 [
   {
+    "name": "MENU TIỆC / SET 10 NGƯỜI",
+    "items": [
+      {
+        "name": "Set Thực Đơn 1 (8 - 10 Người/ Mâm)",
+        "price": "5000000"
+      },
+      {
+        "name": "Gỏi Rau Càng Cua vs Thịt Bò Áp Chảo (Đĩa)",
+        "price": "189000"
+      },
+      {
+        "name": "Súp Măng Tây Cua Bể (Bát)",
+        "price": "Theo Món"
+      },
+      {
+        "name": "Gà Ta Hấp Nấm Lá Thơm (Con)",
+        "price": "Theo Món"
+      },
+      {
+        "name": "Thăn Bò Striploin Angus Nướng vs Sốt Tiêu Xanh (Phần)",
+        "price": "Theo Món"
+      },
+      {
+        "name": "Cá Hồi Áp Chảo vs Sốt Chanh Leo (KG)",
+        "price": "Theo Món"
+      },
+      {
+        "name": "Tôm Sú Bỏ Lò Phomai Ăn Kèm Bánh Mì Nướng (KG)",
+        "price": "Theo Món"
+      },
+      {
+        "name": "Lẩu Bầu Bắp Bò Sườn Non (Nồi)",
+        "price": "Theo Món"
+      },
+      {
+        "name": "Bầu Non Luộc Chấm Kho Quẹt (Đĩa)",
+        "price": "Theo Món"
+      },
+      {
+        "name": "Hoa Quả Tráng Miệng (Đĩa)",
+        "price": "Theo Món"
+      }
+    ]
+  },
+  {
     "name": "SALAD/ KHAI VỊ",
     "items": [
       {

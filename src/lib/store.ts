@@ -1,6 +1,8 @@
-import { Booking, BookingStatus, TaskStatus, SeafoodCategory, defaultSeafoodCategories, ReceptionEntry, defaultReceptionLogs, VisitStatus } from './data';
+import { Booking, BookingStatus, TaskStatus, SeafoodCategory, defaultSeafoodCategories, ReceptionEntry, defaultReceptionLogs, VisitStatus, PartyMenuSet, defaultPartyMenuSets } from './data';
 import { supabase } from './supabase';
 import { isVisitExpired, normalizeRoomName } from './bookingUtils';
+
+let globalPartyMenuSets: PartyMenuSet[] = defaultPartyMenuSets;
 
 let globalSeafoodData: { updatedAt: string; categories: SeafoodCategory[] } = {
   updatedAt: new Date().toISOString(),
@@ -221,6 +223,47 @@ export async function saveSeafoodInventory(inventory: { updatedAt: string; categ
     if (error) console.error("Error saving seafood to Supabase:", error);
   } catch (err) {
     console.error("Error saving seafood to Supabase:", err);
+  }
+}
+
+export async function getPartyMenuSets(): Promise<PartyMenuSet[]> {
+  try {
+    const { data, error } = await supabase.from('bookings').select('menu').eq('id', 'CONFIG_PARTY_MENUS').single();
+    if (error || !data) {
+      return globalPartyMenuSets;
+    }
+    const parsed = typeof data.menu === 'string' ? JSON.parse(data.menu) : data.menu;
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      globalPartyMenuSets = parsed;
+      return parsed;
+    }
+    return globalPartyMenuSets;
+  } catch (err) {
+    return globalPartyMenuSets;
+  }
+}
+
+export async function savePartyMenuSets(sets: PartyMenuSet[]): Promise<void> {
+  globalPartyMenuSets = sets;
+  try {
+    const { error } = await supabase.from('bookings').upsert([{
+      id: 'CONFIG_PARTY_MENUS',
+      customerName: 'PARTY_MENUS',
+      phone: '0000000000',
+      dateTime: new Date().toISOString(),
+      guestsCount: 0,
+      room: 'CONFIG',
+      menu: JSON.stringify(sets),
+      specialRequest: '',
+      decorRequest: '',
+      status: 'cancelled',
+      receptionStatus: 'done',
+      kitchenStatus: 'done',
+      floorStatus: 'done'
+    }]);
+    if (error) console.error("Error saving party menus to Supabase:", error);
+  } catch (err) {
+    console.error("Error saving party menus to Supabase:", err);
   }
 }
 

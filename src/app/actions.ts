@@ -2,8 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
-import { getBookings, addBooking, updateBookingData, deleteBookingData, updateKitchenStatus, updateFloorStatus, updateBookingStatus, updateReceptionStatus, getSeafoodInventory, saveSeafoodInventory, getReceptionLogs, saveReceptionLogs } from '@/lib/store';
-import { Booking, BookingStatus, TaskStatus, SeafoodCategory, ReceptionEntry, VisitStatus, ReceptionFeedback } from '@/lib/data';
+import { getBookings, addBooking, updateBookingData, deleteBookingData, updateKitchenStatus, updateFloorStatus, updateBookingStatus, updateReceptionStatus, getSeafoodInventory, saveSeafoodInventory, getReceptionLogs, saveReceptionLogs, getPartyMenuSets, savePartyMenuSets } from '@/lib/store';
+import { Booking, BookingStatus, TaskStatus, SeafoodCategory, ReceptionEntry, VisitStatus, ReceptionFeedback, PartyMenuSet } from '@/lib/data';
 import { normalizeRoomName, isSameRoom } from '@/lib/bookingUtils';
 
 export async function loginAction(id: string, pass: string) {
@@ -569,5 +569,38 @@ export async function deleteReceptionEntryAction(id: string) {
   revalidatePath('/floor-plan');
   revalidatePath('/bookings');
   return { success: true };
+}
+
+export async function fetchPartyMenuSetsAction(): Promise<PartyMenuSet[]> {
+  return getPartyMenuSets();
+}
+
+export async function savePartyMenuSetAction(set: PartyMenuSet) {
+  await verifyAuthPermission();
+  const currentSets = await getPartyMenuSets();
+  const existingIdx = currentSets.findIndex(s => s.id === set.id);
+  let updatedSets: PartyMenuSet[];
+  if (existingIdx >= 0) {
+    updatedSets = [...currentSets];
+    updatedSets[existingIdx] = { ...set, updatedAt: new Date().toISOString() };
+  } else {
+    updatedSets = [...currentSets, { ...set, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }];
+  }
+  await savePartyMenuSets(updatedSets);
+  revalidatePath('/');
+  revalidatePath('/bookings');
+  revalidatePath('/party-menu');
+  return { success: true, sets: updatedSets };
+}
+
+export async function deletePartyMenuSetAction(setId: string) {
+  await verifyAuthPermission();
+  const currentSets = await getPartyMenuSets();
+  const updatedSets = currentSets.filter(s => s.id !== setId);
+  await savePartyMenuSets(updatedSets);
+  revalidatePath('/');
+  revalidatePath('/bookings');
+  revalidatePath('/party-menu');
+  return { success: true, sets: updatedSets };
 }
 

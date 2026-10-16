@@ -47,6 +47,49 @@ export interface ReceptionEntry {
   updatedAt: string;
 }
 
+export interface PartyMenuItem {
+  name: string;
+  unit?: string; // ĐĨA, Bát, Con, Phần, KG, Nồi...
+  quantity?: number | string; // 1, 0.7...
+  note?: string; // Ghi chú
+}
+
+export interface PartyMenuSet {
+  id: string;
+  title: string; // Thực Đơn 1
+  paxRange: string; // 8 - 10 Người/ Mâm
+  price: number; // 5000000
+  priceText: string; // 5.000.000 đ
+  description?: string;
+  items: PartyMenuItem[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export const defaultPartyMenuSets: PartyMenuSet[] = [
+  {
+    id: "SET-01",
+    title: "Thực Đơn 1",
+    paxRange: "8 - 10 Người/ Mâm",
+    price: 5000000,
+    priceText: "5.000.000 đ",
+    description: "Thực đơn tiệc tiêu chuẩn cho 8 - 10 người/ mâm gồm 9 món đặc sắc",
+    items: [
+      { name: "Gỏi Rau Càng Cua vs Thịt Bò Áp Chảo", unit: "ĐĨA", quantity: 1, note: "" },
+      { name: "Súp Măng Tây Cua Bể", unit: "Bát", quantity: 1, note: "" },
+      { name: "Gà Ta Hấp Nấm Lá Thơm", unit: "Con", quantity: 1, note: "" },
+      { name: "Thăn Bò Striploin Angus Nướng vs Sốt Tiêu Xanh", unit: "Phần", quantity: 1, note: "" },
+      { name: "Cá Hồi Áp Chảo vs Sốt Chanh Leo", unit: "KG", quantity: 1, note: "" },
+      { name: "Tôm Sú Bỏ Lò Phomai Ăn Kèm Bánh Mì Nướng", unit: "KG", quantity: 0.7, note: "" },
+      { name: "Lẩu Bầu Bắp Bò Sườn Non", unit: "Nồi", quantity: 1, note: "" },
+      { name: "Bầu Non Luộc Chấm Kho Quẹt", unit: "Đĩa", quantity: 1, note: "" },
+      { name: "Hoa Quả Tráng Miệng", unit: "Đĩa", quantity: 1, note: "" }
+    ],
+    createdAt: "2026-10-16T00:00:00.000Z",
+    updatedAt: "2026-10-16T00:00:00.000Z"
+  }
+];
+
 export const defaultReceptionLogs: ReceptionEntry[] = [];
 
 
