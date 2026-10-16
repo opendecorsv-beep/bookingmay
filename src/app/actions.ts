@@ -287,13 +287,17 @@ export async function cleanRoomTableAction(params: {
     if (bookingId) targetBookingIds.add(bookingId);
     if (linkedBookingIdFromLog) targetBookingIds.add(linkedBookingIdFromLog);
 
-    // Nếu không truyền bookingId cụ thể, tìm các booking chưa clean trong phòng đó vào ngày đó
+    // Nếu không truyền bookingId cụ thể, chỉ tìm các booking ĐÃ ĐƯỢC PHỤC VỤ (in_progress / done) trong phòng đó
+    // TUYỆT ĐỐI KHÔNG tự tiện dọn các booking 'pending' (chưa đón tiếp, khách chưa vào) của ca sau!
     if (targetBookingIds.size === 0 && roomName && targetDate) {
       allBookings.forEach(b => {
         if (isSameRoom(b.room, roomName)) {
           const bDate = (b.dateTime || '').split('T')[0];
           if (bDate === targetDate && b.status !== 'cancelled' && b.receptionStatus !== 'clean') {
-            targetBookingIds.add(b.id);
+            // Chỉ dọn nếu tiệc đã được checkin phục vụ (in_progress hoặc done)
+            if (b.receptionStatus === 'in_progress' || b.receptionStatus === 'done') {
+              targetBookingIds.add(b.id);
+            }
           }
         }
       });
@@ -319,6 +323,43 @@ export async function cleanRoomTableAction(params: {
   revalidatePath('/floor');
   revalidatePath('/kitchen');
   revalidatePath('/archive');
+
+  return { success: true };
+}
+
+export async function checkInBookingFromFloorAction(bookingId: string) {
+  const allBookings = await getBookings();
+  const b = allBookings.find(item => item.id === bookingId);
+  if (!b) return { error: "Không tìm thấy thông tin tiệc" };
+
+  const [datePart] = (b.dateTime || '').split('T');
+  const now = new Date();
+  const timeNow = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+  // 1. Thêm lượt đón khách bên Lễ tân (status: dining)
+  await addReceptionEntryAction({
+    date: datePart || getVietnamTodayString(),
+    time: timeNow,
+    type: 'booking',
+    bookingId: b.id,
+    customerName: b.customerName.replace(/\[(VIP|SVIP)\]/g, '').trim(),
+    phone: b.phone,
+    guestsCount: b.guestsCount || 1,
+    room: b.room || 'Sảnh chung',
+    status: 'dining',
+    notes: `Đón tiếp từ Sơ đồ bàn lúc ${timeNow}`
+  });
+
+  // 2. Chuyển trạng thái booking sang in_progress
+  await updateBookingData(b.id, {
+    receptionStatus: 'in_progress'
+  });
+
+  revalidatePath('/');
+  revalidatePath('/bookings');
+  revalidatePath('/floor-plan');
+  revalidatePath('/floor');
+  revalidatePath('/kitchen');
 
   return { success: true };
 }

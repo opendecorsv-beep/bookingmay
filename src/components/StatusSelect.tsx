@@ -25,6 +25,10 @@ export default function StatusSelect({ id, role, currentStatus }: Props) {
       return;
     }
     const newStatus = e.target.value as TaskStatus;
+    if (role === 'reception' && newStatus === 'clean' && currentStatus === 'pending') {
+      const ok = window.confirm("Tiệc này đang ở trạng thái 'Chờ xử lý' (khách chưa đến ăn). Bạn có chắc chắn muốn đánh dấu là 'Dọn xong' không?");
+      if (!ok) return;
+    }
     setOptimisticStatus(newStatus); // Optimistic UI update
     startTransition(() => {
       if (role === 'reception') setReceptionStatus(id, newStatus);

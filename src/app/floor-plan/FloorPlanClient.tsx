@@ -42,7 +42,7 @@ import {
   isSameRoom,
   normalizeRoomName
 } from "@/lib/bookingUtils";
-import { transferReceptionRoomAction, cleanRoomTableAction, resetCleanRoomAction } from "@/app/actions";
+import { transferReceptionRoomAction, cleanRoomTableAction, resetCleanRoomAction, checkInBookingFromFloorAction } from "@/app/actions";
 
 const FLOORS = [
   { name: "Tầng 1", rooms: ["Mây 101", "Mây 102", "Mây 103", "Mây 104", "Mây 105", "Mây 106"] },
@@ -86,6 +86,33 @@ export default function FloorPlanClient({
   const [transferRoom, setTransferRoom] = useState<string>("");
   const [isTransferring, setIsTransferring] = useState<boolean>(false);
   const [isCleaning, setIsCleaning] = useState<boolean>(false);
+  const [isCheckingIn, setIsCheckingIn] = useState<boolean>(false);
+
+  const handleCheckInBooking = async (bookingId: string) => {
+    setIsCheckingIn(true);
+    try {
+      const res = await checkInBookingFromFloorAction(bookingId);
+      if (res && 'error' in res && res.error) {
+        alert(res.error);
+        return;
+      }
+      setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, receptionStatus: 'in_progress' as const } : b));
+      setSelectedRoomDetail(prev => {
+        if (!prev) return null;
+        const updatedBookings = (prev.bookings || []).map(b => b.id === bookingId ? { ...b, receptionStatus: 'in_progress' as const } : b);
+        return {
+          ...prev,
+          booking: prev.booking?.id === bookingId ? { ...prev.booking, receptionStatus: 'in_progress' as const } : prev.booking,
+          bookings: updatedBookings
+        };
+      });
+    } catch (err) {
+      console.error("Lỗi khi đón khách:", err);
+      alert("Có lỗi khi đón khách vào bàn!");
+    } finally {
+      setIsCheckingIn(false);
+    }
+  };
 
   const ALL_ROOM_OPTIONS = useMemo(() => {
     return FLOORS.flatMap(f => f.rooms);
@@ -174,7 +201,10 @@ export default function FloorPlanClient({
           return { ...b, receptionStatus: 'clean' as const, floorStatus: 'clean' as const };
         }
         if (!bookingId && isSameRoom(b.room, roomName) && (b.dateTime || '').startsWith(selectedDate)) {
-          return { ...b, receptionStatus: 'clean' as const, floorStatus: 'clean' as const };
+          // Chỉ dọn các booking đã phục vụ (in_progress hoặc done), không dọn các booking pending của ca sau!
+          if (b.receptionStatus === 'in_progress' || b.receptionStatus === 'done') {
+            return { ...b, receptionStatus: 'clean' as const, floorStatus: 'clean' as const };
+          }
         }
         return b;
       }));
@@ -191,14 +221,15 @@ export default function FloorPlanClient({
       setSelectedRoomDetail(prev => {
         if (!prev) return null;
         const updatedBookings = (prev.bookings || []).map(b => {
-          if (bookingId ? b.id === bookingId : true) {
+          if (bookingId ? b.id === bookingId : (b.receptionStatus === 'in_progress' || b.receptionStatus === 'done')) {
             return { ...b, receptionStatus: 'clean' as const, floorStatus: 'clean' as const };
           }
           return b;
         });
+        const activeBookingAfterClean = updatedBookings.find(b => b.receptionStatus !== 'clean');
         return {
           ...prev,
-          booking: prev.booking ? { ...prev.booking, receptionStatus: 'clean' as const, floorStatus: 'clean' as const } : undefined,
+          booking: activeBookingAfterClean || (prev.booking ? { ...prev.booking, receptionStatus: 'clean' as const, floorStatus: 'clean' as const } : undefined),
           bookings: updatedBookings,
           reception: prev.reception ? { ...prev.reception, status: 'left' as const } : undefined
         };
@@ -771,7 +802,7 @@ export default function FloorPlanClient({
                                 key={booking.id}
                                 className="text-xs flex flex-col items-center gap-0.5 border-t border-black/10 pt-1.5 first:border-0 first:pt-0 w-full"
                               >
-                                <div className="flex gap-1">
+                                <div className="flex gap-1 items-center flex-wrap justify-center">
                                   {isSVIP && (
                                     <span className="bg-yellow-500 text-white text-[10px] px-1.5 py-0.5 rounded font-black tracking-wider shadow-sm leading-none">
                                       SVIP
@@ -780,6 +811,19 @@ export default function FloorPlanClient({
                                   {isVIP && (
                                     <span className="bg-fuchsia-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold shadow-sm leading-none">
                                       VIP
+                                    </span>
+                                  )}
+                                  {booking.receptionStatus === 'in_progress' ? (
+                                    <span className="bg-emerald-600 text-white text-[9px] px-1.5 py-0.5 rounded font-bold leading-none">
+                                      Đang ăn
+                                    </span>
+                                  ) : booking.receptionStatus === 'done' ? (
+                                    <span className="bg-amber-600 text-white text-[9px] px-1.5 py-0.5 rounded font-bold leading-none">
+                                      Chờ dọn
+                                    </span>
+                                  ) : (
+                                    <span className="bg-blue-600 text-white text-[9px] px-1.5 py-0.5 rounded font-medium leading-none">
+                                      Chờ đón
                                     </span>
                                   )}
                                 </div>
@@ -852,36 +896,92 @@ export default function FloorPlanClient({
               selectedRoomDetail.reception?.status === "dining" &&
               !isVisitExpired(selectedRoomDetail.reception.date, selectedRoomDetail.reception.time)
             );
-            const activeBookingsInDialog = (selectedRoomDetail.bookings || (selectedRoomDetail.booking ? [selectedRoomDetail.booking] : []))
-              .filter(b => b.receptionStatus !== 'clean');
-            const isRoomOccupied = hasDining || activeBookingsInDialog.length > 0;
+            const allDialogBookings = selectedRoomDetail.bookings || (selectedRoomDetail.booking ? [selectedRoomDetail.booking] : []);
+            const activeBookingsInDialog = allDialogBookings.filter(b => b.receptionStatus !== 'clean');
+            
+            const inProgressBooking = activeBookingsInDialog.find(b => b.receptionStatus === 'in_progress');
+            const doneBooking = activeBookingsInDialog.find(b => b.receptionStatus === 'done');
+            const pendingBookings = activeBookingsInDialog.filter(b => !b.receptionStatus || b.receptionStatus === 'pending');
+            const cleanedBookings = allDialogBookings.filter(b => b.receptionStatus === 'clean');
+
+            const isDiningNow = hasDining || Boolean(inProgressBooking);
+            const isDirtyNow = !isDiningNow && (Boolean(selectedRoomDetail.reception?.status === 'left') || Boolean(doneBooking));
+            const hasPendingOnly = !isDiningNow && !isDirtyNow && pendingBookings.length > 0;
+            const isCleanOnly = !isDiningNow && !isDirtyNow && !hasPendingOnly && cleanedBookings.length > 0;
 
             return (
               <div className="space-y-4 py-2 text-xs sm:text-sm">
-                {/* Master Action Banner for Cleaning / Emptying the room */}
-                {isRoomOccupied ? (
-                  <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-orange-200 p-3 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-2xs">
+                {/* Master Action Banner with Precise Real-world Restaurant States */}
+                {isDiningNow ? (
+                  <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-300 p-3.5 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-2xs">
                     <div>
-                      <div className="font-extrabold text-xs text-orange-900 uppercase tracking-wide flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span>
-                        Phòng đang hoạt động / có tiệc
+                      <div className="font-extrabold text-xs text-emerald-900 uppercase tracking-wide flex items-center gap-1.5">
+                        <span className="relative flex h-2.5 w-2.5">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                        </span>
+                        Phòng Đang Có Khách Ngồi Dùng Bữa
                       </div>
-                      <p className="text-[11px] text-orange-800/80 mt-0.5">
-                        Bấm Clean để dọn phòng, giải phóng bàn về trạng thái trống sạch
+                      <p className="text-[11px] text-emerald-800/90 mt-0.5">
+                        Khách đang dùng bữa tại bàn. Khi khách thanh toán ra về, bấm nút bên phải để dọn phòng.
                       </p>
                     </div>
                     <Button
                       type="button"
                       disabled={isCleaning}
-                      onClick={() => handleCleanRoom(selectedRoomDetail.roomName, selectedRoomDetail.reception?.id, selectedRoomDetail.booking?.id)}
+                      onClick={() => handleCleanRoom(selectedRoomDetail.roomName, selectedRoomDetail.reception?.id, inProgressBooking?.id)}
                       className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs h-9 px-3.5 flex items-center gap-1.5 shadow-sm shrink-0 w-full sm:w-auto"
                     >
                       <Sparkles className="w-4 h-4 text-emerald-200" />
+                      {isCleaning ? "Đang xử lý..." : "Khách Ra Về & Dọn Bàn"}
+                    </Button>
+                  </div>
+                ) : isDirtyNow ? (
+                  <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300 p-3.5 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-2xs">
+                    <div>
+                      <div className="font-extrabold text-xs text-amber-900 uppercase tracking-wide flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                        Bàn Cần Dọn Dẹp (Khách Đã Dùng Bữa Xong)
+                      </div>
+                      <p className="text-[11px] text-amber-800/90 mt-0.5">
+                        Khách đã dùng bữa xong. Sau khi dọn sạch bàn ghế, bấm Clean để đưa bàn về trạng thái trống sạch.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      disabled={isCleaning}
+                      onClick={() => handleCleanRoom(selectedRoomDetail.roomName, selectedRoomDetail.reception?.id, doneBooking?.id)}
+                      className="bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs h-9 px-3.5 flex items-center gap-1.5 shadow-sm shrink-0 w-full sm:w-auto"
+                    >
+                      <Sparkles className="w-4 h-4 text-amber-200" />
                       {isCleaning ? "Đang xử lý..." : "Dọn Xong (Clean) - Trả Bàn Trống"}
                     </Button>
                   </div>
-                ) : (
-                  <div className="bg-slate-50 border border-slate-200 p-2.5 rounded-xl flex items-center justify-between gap-2 text-xs">
+                ) : hasPendingOnly ? (
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 p-3.5 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-2xs">
+                    <div>
+                      <div className="font-extrabold text-xs text-blue-900 uppercase tracking-wide flex items-center gap-1.5">
+                        <Calendar className="w-4 h-4 text-blue-600" />
+                        Phòng Đã Đặt Trước (Chờ Đón Khách)
+                      </div>
+                      <p className="text-[11px] text-blue-800/90 mt-0.5">
+                        Bàn hiện đang trống để giữ chỗ đón tiệc lúc {format(new Date(pendingBookings[0].dateTime), "HH:mm")} ({pendingBookings[0].guestsCount} khách).
+                      </p>
+                    </div>
+                    {isSelectedToday && (
+                      <Button
+                        type="button"
+                        disabled={isCheckingIn}
+                        onClick={() => handleCheckInBooking(pendingBookings[0].id)}
+                        className="bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs h-9 px-3.5 flex items-center gap-1.5 shadow-sm shrink-0 w-full sm:w-auto"
+                      >
+                        <Users className="w-4 h-4 text-blue-200" />
+                        {isCheckingIn ? "Đang đón khách..." : "Đón Khách Vào Bàn (Check-in)"}
+                      </Button>
+                    )}
+                  </div>
+                ) : isCleanOnly ? (
+                  <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl flex items-center justify-between gap-2 text-xs">
                     <span className="font-bold text-slate-700 flex items-center gap-1.5">
                       <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                       Bàn đã dọn xong (Clean) - Sẵn sàng đón khách mới
@@ -891,12 +991,19 @@ export default function FloorPlanClient({
                       variant="ghost"
                       size="sm"
                       disabled={isCleaning}
-                      onClick={() => handleResetClean(selectedRoomDetail.roomName, selectedRoomDetail.booking?.id)}
+                      onClick={() => handleResetClean(selectedRoomDetail.roomName, cleanedBookings[0]?.id)}
                       className="text-[11px] font-semibold text-slate-500 hover:text-slate-800 h-7 px-2"
                     >
                       <RotateCcw className="w-3 h-3 mr-1" />
                       Hoàn tác
                     </Button>
+                  </div>
+                ) : (
+                  <div className="bg-emerald-50/50 border border-emerald-200 p-3 rounded-xl flex items-center justify-between gap-2 text-xs text-emerald-800">
+                    <span className="font-bold flex items-center gap-1.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      Phòng trống sạch - Sẵn sàng đón tiếp khách mới
+                    </span>
                   </div>
                 )}
 
@@ -1145,7 +1252,7 @@ export default function FloorPlanClient({
                               👥 {booking.guestsCount} khách
                             </span>
 
-                            {/* Clean / Undo button for this booking */}
+                            {/* Action button tailored to booking lifecycle */}
                             <div className="mt-1.5">
                               {booking.receptionStatus === 'clean' ? (
                                 <Button
@@ -1159,18 +1266,40 @@ export default function FloorPlanClient({
                                   <RotateCcw className="w-3 h-3" />
                                   Mở lại bàn
                                 </Button>
-                              ) : (
+                              ) : booking.receptionStatus === 'in_progress' ? (
                                 <Button
                                   type="button"
                                   size="sm"
                                   disabled={isCleaning}
                                   onClick={() => handleCleanRoom(selectedRoomDetail.roomName, undefined, booking.id)}
-                                  className="h-7 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1 shadow-2xs"
+                                  className="h-7 text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white flex items-center gap-1 shadow-2xs"
+                                >
+                                  <Sparkles className="w-3.5 h-3.5" />
+                                  Khách về &amp; Dọn bàn
+                                </Button>
+                              ) : booking.receptionStatus === 'done' ? (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  disabled={isCleaning}
+                                  onClick={() => handleCleanRoom(selectedRoomDetail.roomName, undefined, booking.id)}
+                                  className="h-7 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1 shadow-2xs"
                                 >
                                   <Sparkles className="w-3.5 h-3.5" />
                                   Dọn xong (Clean)
                                 </Button>
-                              )}
+                              ) : isSelectedToday ? (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  disabled={isCheckingIn}
+                                  onClick={() => handleCheckInBooking(booking.id)}
+                                  className="h-7 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1 shadow-2xs"
+                                >
+                                  <Users className="w-3.5 h-3.5" />
+                                  {isCheckingIn ? "Đang đón..." : "Đón khách vào bàn"}
+                                </Button>
+                              ) : null}
                             </div>
                           </div>
                         </div>
