@@ -231,6 +231,131 @@ export async function setReceptionStatus(id: string, status: TaskStatus) {
   revalidatePath('/floor');
 }
 
+export async function cleanRoomTableAction(params: {
+  roomName: string;
+  date?: string;
+  bookingId?: string;
+  receptionId?: string;
+}) {
+  const { roomName, date, bookingId, receptionId } = params;
+  const targetDate = date ? date.split('T')[0] : undefined;
+
+  try {
+    // 1. Đồng bộ bên Lễ Tân (CONFIG_RECEPTION): chuyển trạng thái khách sang 'left' (đã ra về)
+    const currentLogs = await getReceptionLogs();
+    let receptionChanged = false;
+    let linkedBookingIdFromLog: string | undefined;
+
+    const updatedLogs = currentLogs.map(item => {
+      const isTarget = receptionId
+        ? item.id === receptionId
+        : (item.room?.toLowerCase().trim() === roomName.toLowerCase().trim() &&
+           (!targetDate || item.date === targetDate) &&
+           item.status === 'dining');
+
+      if (isTarget) {
+        receptionChanged = true;
+        if (item.bookingId) linkedBookingIdFromLog = item.bookingId;
+        return {
+          ...item,
+          status: 'left' as VisitStatus,
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return item;
+    });
+
+    if (receptionChanged) {
+      await saveReceptionLogs(updatedLogs);
+    }
+
+    // 2. Đồng bộ bên Đặt Bàn (bookings): chuyển receptionStatus & floorStatus sang 'clean'
+    const allBookings = await getBookings();
+    const targetBookingIds = new Set<string>();
+
+    if (bookingId) targetBookingIds.add(bookingId);
+    if (linkedBookingIdFromLog) targetBookingIds.add(linkedBookingIdFromLog);
+
+    // Nếu không truyền bookingId cụ thể, tìm các booking chưa clean trong phòng đó vào ngày đó
+    if (targetBookingIds.size === 0 && roomName && targetDate) {
+      allBookings.forEach(b => {
+        if (b.room?.toLowerCase().trim() === roomName.toLowerCase().trim()) {
+          const bDate = (b.dateTime || '').split('T')[0];
+          if (bDate === targetDate && b.status !== 'cancelled' && b.receptionStatus !== 'clean') {
+            targetBookingIds.add(b.id);
+          }
+        }
+      });
+    }
+
+    for (const bId of targetBookingIds) {
+      try {
+        await updateBookingData(bId, {
+          receptionStatus: 'clean',
+          floorStatus: 'clean'
+        });
+      } catch (err) {
+        console.error(`Error updating booking ${bId} to clean:`, err);
+      }
+    }
+  } catch (err) {
+    console.error("Error in cleanRoomTableAction:", err);
+  }
+
+  revalidatePath('/');
+  revalidatePath('/bookings');
+  revalidatePath('/floor-plan');
+  revalidatePath('/floor');
+  revalidatePath('/kitchen');
+  revalidatePath('/archive');
+
+  return { success: true };
+}
+
+export async function resetCleanRoomAction(params: {
+  bookingId?: string;
+  roomName?: string;
+  date?: string;
+}) {
+  const { bookingId, roomName, date } = params;
+  const targetDate = date ? date.split('T')[0] : undefined;
+
+  try {
+    const allBookings = await getBookings();
+    const targetBookingIds = new Set<string>();
+    if (bookingId) targetBookingIds.add(bookingId);
+
+    if (targetBookingIds.size === 0 && roomName && targetDate) {
+      allBookings.forEach(b => {
+        if (b.room?.toLowerCase().trim() === roomName.toLowerCase().trim()) {
+          const bDate = (b.dateTime || '').split('T')[0];
+          if (bDate === targetDate && b.status !== 'cancelled' && b.receptionStatus === 'clean') {
+            targetBookingIds.add(b.id);
+          }
+        }
+      });
+    }
+
+    for (const bId of targetBookingIds) {
+      await updateBookingData(bId, {
+        receptionStatus: 'pending',
+        floorStatus: 'pending'
+      });
+    }
+  } catch (err) {
+    console.error("Error resetting clean status:", err);
+  }
+
+  revalidatePath('/');
+  revalidatePath('/bookings');
+  revalidatePath('/floor-plan');
+  revalidatePath('/floor');
+  revalidatePath('/kitchen');
+  revalidatePath('/archive');
+
+  return { success: true };
+}
+
 export async function setKitchenStatus(id: string, status: TaskStatus) {
   await verifyAuthPermission();
   await updateKitchenStatus(id, status);

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { Booking, ReceptionEntry } from "@/lib/data";
+import { Booking, ReceptionEntry, VisitStatus } from "@/lib/data";
 import { format, isSameDay } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -28,7 +28,9 @@ import {
   ArrowRight,
   AlertCircle,
   FileText,
-  Phone
+  Phone,
+  RefreshCw,
+  RotateCcw
 } from "lucide-react";
 import {
   isBookingArchived,
@@ -38,7 +40,7 @@ import {
   parseSpecialRequest,
   parseDecorRequest
 } from "@/lib/bookingUtils";
-import { transferReceptionRoomAction } from "@/app/actions";
+import { transferReceptionRoomAction, cleanRoomTableAction, resetCleanRoomAction } from "@/app/actions";
 
 const FLOORS = [
   { name: "Tầng 1", rooms: ["Mây 101", "Mây 102", "Mây 103", "Mây 104", "Mây 105", "Mây 106"] },
@@ -56,9 +58,20 @@ export default function FloorPlanClient({
   initialBookings,
   initialReceptionLogs = [],
 }: FloorPlanClientProps) {
-  const [selectedDateTime, setSelectedDateTime] = useState(
-    format(new Date(), "yyyy-MM-dd'T'HH:mm")
-  );
+  const [bookings, setBookings] = useState<Booking[]>(initialBookings);
+  const [receptionLogs, setReceptionLogs] = useState<ReceptionEntry[]>(initialReceptionLogs);
+
+  useEffect(() => {
+    setBookings(initialBookings);
+  }, [initialBookings]);
+
+  useEffect(() => {
+    setReceptionLogs(initialReceptionLogs);
+  }, [initialReceptionLogs]);
+
+  const [selectedDateTime, setSelectedDateTime] = useState(() => {
+    return format(new Date(), "yyyy-MM-dd'T'HH:mm");
+  });
 
   // Selected item to view details
   const [selectedRoomDetail, setSelectedRoomDetail] = useState<{
@@ -70,6 +83,7 @@ export default function FloorPlanClient({
 
   const [transferRoom, setTransferRoom] = useState<string>("");
   const [isTransferring, setIsTransferring] = useState<boolean>(false);
+  const [isCleaning, setIsCleaning] = useState<boolean>(false);
 
   const ALL_ROOM_OPTIONS = useMemo(() => {
     return FLOORS.flatMap(f => f.rooms);
@@ -83,6 +97,7 @@ export default function FloorPlanClient({
     setIsTransferring(true);
     try {
       await transferReceptionRoomAction(receptionId, transferRoom);
+      setReceptionLogs(prev => prev.map(l => l.id === receptionId ? { ...l, room: transferRoom, updatedAt: new Date().toISOString() } : l));
       setSelectedRoomDetail(null);
       setTransferRoom("");
     } catch (err) {
@@ -101,24 +116,162 @@ export default function FloorPlanClient({
   );
 
   const isSelectedToday = selectedDate === todayStr;
+  const isFutureDate = selectedDate > todayStr;
+  const isPastDate = selectedDate < todayStr;
+
+  const tomorrowStr = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return format(d, "yyyy-MM-dd");
+  }, []);
+
+  const dayAfterTomorrowStr = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 2);
+    return format(d, "yyyy-MM-dd");
+  }, []);
+
+  const handleSetQuickDate = (targetDateStr: string) => {
+    const currentTime = selectedDateTime.includes("T")
+      ? selectedDateTime.split("T")[1]
+      : format(new Date(), "HH:mm");
+    setSelectedDateTime(`${targetDateStr}T${currentTime}`);
+  };
 
   // Reception logs for the selected date
   const dayReceptionLogs = useMemo(() => {
-    return initialReceptionLogs.filter((log) => log.date === selectedDate);
-  }, [initialReceptionLogs, selectedDate]);
+    return receptionLogs.filter((log) => log.date === selectedDate);
+  }, [receptionLogs, selectedDate]);
 
   // All bookings for the selected date (excluding CONFIG rows & cancelled)
   const allDayBookings = useMemo(() => {
-    return initialBookings.filter((b) => {
+    return bookings.filter((b) => {
       if (!b || b.room === "CONFIG" || b.status === "cancelled") return false;
       const bDate = (b.dateTime || "").split("T")[0];
       return bDate === selectedDate;
     });
-  }, [initialBookings, selectedDate]);
+  }, [bookings, selectedDate]);
+
+  // Action: Clean room/table directly from Floor Plan
+  const handleCleanRoom = async (roomName: string, receptionId?: string, bookingId?: string) => {
+    setIsCleaning(true);
+    try {
+      // 1. Optimistic updates
+      setReceptionLogs(prev => prev.map(item => {
+        if (receptionId && item.id === receptionId) {
+          return { ...item, status: 'left' as VisitStatus, updatedAt: new Date().toISOString() };
+        }
+        if (!receptionId && item.room?.toLowerCase().trim() === roomName.toLowerCase().trim() && item.date === selectedDate && item.status === 'dining') {
+          return { ...item, status: 'left' as VisitStatus, updatedAt: new Date().toISOString() };
+        }
+        return item;
+      }));
+
+      setBookings(prev => prev.map(b => {
+        if (bookingId && b.id === bookingId) {
+          return { ...b, receptionStatus: 'clean' as const, floorStatus: 'clean' as const };
+        }
+        if (!bookingId && b.room?.toLowerCase().trim() === roomName.toLowerCase().trim() && (b.dateTime || '').startsWith(selectedDate)) {
+          return { ...b, receptionStatus: 'clean' as const, floorStatus: 'clean' as const };
+        }
+        return b;
+      }));
+
+      // 2. Call server action
+      await cleanRoomTableAction({
+        roomName,
+        date: selectedDate,
+        bookingId,
+        receptionId
+      });
+
+      // 3. Update currently opened dialog detail
+      setSelectedRoomDetail(prev => {
+        if (!prev) return null;
+        const updatedBookings = (prev.bookings || []).map(b => {
+          if (bookingId ? b.id === bookingId : true) {
+            return { ...b, receptionStatus: 'clean' as const, floorStatus: 'clean' as const };
+          }
+          return b;
+        });
+        return {
+          ...prev,
+          booking: prev.booking ? { ...prev.booking, receptionStatus: 'clean' as const, floorStatus: 'clean' as const } : undefined,
+          bookings: updatedBookings,
+          reception: prev.reception ? { ...prev.reception, status: 'left' as const } : undefined
+        };
+      });
+    } catch (err) {
+      console.error("Lỗi khi dọn bàn:", err);
+      alert("Có lỗi khi dọn bàn!");
+    } finally {
+      setIsCleaning(false);
+    }
+  };
+
+  // Action: Reset/undo clean status
+  const handleResetClean = async (roomName: string, bookingId?: string) => {
+    setIsCleaning(true);
+    try {
+      setBookings(prev => prev.map(b => {
+        if (bookingId && b.id === bookingId) {
+          return { ...b, receptionStatus: 'pending' as const, floorStatus: 'pending' as const };
+        }
+        if (!bookingId && b.room?.toLowerCase().trim() === roomName.toLowerCase().trim() && (b.dateTime || '').startsWith(selectedDate)) {
+          return { ...b, receptionStatus: 'pending' as const, floorStatus: 'pending' as const };
+        }
+        return b;
+      }));
+
+      await resetCleanRoomAction({
+        bookingId,
+        roomName,
+        date: selectedDate
+      });
+
+      setSelectedRoomDetail(prev => {
+        if (!prev) return null;
+        const updatedBookings = (prev.bookings || []).map(b => {
+          if (bookingId ? b.id === bookingId : true) {
+            return { ...b, receptionStatus: 'pending' as const, floorStatus: 'pending' as const };
+          }
+          return b;
+        });
+        return {
+          ...prev,
+          booking: prev.booking ? { ...prev.booking, receptionStatus: 'pending' as const, floorStatus: 'pending' as const } : undefined,
+          bookings: updatedBookings
+        };
+      });
+    } catch (err) {
+      console.error("Lỗi hoàn tác:", err);
+      alert("Có lỗi khi hoàn tác dọn bàn!");
+    } finally {
+      setIsCleaning(false);
+    }
+  };
 
   // Combined Restaurant Statistics (Lễ Tân + Sơ Đồ Bàn Thống Nhất)
   const unifiedStats = useMemo(() => {
-    // 1. Guests currently dining in restaurant - ONLY for TODAY and NOT expired
+    // 1. Total Booking guests on this date
+    const totalBookingGuests = allDayBookings.reduce(
+      (sum, b) => sum + (b.guestsCount || 0),
+      0
+    );
+    const totalBookingsCount = allDayBookings.length;
+    const uniqueBookedRooms = new Set(
+      allDayBookings.map((b) => b.room?.trim()).filter(Boolean)
+    ).size;
+
+    // 2. Walkin logs on this date
+    const walkinLogs = dayReceptionLogs.filter((l) => l.type === "walkin");
+    const walkinGuests = walkinLogs.reduce(
+      (sum, l) => sum + (l.guestsCount || 0),
+      0
+    );
+    const walkinCount = walkinLogs.length;
+
+    // 3. Guests currently dining in restaurant - ONLY for TODAY and NOT expired
     const diningLogs = isSelectedToday
       ? dayReceptionLogs.filter((l) => l.status === "dining" && !isVisitExpired(l.date, l.time))
       : [];
@@ -128,19 +281,17 @@ export default function FloorPlanClient({
     );
     const diningTables = diningLogs.length;
 
-    // 2. Guests who have departed:
-    // If today: all with status === 'left' or expired
-    // If past day: all logs on that day have completed/departed
+    // 4. Guests who have departed:
     const leftLogs = isSelectedToday
       ? dayReceptionLogs.filter((l) => l.status === "left" || isVisitExpired(l.date, l.time))
-      : dayReceptionLogs;
+      : dayReceptionLogs.filter((l) => l.status === "left");
     const leftGuests = leftLogs.reduce(
       (sum, l) => sum + (l.guestsCount || 0),
       0
     );
     const leftTables = leftLogs.length;
 
-    // 3. Bookings for today not checked-in yet AND not cleaned/archived
+    // 5. Bookings not checked-in yet AND not cleaned
     const checkedInBookingIds = new Set(
       dayReceptionLogs.map((l) => l.bookingId).filter(Boolean)
     );
@@ -151,22 +302,38 @@ export default function FloorPlanClient({
             b.receptionStatus !== "clean" &&
             !isBookingArchived(b)
         )
+      : isFutureDate
+      ? allDayBookings.filter((b) => b.receptionStatus !== "clean")
       : [];
     const pendingGuests = pendingBookings.reduce(
       (sum, b) => sum + (b.guestsCount || 0),
       0
     );
 
-    // 4. Totals for the day
-    const totalDayGuests = diningGuests + leftGuests + (isSelectedToday ? pendingGuests : 0);
-    const totalDayTables = diningTables + leftTables + (isSelectedToday ? pendingBookings.length : 0);
+    // 6. Totals for the day
+    let totalDayGuests = 0;
+    let totalDayTables = 0;
 
-    const walkinCount = dayReceptionLogs.filter((l) => l.type === "walkin").length;
-    const bookingCount =
-      dayReceptionLogs.filter((l) => l.type === "booking").length +
-      (isSelectedToday ? pendingBookings.length : allDayBookings.length);
+    if (isSelectedToday) {
+      totalDayGuests = diningGuests + leftGuests + pendingGuests;
+      totalDayTables = diningTables + leftTables + pendingBookings.length;
+    } else if (isFutureDate) {
+      totalDayGuests = totalBookingGuests + walkinGuests;
+      totalDayTables = totalBookingsCount + walkinCount;
+    } else {
+      totalDayGuests = leftGuests + totalBookingGuests;
+      totalDayTables = leftTables + totalBookingsCount;
+    }
+
+    const totalRestaurantRooms = 39;
+    const availableRoomsCount = Math.max(0, totalRestaurantRooms - uniqueBookedRooms);
 
     return {
+      totalBookingGuests,
+      totalBookingsCount,
+      uniqueBookedRooms,
+      walkinCount,
+      walkinGuests,
       diningGuests,
       diningTables,
       leftGuests,
@@ -175,10 +342,10 @@ export default function FloorPlanClient({
       pendingTables: pendingBookings.length,
       totalDayGuests,
       totalDayTables,
-      walkinCount,
-      bookingCount,
+      totalRestaurantRooms,
+      availableRoomsCount,
     };
-  }, [dayReceptionLogs, allDayBookings, isSelectedToday]);
+  }, [dayReceptionLogs, allDayBookings, isSelectedToday, isFutureDate, isPastDate]);
 
   // Helper to find all bookings for a room on selected date
   const getAllRoomBookings = (roomName: string) => {
@@ -235,12 +402,22 @@ export default function FloorPlanClient({
                 <h2 className="font-extrabold text-base sm:text-lg text-white tracking-tight">
                   Thống Kê Khách Toàn Nhà Hàng
                 </h2>
-                <Badge className="bg-orange-600 text-white font-bold text-[10px]">
-                  Realtime
-                </Badge>
+                {isSelectedToday ? (
+                  <Badge className="bg-emerald-600 text-white font-bold text-[10px]">
+                    🟢 Hôm nay (Realtime)
+                  </Badge>
+                ) : isFutureDate ? (
+                  <Badge className="bg-orange-600 text-white font-bold text-[10px]">
+                    📅 Ngày dự kiến ({format(new Date(selectedDate), "dd/MM")})
+                  </Badge>
+                ) : (
+                  <Badge className="bg-slate-600 text-white font-bold text-[10px]">
+                    📁 Lịch sử ({format(new Date(selectedDate), "dd/MM")})
+                  </Badge>
+                )}
               </div>
               <p className="text-xs text-slate-400">
-                Ngày {format(new Date(selectedDate), "dd/MM/yyyy")} • Đồng bộ trực tiếp với Lễ Tân & Đặt Bàn
+                Ngày {format(new Date(selectedDate), "dd/MM/yyyy")} • Đồng bộ trực tiếp với Lễ Tân &amp; Đặt Bàn
               </p>
             </div>
           </div>
@@ -258,39 +435,82 @@ export default function FloorPlanClient({
 
         {/* 3 Unified Metric Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3.5">
-          {/* Metric 1: Khách đang có mặt tại quán */}
-          <div className="bg-slate-800/80 rounded-xl p-3 border border-emerald-500/40 relative overflow-hidden">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-emerald-400 flex items-center gap-1.5 uppercase tracking-wider">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          {/* Metric 1 */}
+          {isSelectedToday ? (
+            <div className="bg-slate-800/80 rounded-xl p-3 border border-emerald-500/40 relative overflow-hidden">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-emerald-400 flex items-center gap-1.5 uppercase tracking-wider">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                  Đang Có Mặt Tại Quán
                 </span>
-                Đang Có Mặt Tại Quán
-              </span>
-              <span className="text-[11px] font-bold text-slate-300 bg-slate-700 px-2 py-0.5 rounded-full">
-                {unifiedStats.diningTables} bàn đang dùng
-              </span>
+                <span className="text-[11px] font-bold text-slate-300 bg-slate-700 px-2 py-0.5 rounded-full">
+                  {unifiedStats.diningTables} bàn đang dùng
+                </span>
+              </div>
+              <div className="mt-2 flex items-baseline gap-1.5">
+                <span className="text-2xl sm:text-3xl font-black text-emerald-400">
+                  {unifiedStats.diningGuests}
+                </span>
+                <span className="text-xs text-slate-300 font-medium">khách</span>
+              </div>
+              <div className="mt-1 text-[11px] text-slate-400">
+                Lễ tân đã đón &amp; đang ngồi tại bàn
+              </div>
             </div>
-            <div className="mt-2 flex items-baseline gap-1.5">
-              <span className="text-2xl sm:text-3xl font-black text-emerald-400">
-                {unifiedStats.diningGuests}
-              </span>
-              <span className="text-xs text-slate-300 font-medium">khách</span>
+          ) : isFutureDate ? (
+            <div className="bg-slate-800/80 rounded-xl p-3 border border-orange-500/40 relative overflow-hidden">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-orange-400 flex items-center gap-1.5 uppercase tracking-wider">
+                  <Calendar className="w-3.5 h-3.5 text-orange-400" />
+                  Khách Dự Kiến (Booking)
+                </span>
+                <span className="text-[11px] font-bold text-orange-200 bg-orange-950/80 border border-orange-800 px-2 py-0.5 rounded-full">
+                  {unifiedStats.totalBookingsCount} tiệc đã đặt
+                </span>
+              </div>
+              <div className="mt-2 flex items-baseline gap-1.5">
+                <span className="text-2xl sm:text-3xl font-black text-orange-400">
+                  {unifiedStats.totalBookingGuests}
+                </span>
+                <span className="text-xs text-slate-300 font-medium">khách dự trù</span>
+              </div>
+              <div className="mt-1 text-[11px] text-slate-400">
+                Đã xếp trước {unifiedStats.uniqueBookedRooms} phòng/bàn đón tiệc
+              </div>
             </div>
-            <div className="mt-1 text-[11px] text-slate-400">
-              Lễ tân đã đón &amp; đang ngồi tại bàn
+          ) : (
+            <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700 relative overflow-hidden">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5 uppercase tracking-wider">
+                  Lượt Phục Vụ Thực Tế
+                </span>
+                <span className="text-[11px] font-bold text-slate-300 bg-slate-700 px-2 py-0.5 rounded-full">
+                  {unifiedStats.totalDayTables} lượt bàn
+                </span>
+              </div>
+              <div className="mt-2 flex items-baseline gap-1.5">
+                <span className="text-2xl sm:text-3xl font-black text-slate-300">
+                  {unifiedStats.totalDayGuests}
+                </span>
+                <span className="text-xs text-slate-300 font-medium">khách</span>
+              </div>
+              <div className="mt-1 text-[11px] text-slate-400">
+                Tổng lượt phục vụ ghi nhận trong ngày
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Metric 2: Tổng khách trong ngày */}
           <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                Tổng Khách Trong Ngày
+                {isFutureDate ? "Tổng Khách Dự Trù" : "Tổng Khách Trong Ngày"}
               </span>
               <span className="text-[11px] font-bold text-slate-300 bg-slate-700 px-2 py-0.5 rounded-full">
-                {unifiedStats.totalDayTables} lượt bàn
+                {unifiedStats.totalDayTables} lượt bàn/tiệc
               </span>
             </div>
             <div className="mt-2 flex items-baseline gap-1.5">
@@ -300,32 +520,55 @@ export default function FloorPlanClient({
               <span className="text-xs text-slate-300 font-medium">khách</span>
             </div>
             <div className="mt-1 text-[11px] text-slate-400 flex items-center gap-2">
-              <span>📅 {unifiedStats.bookingCount} Booking</span>
+              <span>📅 {unifiedStats.totalBookingsCount} Booking ({unifiedStats.totalBookingGuests} k)</span>
               <span>•</span>
-              <span>🚶 {unifiedStats.walkinCount} Vãng lai</span>
+              <span>🚶 {unifiedStats.walkinCount} Vãng lai ({unifiedStats.walkinGuests} k)</span>
             </div>
           </div>
 
-          {/* Metric 3: Khách đã ra về */}
-          <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                Khách Đã Ra Về
-              </span>
-              <span className="text-[11px] font-bold text-slate-300 bg-slate-700 px-2 py-0.5 rounded-full">
-                {unifiedStats.leftTables} bàn đã về
-              </span>
+          {/* Metric 3: Khách đã ra về / Tình trạng phòng bàn */}
+          {isFutureDate ? (
+            <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                  Tình Trạng Phòng / Bàn
+                </span>
+                <span className="text-[11px] font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-800 px-2 py-0.5 rounded-full">
+                  Còn trống {unifiedStats.availableRoomsCount} bàn
+                </span>
+              </div>
+              <div className="mt-2 flex items-baseline gap-1.5">
+                <span className="text-2xl sm:text-3xl font-black text-slate-200">
+                  {unifiedStats.uniqueBookedRooms}
+                  <span className="text-lg font-normal text-slate-400"> / {unifiedStats.totalRestaurantRooms}</span>
+                </span>
+                <span className="text-xs text-slate-400 font-medium">phòng bàn có tiệc</span>
+              </div>
+              <div className="mt-1 text-[11px] text-slate-400">
+                Đã đặt {Math.round((unifiedStats.uniqueBookedRooms / unifiedStats.totalRestaurantRooms) * 100)}% công suất toàn nhà hàng
+              </div>
             </div>
-            <div className="mt-2 flex items-baseline gap-1.5">
-              <span className="text-2xl sm:text-3xl font-black text-slate-300">
-                {unifiedStats.leftGuests}
-              </span>
-              <span className="text-xs text-slate-400 font-medium">khách</span>
+          ) : (
+            <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  {isSelectedToday ? "Khách Đã Ra Về" : "Lưu Trữ Hoàn Tất"}
+                </span>
+                <span className="text-[11px] font-bold text-slate-300 bg-slate-700 px-2 py-0.5 rounded-full">
+                  {unifiedStats.leftTables} bàn đã về
+                </span>
+              </div>
+              <div className="mt-2 flex items-baseline gap-1.5">
+                <span className="text-2xl sm:text-3xl font-black text-slate-300">
+                  {unifiedStats.leftGuests}
+                </span>
+                <span className="text-xs text-slate-400 font-medium">khách</span>
+              </div>
+              <div className="mt-1 text-[11px] text-slate-400">
+                {isSelectedToday ? "Đã hoàn tất tiệc & ghi nhận cảm nhận" : "Dữ liệu lịch sử đã lưu trữ"}
+              </div>
             </div>
-            <div className="mt-1 text-[11px] text-slate-400">
-              Đã hoàn tất tiệc &amp; ghi nhận cảm nhận
-            </div>
-          </div>
+          )}
         </div>
       </div>
 
@@ -333,17 +576,56 @@ export default function FloorPlanClient({
       <Card>
         <CardContent className="pt-6">
           <div className="flex flex-col md:flex-row gap-4 items-start md:items-end justify-between">
-            <div className="space-y-2 w-full md:flex-1 md:max-w-sm">
-              <Label htmlFor="datetime" className="font-bold text-slate-700 text-xs sm:text-sm">
-                Chọn thời gian kiểm tra sơ đồ
+            <div className="space-y-2 w-full md:flex-1 md:max-w-md">
+              <Label htmlFor="datetime" className="font-bold text-slate-700 text-xs sm:text-sm flex items-center justify-between">
+                <span>Chọn thời gian kiểm tra sơ đồ:</span>
+                <span className="text-xs text-orange-600 font-semibold">
+                  {format(new Date(selectedDate), "EEEE, dd/MM/yyyy")}
+                </span>
               </Label>
               <Input
                 id="datetime"
                 type="datetime-local"
                 value={selectedDateTime}
                 onChange={(e) => setSelectedDateTime(e.target.value)}
-                className="w-full text-xs sm:text-sm"
+                className="w-full text-xs sm:text-sm font-semibold"
               />
+              {/* Quick Date Switcher */}
+              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                <button
+                  type="button"
+                  onClick={() => handleSetQuickDate(todayStr)}
+                  className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition-all ${
+                    selectedDate === todayStr
+                      ? "bg-orange-600 text-white border-orange-600 shadow-2xs"
+                      : "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200"
+                  }`}
+                >
+                  Hôm Nay ({format(new Date(), "dd/MM")})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSetQuickDate(tomorrowStr)}
+                  className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition-all ${
+                    selectedDate === tomorrowStr
+                      ? "bg-orange-600 text-white border-orange-600 shadow-2xs"
+                      : "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200"
+                  }`}
+                >
+                  Ngày Mai ({format(new Date(Date.now() + 86400000), "dd/MM")})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSetQuickDate(dayAfterTomorrowStr)}
+                  className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition-all ${
+                    selectedDate === dayAfterTomorrowStr
+                      ? "bg-orange-600 text-white border-orange-600 shadow-2xs"
+                      : "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200"
+                  }`}
+                >
+                  Ngày Kia ({format(new Date(Date.now() + 172800000), "dd/MM")})
+                </button>
+              </div>
             </div>
             <div className="flex flex-wrap gap-2.5 sm:gap-3 md:pb-2 text-xs sm:text-sm justify-start md:justify-end w-full md:w-auto mt-1 md:mt-0">
               <div className="flex items-center gap-1.5">
@@ -572,15 +854,67 @@ export default function FloorPlanClient({
             </DialogTitle>
           </DialogHeader>
 
-          {selectedRoomDetail && (
-            <div className="space-y-4 py-2 text-xs sm:text-sm">
-              {/* Reception Live Visit Status */}
-              {selectedRoomDetail.reception && (() => {
-                const isDialogDining = Boolean(
-                  isSelectedToday &&
-                  selectedRoomDetail.reception.status === "dining" &&
-                  !isVisitExpired(selectedRoomDetail.reception.date, selectedRoomDetail.reception.time)
-                );
+          {selectedRoomDetail && (() => {
+            const hasDining = Boolean(
+              isSelectedToday &&
+              selectedRoomDetail.reception?.status === "dining" &&
+              !isVisitExpired(selectedRoomDetail.reception.date, selectedRoomDetail.reception.time)
+            );
+            const activeBookingsInDialog = (selectedRoomDetail.bookings || (selectedRoomDetail.booking ? [selectedRoomDetail.booking] : []))
+              .filter(b => b.receptionStatus !== 'clean');
+            const isRoomOccupied = hasDining || activeBookingsInDialog.length > 0;
+
+            return (
+              <div className="space-y-4 py-2 text-xs sm:text-sm">
+                {/* Master Action Banner for Cleaning / Emptying the room */}
+                {isRoomOccupied ? (
+                  <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-orange-200 p-3 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-2xs">
+                    <div>
+                      <div className="font-extrabold text-xs text-orange-900 uppercase tracking-wide flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span>
+                        Phòng đang hoạt động / có tiệc
+                      </div>
+                      <p className="text-[11px] text-orange-800/80 mt-0.5">
+                        Bấm Clean để dọn phòng, giải phóng bàn về trạng thái trống sạch
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      disabled={isCleaning}
+                      onClick={() => handleCleanRoom(selectedRoomDetail.roomName, selectedRoomDetail.reception?.id, selectedRoomDetail.booking?.id)}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs h-9 px-3.5 flex items-center gap-1.5 shadow-sm shrink-0 w-full sm:w-auto"
+                    >
+                      <Sparkles className="w-4 h-4 text-emerald-200" />
+                      {isCleaning ? "Đang xử lý..." : "Dọn Xong (Clean) - Trả Bàn Trống"}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="bg-slate-50 border border-slate-200 p-2.5 rounded-xl flex items-center justify-between gap-2 text-xs">
+                    <span className="font-bold text-slate-700 flex items-center gap-1.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      Bàn đã dọn xong (Clean) - Sẵn sàng đón khách mới
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      disabled={isCleaning}
+                      onClick={() => handleResetClean(selectedRoomDetail.roomName, selectedRoomDetail.booking?.id)}
+                      className="text-[11px] font-semibold text-slate-500 hover:text-slate-800 h-7 px-2"
+                    >
+                      <RotateCcw className="w-3 h-3 mr-1" />
+                      Hoàn tác
+                    </Button>
+                  </div>
+                )}
+
+                {/* Reception Live Visit Status */}
+                {selectedRoomDetail.reception && (() => {
+                  const isDialogDining = Boolean(
+                    isSelectedToday &&
+                    selectedRoomDetail.reception.status === "dining" &&
+                    !isVisitExpired(selectedRoomDetail.reception.date, selectedRoomDetail.reception.time)
+                  );
 
                 return (
                   <div className={`p-3.5 rounded-xl space-y-2 border ${
@@ -639,32 +973,44 @@ export default function FloorPlanClient({
                       )}
                     </div>
 
-                    {/* Quick Transfer Room Control for Live Dining */}
+                    {/* Quick Transfer & Clean Controls for Live Dining */}
                     {isDialogDining && (
-                      <div className="pt-2 border-t border-emerald-200/90 mt-2 bg-white/80 p-2.5 rounded-lg border flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                        <span className="text-xs font-bold text-slate-700 whitespace-nowrap flex items-center gap-1">
-                          <Home className="w-3.5 h-3.5 text-orange-600" />
-                          Đổi sang bàn/phòng:
-                        </span>
-                        <select
-                          value={transferRoom}
-                          onChange={(e) => setTransferRoom(e.target.value)}
-                          className="text-xs h-8 px-2 py-1 bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-orange-500 flex-1 font-semibold text-slate-800"
-                        >
-                          <option value="">-- Chọn bàn / phòng mới --</option>
-                          {ALL_ROOM_OPTIONS.map((r) => (
-                            <option key={r} value={r} disabled={r === selectedRoomDetail.roomName}>
-                              {r} {r === selectedRoomDetail.roomName ? "(Đang ngồi)" : ""}
-                            </option>
-                          ))}
-                        </select>
+                      <div className="pt-2 border-t border-emerald-200/90 mt-2 space-y-2">
+                        <div className="bg-white/80 p-2.5 rounded-lg border border-emerald-200 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                          <span className="text-xs font-bold text-slate-700 whitespace-nowrap flex items-center gap-1">
+                            <Home className="w-3.5 h-3.5 text-orange-600" />
+                            Đổi bàn/phòng:
+                          </span>
+                          <select
+                            value={transferRoom}
+                            onChange={(e) => setTransferRoom(e.target.value)}
+                            className="text-xs h-8 px-2 py-1 bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-orange-500 flex-1 font-semibold text-slate-800"
+                          >
+                            <option value="">-- Chọn bàn / phòng mới --</option>
+                            {ALL_ROOM_OPTIONS.map((r) => (
+                              <option key={r} value={r} disabled={r === selectedRoomDetail.roomName}>
+                                {r} {r === selectedRoomDetail.roomName ? "(Đang ngồi)" : ""}
+                              </option>
+                            ))}
+                          </select>
+                          <Button
+                            size="sm"
+                            disabled={!transferRoom || transferRoom === selectedRoomDetail.roomName || isTransferring}
+                            onClick={() => handleTransfer(selectedRoomDetail.reception!.id, selectedRoomDetail.roomName)}
+                            className="h-8 text-xs font-bold bg-orange-600 hover:bg-orange-700 text-white shrink-0 shadow-2xs"
+                          >
+                            {isTransferring ? "Đang đổi..." : "Chuyển Bàn Ngay"}
+                          </Button>
+                        </div>
+
                         <Button
                           size="sm"
-                          disabled={!transferRoom || transferRoom === selectedRoomDetail.roomName || isTransferring}
-                          onClick={() => handleTransfer(selectedRoomDetail.reception!.id, selectedRoomDetail.roomName)}
-                          className="h-8 text-xs font-bold bg-orange-600 hover:bg-orange-700 text-white shrink-0 shadow-2xs"
+                          disabled={isCleaning}
+                          onClick={() => handleCleanRoom(selectedRoomDetail.roomName, selectedRoomDetail.reception!.id, selectedRoomDetail.reception!.bookingId)}
+                          className="w-full h-8 text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white flex items-center justify-center gap-1.5 shadow-2xs"
                         >
-                          {isTransferring ? "Đang đổi..." : "Chuyển Bàn Ngay"}
+                          <Sparkles className="w-3.5 h-3.5" />
+                          {isCleaning ? "Đang xử lý..." : "Khách Ra Về & Dọn Bàn Này (Clean)"}
                         </Button>
                       </div>
                     )}
@@ -798,7 +1144,7 @@ export default function FloorPlanClient({
                             )}
                           </div>
 
-                          <div className="text-right">
+                          <div className="text-right flex flex-col items-end shrink-0">
                             <span className="text-xs font-semibold text-slate-500 block">Thời gian tiệc</span>
                             <span className="font-bold text-orange-600 text-base">
                               {format(new Date(booking.dateTime), "HH:mm")}
@@ -806,6 +1152,34 @@ export default function FloorPlanClient({
                             <span className="text-xs text-slate-600 font-medium block">
                               👥 {booking.guestsCount} khách
                             </span>
+
+                            {/* Clean / Undo button for this booking */}
+                            <div className="mt-1.5">
+                              {booking.receptionStatus === 'clean' ? (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={isCleaning}
+                                  onClick={() => handleResetClean(selectedRoomDetail.roomName, booking.id)}
+                                  className="h-7 text-[11px] font-semibold text-slate-600 hover:text-slate-900 border-slate-300 flex items-center gap-1"
+                                >
+                                  <RotateCcw className="w-3 h-3" />
+                                  Mở lại bàn
+                                </Button>
+                              ) : (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  disabled={isCleaning}
+                                  onClick={() => handleCleanRoom(selectedRoomDetail.roomName, undefined, booking.id)}
+                                  className="h-7 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1 shadow-2xs"
+                                >
+                                  <Sparkles className="w-3.5 h-3.5" />
+                                  Dọn xong (Clean)
+                                </Button>
+                              )}
+                            </div>
                           </div>
                         </div>
 
@@ -908,15 +1282,14 @@ export default function FloorPlanClient({
                     );
                   })}
                 </div>
-              ) : (
-                !selectedRoomDetail.reception && (
-                  <div className="text-center py-6 text-slate-400">
-                    Phòng hiện đang trống, chưa có tiệc đặt nào.
-                  </div>
-                )
-              )}
+              ) : !selectedRoomDetail.reception ? (
+                <div className="text-center py-6 text-slate-400">
+                  Phòng hiện đang trống, chưa có tiệc đặt nào.
+                </div>
+              ) : null}
             </div>
-          )}
+          );
+        })()}
         </DialogContent>
       </Dialog>
     </div>
