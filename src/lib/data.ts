@@ -217,3 +217,152 @@ export const defaultSeafoodCategories: SeafoodCategory[] = [
     ]
   }
 ];
+
+export type CommissionCategory = 'product' | 'booking_bill' | 'wine' | 'custom';
+
+export interface CommissionEntry {
+  id: string; // e.g. "CMS-20261020-1234"
+  date: string; // "YYYY-MM-DD"
+  time: string; // "HH:mm"
+  staffName: string; // e.g. "Ngô Nguyễn Khánh Ly"
+  category: CommissionCategory;
+  productName?: string; // e.g. "Cá bơn", "Vang > 3tr", "Bàn booking T2-T5"
+  unitPriceOrReward: number; // VNĐ
+  quantity: number; // Số lượng (con, chai, bàn...)
+  billAmount?: number; // Tổng bill nếu tính % bill
+  billPercent?: number; // 1% hoặc 2%
+  totalReward: number; // Tổng tiền thưởng nhận được (VNĐ)
+  tableOrRoom?: string; // Bàn / phòng phục vụ (vd: "Mây 102", "Bàn 14")
+  note?: string; // Ghi chú thêm
+  createdByName: string; // "Giám Sát Huy", "Giám Sát Mai", "Giám Sát Tiến", "Quản Lý Mây"
+  createdById: string; // "gshuy", "gsmai", "gstien", "maybmt"
+  createdAt: string; // ISO string
+}
+
+export interface CommissionProductReward {
+  id: string;
+  name: string;
+  category: 'seafood' | 'meat' | 'wine';
+  reward: number; // VNĐ
+  unit: string;
+}
+
+export const CMS_STANDARD_PRODUCTS: CommissionProductReward[] = [
+  { id: 'ca-bon', name: 'Cá bơn', category: 'seafood', reward: 100000, unit: 'con/phần' },
+  { id: 'mu-do', name: 'Mú đỏ', category: 'seafood', reward: 100000, unit: 'con/phần' },
+  { id: 'mu-ni', name: 'Mú ni', category: 'seafood', reward: 30000, unit: 'con/phần' },
+  { id: 'hum-uc', name: 'Hùm Úc', category: 'seafood', reward: 100000, unit: 'con/phần' },
+  { id: 'hum-bong', name: 'Hùm bông', category: 'seafood', reward: 50000, unit: 'con/phần' },
+  { id: 'alaska', name: 'Alaska', category: 'seafood', reward: 100000, unit: 'con/phần' },
+  { id: 'tomahawk-wagyu', name: 'Tomahawk / Wagyu', category: 'meat', reward: 50000, unit: 'phần' },
+  { id: 'oc-nu-hoang', name: 'Ốc nữ hoàng', category: 'seafood', reward: 50000, unit: 'con/phần' },
+  { id: 'voi-voi', name: 'Vòi voi', category: 'seafood', reward: 50000, unit: 'con/phần' },
+  { id: 'cua-hoang-de', name: 'Cua hoàng đế', category: 'seafood', reward: 100000, unit: 'con/phần' },
+];
+
+export const CMS_WINE_PRODUCTS: CommissionProductReward[] = [
+  { id: 'wine-over-3m', name: 'Rượu Vang > 3.000.000 đ/chai', category: 'wine', reward: 150000, unit: 'chai' },
+  { id: 'wine-under-3m', name: 'Rượu Vang ≤ 3.000.000 đ/chai', category: 'wine', reward: 100000, unit: 'chai' },
+];
+
+export const defaultStaffCommissions: CommissionEntry[] = [
+  {
+    id: "CMS-20261020-001",
+    date: "2026-10-20",
+    time: "23:17",
+    staffName: "Ngô Nguyễn Khánh Ly",
+    category: "product",
+    productName: "Cá bơn",
+    unitPriceOrReward: 100000,
+    quantity: 1,
+    totalReward: 100000,
+    tableOrRoom: "Mây 104",
+    note: "Khách VIP gọi thêm 1 con cá bơn hấp Hong Kong",
+    createdByName: "Giám Sát Huy",
+    createdById: "gshuy",
+    createdAt: "2026-10-20T16:17:00.000Z"
+  },
+  {
+    id: "CMS-20261020-002",
+    date: "2026-10-20",
+    time: "21:30",
+    staffName: "Ngô Nguyễn Khánh Ly",
+    category: "wine",
+    productName: "Rượu Vang > 3.000.000 đ/chai",
+    unitPriceOrReward: 150000,
+    quantity: 2,
+    totalReward: 300000,
+    tableOrRoom: "Mây 104",
+    note: "Upsell 2 chai vang cao cấp Montes Alpha",
+    createdByName: "Giám Sát Huy",
+    createdById: "gshuy",
+    createdAt: "2026-10-20T14:30:00.000Z"
+  },
+  {
+    id: "CMS-20261020-003",
+    date: "2026-10-20",
+    time: "20:45",
+    staffName: "Ngô Nguyễn Khánh Ly",
+    category: "booking_bill",
+    productName: "Thưởng bàn booking (T3: 2%)",
+    unitPriceOrReward: 160000,
+    quantity: 1,
+    billAmount: 8000000,
+    billPercent: 2,
+    totalReward: 160000,
+    tableOrRoom: "Mây 104",
+    note: "Bàn tiệc khách VIP bill 8.000.000 đ (2% ngày Thứ 3)",
+    createdByName: "Giám Sát Huy",
+    createdById: "gshuy",
+    createdAt: "2026-10-20T13:45:00.000Z"
+  },
+  {
+    id: "CMS-20261020-004",
+    date: "2026-10-20",
+    time: "19:15",
+    staffName: "Nguyễn Văn Hùng",
+    category: "product",
+    productName: "Cua hoàng đế",
+    unitPriceOrReward: 100000,
+    quantity: 1,
+    totalReward: 100000,
+    tableOrRoom: "Bàn 12",
+    note: "Khách chốt cua hoàng đế 2.8kg",
+    createdByName: "Giám Sát Mai",
+    createdById: "gsmai",
+    createdAt: "2026-10-20T12:15:00.000Z"
+  },
+  {
+    id: "CMS-20261020-005",
+    date: "2026-10-20",
+    time: "18:50",
+    staffName: "Lê Thị Thảo",
+    category: "product",
+    productName: "Hùm Úc",
+    unitPriceOrReward: 100000,
+    quantity: 1,
+    totalReward: 100000,
+    tableOrRoom: "Mây 202",
+    note: "Hùm Úc sashimi",
+    createdByName: "Giám Sát Tiến",
+    createdById: "gstien",
+    createdAt: "2026-10-20T11:50:00.000Z"
+  }
+];
+
+export type UserRole = 'admin' | 'supervisor' | 'staff';
+
+export interface AuthUser {
+  id: string;
+  name: string;
+  role: UserRole;
+}
+
+export const KNOWN_ACCOUNTS: Record<string, { pass: string; name: string; role: UserRole }> = {
+  maybmt: { pass: '1122334455', name: 'Quản Lý Mây', role: 'admin' },
+  gshuy: { pass: 'huy135', name: 'Giám Sát Huy', role: 'supervisor' },
+  gsmai: { pass: 'mai123', name: 'Giám Sát Mai', role: 'supervisor' },
+  gstien: { pass: 'tien246', name: 'Giám Sát Tiến', role: 'supervisor' },
+  nhanvien: { pass: 'may2026', name: 'Nhân Viên Mây', role: 'staff' },
+};
+

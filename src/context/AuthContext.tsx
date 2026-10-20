@@ -2,14 +2,18 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { loginAction, logoutAction } from '@/app/actions';
+import { AuthUser } from '@/lib/data';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Lock, LogIn, AlertCircle } from 'lucide-react';
+import { Lock, LogIn, AlertCircle, Sparkles, UserCheck } from 'lucide-react';
 
 interface AuthContextType {
   isLoggedIn: boolean;
+  user: AuthUser | null;
+  isStaffOnly: boolean;
+  isSupervisorOrAdmin: boolean;
   openLoginModal: () => void;
   closeLoginModal: () => void;
   logout: () => Promise<void>;
@@ -17,6 +21,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType>({
   isLoggedIn: false,
+  user: null,
+  isStaffOnly: false,
+  isSupervisorOrAdmin: false,
   openLoginModal: () => {},
   closeLoginModal: () => {},
   logout: async () => {},
@@ -24,12 +31,12 @@ const AuthContext = createContext<AuthContextType>({
 
 export function AuthProvider({ 
   children, 
-  initialIsLoggedIn 
+  initialUser 
 }: { 
   children: React.ReactNode; 
-  initialIsLoggedIn: boolean;
+  initialUser: AuthUser | null;
 }) {
-  const [isLoggedIn, setIsLoggedIn] = useState(initialIsLoggedIn);
+  const [user, setUser] = useState<AuthUser | null>(initialUser);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -37,8 +44,12 @@ export function AuthProvider({
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    setIsLoggedIn(initialIsLoggedIn);
-  }, [initialIsLoggedIn]);
+    setUser(initialUser);
+  }, [initialUser]);
+
+  const isLoggedIn = !!user;
+  const isStaffOnly = user?.role === 'staff';
+  const isSupervisorOrAdmin = user?.role === 'admin' || user?.role === 'supervisor';
 
   const openLoginModal = () => {
     setErrorMessage('');
@@ -61,10 +72,16 @@ export function AuthProvider({
       const res = await loginAction(username, password);
       if (res?.error) {
         setErrorMessage(res.error);
-      } else {
-        setIsLoggedIn(true);
+      } else if (res?.user) {
+        setUser(res.user);
         setIsModalOpen(false);
-        // Refresh page to sync server components with new cookie
+        // If staff logs in, direct to /cms
+        if (res.user.role === 'staff') {
+          window.location.href = '/cms';
+        } else {
+          window.location.reload();
+        }
+      } else {
         window.location.reload();
       }
     } catch (err) {
@@ -76,14 +93,17 @@ export function AuthProvider({
 
   const handleLogout = async () => {
     await logoutAction();
-    setIsLoggedIn(false);
-    window.location.reload();
+    setUser(null);
+    window.location.href = '/';
   };
 
   return (
     <AuthContext.Provider
       value={{
         isLoggedIn,
+        user,
+        isStaffOnly,
+        isSupervisorOrAdmin,
         openLoginModal,
         closeLoginModal,
         logout: handleLogout,
@@ -98,10 +118,10 @@ export function AuthProvider({
               <div className="p-2 bg-orange-100 text-orange-600 rounded-full">
                 <Lock className="w-5 h-5" />
               </div>
-              <DialogTitle className="text-xl">Đăng Nhập Quản Lý</DialogTitle>
+              <DialogTitle className="text-xl">Đăng Nhập Hệ Thống</DialogTitle>
             </div>
             <DialogDescription className="text-slate-500 text-sm pt-1">
-              Chỉ tài khoản quản lý mới có quyền tạo mới, chỉnh sửa, xóa hoặc thay đổi trạng thái các tiệc đặt bàn.
+              Đăng nhập với vai trò Quản Lý, Giám Sát hoặc Nhân Viên để truy cập các tính năng tương ứng.
             </DialogDescription>
           </DialogHeader>
 
@@ -120,7 +140,7 @@ export function AuthProvider({
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Nhập ID tài khoản..."
+                placeholder="maybmt, gshuy, gsmai, gstien hoặc nhanvien"
                 required
                 autoFocus
               />
@@ -136,6 +156,16 @@ export function AuthProvider({
                 placeholder="Nhập mật khẩu..."
                 required
               />
+            </div>
+
+            <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-500 space-y-1">
+              <div className="font-semibold text-slate-700 flex items-center gap-1.5">
+                <UserCheck className="w-3.5 h-3.5 text-blue-600" />
+                <span>Phân quyền tài khoản:</span>
+              </div>
+              <p>• <strong>Giám Sát (gshuy / gsmai / gstien):</strong> Cập nhật & ghi nhận CMS nhân viên.</p>
+              <p>• <strong>Nhân Viên (nhanvien):</strong> Theo dõi bảng xếp hạng & thưởng CMS cá nhân.</p>
+              <p>• <strong>Quản Lý (maybmt):</strong> Toàn quyền quản trị hệ thống.</p>
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
@@ -157,3 +187,4 @@ export function AuthProvider({
 export function useAuth() {
   return useContext(AuthContext);
 }
+

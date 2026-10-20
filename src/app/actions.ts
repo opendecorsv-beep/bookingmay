@@ -2,19 +2,22 @@
 
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
-import { getBookings, addBooking, updateBookingData, deleteBookingData, updateKitchenStatus, updateFloorStatus, updateBookingStatus, updateReceptionStatus, getSeafoodInventory, saveSeafoodInventory, getReceptionLogs, saveReceptionLogs, getPartyMenuSets, savePartyMenuSets } from '@/lib/store';
-import { Booking, BookingStatus, TaskStatus, SeafoodCategory, ReceptionEntry, VisitStatus, ReceptionFeedback, PartyMenuSet } from '@/lib/data';
+import { getBookings, addBooking, updateBookingData, deleteBookingData, updateKitchenStatus, updateFloorStatus, updateBookingStatus, updateReceptionStatus, getReceptionLogs, saveReceptionLogs, getPartyMenuSets, savePartyMenuSets, getStaffCommissions, saveStaffCommissions } from '@/lib/store';
+import { Booking, BookingStatus, TaskStatus, ReceptionEntry, VisitStatus, ReceptionFeedback, PartyMenuSet, CommissionEntry, AuthUser, KNOWN_ACCOUNTS } from '@/lib/data';
 import { normalizeRoomName, isSameRoom, getBookingTableCount, DECOR_PACKAGE_NAMES, DECOR_PACKAGE_CAPACITIES, getVietnamNow, getVietnamTodayString, checkDecorConflict } from '@/lib/bookingUtils';
 
 export async function loginAction(id: string, pass: string) {
-  if (id.trim() === 'maybmt' && pass.trim() === '1122334455') {
-    cookies().set('booking_auth', 'maybmt', {
+  const cleanId = id.trim().toLowerCase();
+  const cleanPass = pass.trim();
+  const account = KNOWN_ACCOUNTS[cleanId];
+  if (account && account.pass === cleanPass) {
+    cookies().set('booking_auth', cleanId, {
       httpOnly: false,
       path: '/',
       maxAge: 60 * 60 * 24 * 30,
       sameSite: 'lax',
     });
-    return { success: true };
+    return { success: true, user: { id: cleanId, name: account.name, role: account.role } };
   }
   return { error: 'Tên đăng nhập hoặc mật khẩu không chính xác!' };
 }
@@ -24,17 +27,31 @@ export async function logoutAction() {
   return { success: true };
 }
 
-export async function getAuthStatus(): Promise<boolean> {
+export async function getAuthUserAction(): Promise<AuthUser | null> {
   const cookieStore = cookies();
-  return cookieStore.get('booking_auth')?.value === 'maybmt';
+  const authId = cookieStore.get('booking_auth')?.value?.toLowerCase();
+  if (!authId || !KNOWN_ACCOUNTS[authId]) return null;
+  const acc = KNOWN_ACCOUNTS[authId];
+  return {
+    id: authId,
+    name: acc.name,
+    role: acc.role,
+  };
+}
+
+export async function getAuthStatus(): Promise<boolean> {
+  const user = await getAuthUserAction();
+  return !!user && (user.role === 'admin' || user.role === 'supervisor');
 }
 
 async function verifyAuthPermission() {
-  const isAuth = await getAuthStatus();
-  if (!isAuth) {
-    throw new Error('Chỉ tài khoản quản lý (maybmt) mới có quyền thay đổi thông tin booking!');
+  const user = await getAuthUserAction();
+  if (!user || user.role === 'staff') {
+    throw new Error('Chỉ tài khoản quản lý hoặc giám sát mới có quyền thay đổi thông tin!');
   }
+  return user;
 }
+
 
 export async function fetchBookings() {
   return getBookings();
@@ -431,38 +448,6 @@ export async function restoreBookingAction(id: string) {
   return { success: true };
 }
 
-export async function fetchSeafoodInventory() {
-  return getSeafoodInventory();
-}
-
-export async function updateSeafoodInventoryAction(inventory: { updatedAt: string; categories: SeafoodCategory[] }) {
-  await verifyAuthPermission();
-  await saveSeafoodInventory(inventory);
-  revalidatePath('/seafood');
-  return { success: true };
-}
-
-export async function toggleSeafoodUrgentAction(catId: string, itemId: string, isUrgent: boolean) {
-  await verifyAuthPermission();
-  const inventory = await getSeafoodInventory();
-  const updatedCategories = inventory.categories.map(cat => {
-    if (cat.id !== catId) return cat;
-    return {
-      ...cat,
-      items: cat.items.map(item =>
-        item.id === itemId ? { ...item, isUrgent } : item
-      )
-    };
-  });
-  const updatedPayload = {
-    updatedAt: new Date().toISOString(),
-    categories: updatedCategories
-  };
-  await saveSeafoodInventory(updatedPayload);
-  revalidatePath('/seafood');
-  return { success: true, updatedPayload };
-}
-
 export async function fetchReceptionLogs(): Promise<ReceptionEntry[]> {
   return getReceptionLogs();
 }
@@ -616,4 +601,57 @@ export async function deletePartyMenuSetAction(setId: string) {
   revalidatePath('/party-menu');
   return { success: true, sets: updatedSets };
 }
+
+export async function fetchStaffCommissionsAction(): Promise<CommissionEntry[]> {
+  return getStaffCommissions();
+}
+
+export async function addStaffCommissionAction(data: {
+  date: string;
+  time: string;
+  staffName: string;
+  category: CommissionEntry['category'];
+  productName?: string;
+  unitPriceOrReward: number;
+  quantity: number;
+  billAmount?: number;
+  billPercent?: number;
+  totalReward: number;
+  tableOrRoom?: string;
+  note?: string;
+}) {
+  const user = await getAuthUserAction();
+  if (!user || (user.role !== 'admin' && user.role !== 'supervisor')) {
+    return { error: 'Chỉ tài khoản Giám Sát hoặc Quản Lý mới có quyền ghi nhận CMS thưởng!' };
+  }
+
+  const currentCommissions = await getStaffCommissions();
+  const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+  const newEntry: CommissionEntry = {
+    ...data,
+    id: `CMS-${data.date.replace(/-/g, '')}-${randomSuffix}`,
+    createdById: user.id,
+    createdByName: user.name,
+    createdAt: new Date().toISOString()
+  };
+
+  const updated = [newEntry, ...currentCommissions];
+  await saveStaffCommissions(updated);
+  revalidatePath('/cms');
+  return { success: true, entry: newEntry };
+}
+
+export async function deleteStaffCommissionAction(id: string) {
+  const user = await getAuthUserAction();
+  if (!user || (user.role !== 'admin' && user.role !== 'supervisor')) {
+    return { error: 'Chỉ tài khoản Giám Sát hoặc Quản Lý mới có quyền xóa CMS thưởng!' };
+  }
+
+  const currentCommissions = await getStaffCommissions();
+  const updated = currentCommissions.filter(item => item.id !== id);
+  await saveStaffCommissions(updated);
+  revalidatePath('/cms');
+  return { success: true };
+}
+
 

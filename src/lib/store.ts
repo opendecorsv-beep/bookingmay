@@ -1,6 +1,8 @@
-import { Booking, BookingStatus, TaskStatus, SeafoodCategory, defaultSeafoodCategories, ReceptionEntry, defaultReceptionLogs, VisitStatus, PartyMenuSet, defaultPartyMenuSets } from './data';
+import { Booking, BookingStatus, TaskStatus, SeafoodCategory, defaultSeafoodCategories, ReceptionEntry, defaultReceptionLogs, VisitStatus, PartyMenuSet, defaultPartyMenuSets, CommissionEntry, defaultStaffCommissions } from './data';
 import { supabase } from './supabase';
 import { isVisitExpired, normalizeRoomName } from './bookingUtils';
+
+let globalStaffCommissions: CommissionEntry[] = defaultStaffCommissions;
 
 let globalPartyMenuSets: PartyMenuSet[] = defaultPartyMenuSets;
 
@@ -334,4 +336,46 @@ export async function saveReceptionLogs(logs: ReceptionEntry[]) {
     console.error("Error saving reception logs to Supabase:", err);
   }
 }
+
+export async function getStaffCommissions(): Promise<CommissionEntry[]> {
+  try {
+    const { data, error } = await supabase.from('bookings').select('menu').eq('id', 'CONFIG_CMS').single();
+    if (error || !data) {
+      return globalStaffCommissions;
+    }
+    const parsed = typeof data.menu === 'string' ? JSON.parse(data.menu) : data.menu;
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      globalStaffCommissions = parsed;
+      return parsed;
+    }
+    return globalStaffCommissions;
+  } catch (err) {
+    return globalStaffCommissions;
+  }
+}
+
+export async function saveStaffCommissions(commissions: CommissionEntry[]): Promise<void> {
+  globalStaffCommissions = commissions;
+  try {
+    const { error } = await supabase.from('bookings').upsert([{
+      id: 'CONFIG_CMS',
+      customerName: 'STAFF_COMMISSIONS',
+      phone: '0000000000',
+      dateTime: new Date().toISOString(),
+      guestsCount: 0,
+      room: 'CONFIG',
+      menu: JSON.stringify(commissions),
+      specialRequest: '',
+      decorRequest: '',
+      status: 'cancelled',
+      receptionStatus: 'done',
+      kitchenStatus: 'done',
+      floorStatus: 'done'
+    }]);
+    if (error) console.error("Error saving CMS commissions to Supabase:", error);
+  } catch (err) {
+    console.error("Error saving CMS commissions to Supabase:", err);
+  }
+}
+
 
