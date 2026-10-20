@@ -154,14 +154,59 @@ export function normalizeRoomName(raw: string | undefined | null): string {
 }
 
 /**
- * So sánh 2 phòng/bàn xem có trùng nhau không (bất kể định dạng viết tắt, hoa thường).
+ * Tách một chuỗi phòng/bàn phức hợp (vd: "Bàn 1, Bàn 2", "Bàn 1-3", "Mây 101 + Mây 102") thành danh sách các phòng riêng biệt
+ */
+export function extractRoomTokens(raw: string | undefined | null): string[] {
+  if (!raw) return [];
+  const s = raw.trim();
+  if (!s || s === 'Chưa chọn' || s === 'Sảnh chung') return [s];
+
+  // Hỗ trợ dạng khoảng "Bàn 1 - 3" hoặc "Bàn 1 - Bàn 3"
+  const rangeMatch = s.match(/^b(?:àn|an)?\s*(\d+)\s*[-~đến]\s*(?:b(?:àn|an)?\s*)?(\d+)$/i);
+  if (rangeMatch) {
+    const start = parseInt(rangeMatch[1], 10);
+    const end = parseInt(rangeMatch[2], 10);
+    if (!isNaN(start) && !isNaN(end) && end >= start && end - start <= 25) {
+      const result: string[] = [];
+      for (let i = start; i <= end; i++) {
+        result.push(`Bàn ${i}`);
+      }
+      return result;
+    }
+  }
+
+  // Tách theo dấu phẩy, chấm phẩy, cộng, &, /, "và", "với"
+  const parts = s.split(/[,;+&/]|(?:\s+v[àa]\s+)|(?:\s+v[ớơ]i\s+)/i)
+    .map(p => p.trim())
+    .filter(Boolean);
+
+  if (parts.length > 1) {
+    return parts.map(p => normalizeRoomName(p));
+  }
+
+  return [normalizeRoomName(s)];
+}
+
+/**
+ * Đếm số lượng bàn thực tế mà một booking hoặc phòng/bàn chiếm dụng (hỗ trợ cả tiệc gộp bàn)
+ */
+export function getBookingTableCount(room: string | undefined | null): number {
+  if (!room || room === 'Chưa chọn' || room === 'Sảnh chung') return 1;
+  const tokens = extractRoomTokens(room);
+  return Math.max(1, tokens.length);
+}
+
+/**
+ * So sánh 2 phòng/bàn xem có trùng nhau không (bất kể định dạng viết tắt, hoa thường, hay tiệc gộp bàn).
  * Ví dụ: isSameRoom("3", "Bàn 3") -> true
  *         isSameRoom("m101", "Mây 101") -> true
+ *         isSameRoom("Bàn 1, Bàn 2", "Bàn 1") -> true (khách ngồi bàn 1 và bàn 2)
  */
 export function isSameRoom(roomA: string | undefined | null, roomB: string | undefined | null): boolean {
   if (!roomA || !roomB) return false;
   const a = roomA.trim();
   const b = roomB.trim();
+  if (!a || !b) return false;
   if (a.toLowerCase() === b.toLowerCase()) return true;
 
   const normA = normalizeRoomName(a);
@@ -169,6 +214,17 @@ export function isSameRoom(roomA: string | undefined | null, roomB: string | und
   if (normA && normB && normA.toLowerCase() === normB.toLowerCase()) {
     return true;
   }
+
+  // Kiểm tra nếu một trong hai chuỗi là tổ hợp nhiều bàn (vd: "Bàn 1, Bàn 2" chứa "Bàn 1")
+  const tokensA = extractRoomTokens(a);
+  const tokensB = extractRoomTokens(b);
+
+  if (tokensA.length > 1 || tokensB.length > 1) {
+    return tokensA.some(tA =>
+      tokensB.some(tB => tA.toLowerCase() === tB.toLowerCase() || normalizeRoomName(tA).toLowerCase() === normalizeRoomName(tB).toLowerCase())
+    );
+  }
+
   return false;
 }
 
@@ -229,10 +285,22 @@ export const DECOR_PACKAGE_NAMES: Record<string, string> = {
   "4": "Mây 4 - Nơ Trắng",
   "5": "Mây 5 - Background Nâu",
   "6": "Mây 6 - Nơ Hồng",
-  "7": "Free S4 1 (Miễn phí sảnh 4)",
-  "8": "Free S4 2 (Miễn phí sảnh 4)",
+  "7": "Free S4 Mẫu 1 (5 bộ - Tối đa 5 bàn)",
+  "8": "Free S4 Mẫu 2 (5 bộ - Tối đa 5 bàn)",
   "9": "Gói Hoa Tươi (2.500.000 đ)",
   "custom": "Decor Theo Yêu Cầu Riêng (Tự nhập giá)"
+};
+
+export const DECOR_PACKAGE_CAPACITIES: Record<string, number> = {
+  "1": 1, // Độc quyền 1 bộ
+  "2": 1, // Độc quyền 1 bộ
+  "3": 1, // Độc quyền 1 bộ
+  "4": 1, // Độc quyền 1 bộ
+  "5": 1, // Độc quyền 1 bộ
+  "6": 1, // Độc quyền 1 bộ
+  "7": 5, // Free S4 Mẫu 1: 5 bộ (tương ứng tối đa 5 bàn cùng lúc)
+  "8": 5, // Free S4 Mẫu 2: 5 bộ (tương ứng tối đa 5 bàn cùng lúc)
+  "9": 1, // Độc quyền 1 bộ
 };
 
 export interface ParsedSpecialRequest {
@@ -292,4 +360,83 @@ export function parseDecorRequest(raw: string = ""): ParsedDecorRequest {
   const pkgName = pkg ? DECOR_PACKAGE_NAMES[pkg] || `Gói Mây ${pkg}` : undefined;
   return { occasion, pkg, price, note, pkgName };
 }
+
+/**
+ * Kiểm tra xung đột gói decor:
+ * - Gói 1-6 & 9: Gói độc quyền (tối đa 1 bộ trong vòng 5 tiếng).
+ * - Gói 7 (Free S4 Mẫu 1): Có 5 bộ/5 bàn cùng lúc trong vòng 5 tiếng.
+ * - Gói 8 (Free S4 Mẫu 2): Có 5 bộ/5 bàn cùng lúc trong vòng 5 tiếng.
+ * - Bỏ qua booking đã hủy hoặc đã dọn xong hoàn tất.
+ */
+export function checkDecorConflict(
+  bookings: Booking[],
+  newDateTimeStr: string,
+  newDecorStr: string,
+  currentBookingId?: string,
+  candidateRoom?: string
+): string | null {
+  if (!newDecorStr || !newDecorStr.includes('|PKG:')) return null;
+  const newPkgStr = newDecorStr.split('|').find(p => p.startsWith('PKG:'));
+  if (!newPkgStr) return null;
+  const newPkg = newPkgStr.replace('PKG:', '').trim();
+  if (!newPkg || newPkg === 'custom') return null;
+
+  const maxCapacity = DECOR_PACKAGE_CAPACITIES[newPkg] ?? 1;
+  const newTime = new Date(newDateTimeStr).getTime();
+  if (isNaN(newTime)) return null;
+
+  // Tìm tất cả booking đang hoạt động có dùng gói decor này trong vòng 5 tiếng
+  const conflictingBookings = bookings.filter(b => {
+    if (b.id === currentBookingId) return false;
+    // Bỏ qua các booking đã hủy hoặc đã dọn xong hoàn tất
+    if (b.status === 'cancelled') return false;
+    if (b.receptionStatus === 'clean') return false;
+    if (!b.decorRequest || !b.decorRequest.includes(`|PKG:${newPkg}`)) return false;
+
+    const bTime = new Date(b.dateTime).getTime();
+    if (isNaN(bTime)) return false;
+    const diffHours = Math.abs(bTime - newTime) / (1000 * 60 * 60);
+    return diffHours < 5;
+  });
+
+  const decorName = DECOR_PACKAGE_NAMES[newPkg] || `Gói Mây ${newPkg}`;
+
+  if (maxCapacity === 1) {
+    // Gói độc quyền (chỉ có 1 bộ duy nhất)
+    if (conflictingBookings.length > 0) {
+      const b = conflictingBookings[0];
+      const [d, t] = (b.dateTime || '').split('T');
+      let timeStr = b.dateTime;
+      if (d && t) {
+        const [year, month, day] = d.split('-');
+        timeStr = `${t.substring(0, 5)} ngày ${day}/${month}/${year}`;
+      }
+      return `Gói Decor "${decorName}" là gói độc quyền (chỉ có 1 bộ) và đã được khách ${b.customerName} đặt vào lúc ${timeStr}. Hai tiệc dùng chung 1 gói decor độc quyền cần cách nhau tối thiểu 5 tiếng!`;
+    }
+  } else {
+    // Gói có nhiều bộ (như Free S4 Mẫu 1 có 5 bộ/5 bàn, Free S4 Mẫu 2 có 5 bộ/5 bàn)
+    const currentlyOccupiedTables = conflictingBookings.reduce((sum, b) => {
+      return sum + getBookingTableCount(b.room);
+    }, 0);
+
+    const neededTables = getBookingTableCount(candidateRoom);
+
+    if (currentlyOccupiedTables + neededTables > maxCapacity) {
+      const availableSets = Math.max(0, maxCapacity - currentlyOccupiedTables);
+      const bookedDetails = conflictingBookings.map(b => {
+        const [d, t] = (b.dateTime || '').split('T');
+        const timePart = t ? t.substring(0, 5) : '';
+        const datePart = d ? d.split('-').reverse().join('/') : '';
+        return `${b.customerName} (${b.room || 'Chưa chọn'} lúc ${timePart} ${datePart})`;
+      }).join(', ');
+
+      const altPkg = newPkg === '7' ? 'Free S4 Mẫu 2' : (newPkg === '8' ? 'Free S4 Mẫu 1' : 'gói khác');
+
+      return `Gói Decor "${decorName}" có tổng cộng ${maxCapacity} bộ (tối đa ${maxCapacity} bàn). Hiện tại trong khung giờ này đã có ${currentlyOccupiedTables} bàn đặt (${bookedDetails}), chỉ còn trống ${availableSets} bộ, không đủ cho ${neededTables} bàn yêu cầu. Quý khách vui lòng chọn ${altPkg} hoặc khung giờ khác!`;
+    }
+  }
+
+  return null;
+}
+
 

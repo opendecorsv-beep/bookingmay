@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { getBookings, addBooking, updateBookingData, deleteBookingData, updateKitchenStatus, updateFloorStatus, updateBookingStatus, updateReceptionStatus, getSeafoodInventory, saveSeafoodInventory, getReceptionLogs, saveReceptionLogs, getPartyMenuSets, savePartyMenuSets } from '@/lib/store';
 import { Booking, BookingStatus, TaskStatus, SeafoodCategory, ReceptionEntry, VisitStatus, ReceptionFeedback, PartyMenuSet } from '@/lib/data';
-import { normalizeRoomName, isSameRoom } from '@/lib/bookingUtils';
+import { normalizeRoomName, isSameRoom, getBookingTableCount, DECOR_PACKAGE_NAMES, DECOR_PACKAGE_CAPACITIES, getVietnamNow, getVietnamTodayString, checkDecorConflict } from '@/lib/bookingUtils';
 
 export async function loginAction(id: string, pass: string) {
   if (id.trim() === 'maybmt' && pass.trim() === '1122334455') {
@@ -40,39 +40,10 @@ export async function fetchBookings() {
   return getBookings();
 }
 
-function checkDecorConflict(bookings: Booking[], newDateTimeStr: string, newDecorStr: string, currentBookingId?: string): string | null {
-  if (!newDecorStr.includes('|PKG:')) return null;
-  const newPkgStr = newDecorStr.split('|').find(p => p.startsWith('PKG:'));
-  const newPkg = newPkgStr.replace('PKG:', '');
-  if (!newPkg || newPkg === 'custom') return null;
-  
-  const newTime = new Date(newDateTimeStr).getTime();
-
-  for (const b of bookings) {
-    if (b.id === currentBookingId) continue;
-    if (!b.decorRequest || !b.decorRequest.includes(`|PKG:${newPkg}`)) continue;
-
-    const bTime = new Date(b.dateTime).getTime();
-    const diffHours = Math.abs(bTime - newTime) / (1000 * 60 * 60);
-
-    if (diffHours < 5) {
-       const decorName = {"1": "Bướm Ngũ Sắc", "2": "Bướm Trắng", "3": "Bướm Đỏ", "4": "Nơ Trắng", "5": "Background Nâu", "6": "Nơ Hồng", "7": "Free S4 1", "8": "Free S4 2", "9": "Hoa Tươi"}[newPkg] || `Số ${newPkg}`;
-       const [d, t] = b.dateTime.split('T');
-       let timeStr = b.dateTime;
-       if (d && t) {
-         const [year, month, day] = d.split('-');
-         timeStr = `${t} ngày ${day}/${month}/${year}`;
-       }
-       return `Gói Decor Mây ${newPkg} (${decorName}) đã được khách khác đặt vào lúc ${timeStr}. Hai tiệc dùng chung 1 gói decor cần cách nhau tối thiểu 5 tiếng!`;
-    }
-  }
-  return null;
-}
-
 export async function createNewBooking(data: Omit<Booking, 'id'>) {
   await verifyAuthPermission();
   const bookings = await getBookings();
-  const error = checkDecorConflict(bookings, data.dateTime, data.decorRequest || "");
+  const error = checkDecorConflict(bookings, data.dateTime, data.decorRequest || "", undefined, data.room);
   if (error) return { error };
 
   const normalizedRoom = normalizeRoomName(data.room || 'Chưa chọn');
@@ -90,14 +61,15 @@ export async function createNewBooking(data: Omit<Booking, 'id'>) {
 
 export async function updateExistingBooking(id: string, data: Partial<Omit<Booking, 'id'>>) {
   await verifyAuthPermission();
-  if (data.dateTime || data.decorRequest) {
+  if (data.dateTime || data.decorRequest || data.room) {
     const bookings = await getBookings();
     // if only one is updated, fetch the existing one to get the other field
     const existing = bookings.find(b => b.id === id);
     if (existing) {
       const dateTimeToCheck = data.dateTime || existing.dateTime;
-      const decorToCheck = data.decorRequest || existing.decorRequest;
-      const error = checkDecorConflict(bookings, dateTimeToCheck, decorToCheck || "", id);
+      const decorToCheck = data.decorRequest !== undefined ? data.decorRequest : existing.decorRequest;
+      const roomToCheck = data.room !== undefined ? data.room : existing.room;
+      const error = checkDecorConflict(bookings, dateTimeToCheck, decorToCheck || "", id, roomToCheck);
       if (error) return { error };
     }
   }
@@ -303,7 +275,7 @@ export async function cleanRoomTableAction(params: {
       });
     }
 
-    for (const bId of targetBookingIds) {
+    for (const bId of Array.from(targetBookingIds)) {
       try {
         await updateBookingData(bId, {
           receptionStatus: 'clean',
@@ -333,7 +305,7 @@ export async function checkInBookingFromFloorAction(bookingId: string) {
   if (!b) return { error: "Không tìm thấy thông tin tiệc" };
 
   const [datePart] = (b.dateTime || '').split('T');
-  const now = new Date();
+  const now = getVietnamNow();
   const timeNow = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
   // 1. Thêm lượt đón khách bên Lễ tân (status: dining)
@@ -388,7 +360,7 @@ export async function resetCleanRoomAction(params: {
       });
     }
 
-    for (const bId of targetBookingIds) {
+    for (const bId of Array.from(targetBookingIds)) {
       await updateBookingData(bId, {
         receptionStatus: 'pending',
         floorStatus: 'pending'

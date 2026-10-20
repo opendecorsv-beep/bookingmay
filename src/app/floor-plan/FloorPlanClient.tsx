@@ -36,6 +36,7 @@ import {
   isBookingArchived,
   isVisitExpired,
   getVietnamTodayString,
+  parseBookingDate,
   DECOR_PACKAGE_NAMES,
   parseSpecialRequest,
   parseDecorRequest,
@@ -149,16 +150,16 @@ export default function FloorPlanClient({
   const isPastDate = selectedDate < todayStr;
 
   const tomorrowStr = useMemo(() => {
-    const d = new Date();
+    const d = parseBookingDate(`${todayStr}T12:00`);
     d.setDate(d.getDate() + 1);
     return format(d, "yyyy-MM-dd");
-  }, []);
+  }, [todayStr]);
 
   const dayAfterTomorrowStr = useMemo(() => {
-    const d = new Date();
+    const d = parseBookingDate(`${todayStr}T12:00`);
     d.setDate(d.getDate() + 2);
     return format(d, "yyyy-MM-dd");
-  }, []);
+  }, [todayStr]);
 
   const handleSetQuickDate = (targetDateStr: string) => {
     const currentTime = selectedDateTime.includes("T")
@@ -408,7 +409,11 @@ export default function FloorPlanClient({
 
   // Helper to find latest reception entry for a room (whether dining or left)
   const getRoomLatestReception = (roomName: string) => {
-    return dayReceptionLogs.find((l) => isSameRoom(l.room, roomName));
+    const list = dayReceptionLogs.filter((l) => isSameRoom(l.room, roomName));
+    if (list.length === 0) return undefined;
+    const dining = list.find((l) => l.status === "dining" && !isVisitExpired(l.date, l.time));
+    if (dining) return dining;
+    return [...list].sort((a, b) => (b.time || '').localeCompare(a.time || ''))[0];
   };
 
   return (
@@ -624,7 +629,7 @@ export default function FloorPlanClient({
                       : "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200"
                   }`}
                 >
-                  Hôm Nay ({format(new Date(), "dd/MM")})
+                  Hôm Nay ({format(parseBookingDate(`${todayStr}T12:00`), "dd/MM")})
                 </button>
                 <button
                   type="button"
@@ -635,7 +640,7 @@ export default function FloorPlanClient({
                       : "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200"
                   }`}
                 >
-                  Ngày Mai ({format(new Date(Date.now() + 86400000), "dd/MM")})
+                  Ngày Mai ({format(parseBookingDate(`${tomorrowStr}T12:00`), "dd/MM")})
                 </button>
                 <button
                   type="button"
@@ -646,7 +651,7 @@ export default function FloorPlanClient({
                       : "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200"
                   }`}
                 >
-                  Ngày Kia ({format(new Date(Date.now() + 172800000), "dd/MM")})
+                  Ngày Kia ({format(parseBookingDate(`${dayAfterTomorrowStr}T12:00`), "dd/MM")})
                 </button>
               </div>
             </div>
@@ -720,15 +725,12 @@ export default function FloorPlanClient({
                   const pendingUpcomingBookings = activeRoomBookings.filter(b => b.receptionStatus !== 'in_progress');
                   const hasActiveBooking = !isDiningNow && pendingUpcomingBookings.length > 0;
 
-                  // Cleaned or completed visit today
+                  // Cleaned or completed visit today: chỉ hiển thị 'Dọn xong' khi giám sát/lễ tân thực sự đã bấm Clean hoặc khách đã dùng bữa và ra về!
                   const cleanedBooking = allRoomBookings.find(
-                    (b) => b.receptionStatus === "clean" || (isSelectedToday && isBookingArchived(b))
+                    (b) => b.receptionStatus === "clean"
                   );
                   const isLeftReception = Boolean(
-                    latestReception &&
-                      (latestReception.status === "left" ||
-                        isVisitExpired(latestReception.date, latestReception.time) ||
-                        !isSelectedToday)
+                    latestReception && latestReception.status === "left" && isSelectedToday
                   );
                   const isCleanedToday = Boolean(
                     !isDiningNow &&

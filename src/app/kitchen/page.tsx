@@ -1,6 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { mockBookings } from "@/lib/data";
 import { format } from "date-fns";
 import { Clock, ChefHat, CheckSquare, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";

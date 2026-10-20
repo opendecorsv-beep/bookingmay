@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { PenLine } from "lucide-react";
 import { updateExistingBooking } from "@/app/actions";
+import { Booking } from "@/lib/data";
 import MenuSelector from "./MenuSelector";
 import { useAuth } from "@/context/AuthContext";
 
@@ -83,7 +84,7 @@ export default function EditBookingDialog({ booking, trigger }: { booking: Booki
   if (decorStr) {
     const parts = decorStr.split('|');
     initialDecorOccasion = parts[0];
-    parts.forEach(p => {
+    parts.forEach((p: string) => {
       if (p.startsWith('PKG:')) initialDecorPackage = p.replace('PKG:', '');
       if (p.startsWith('PRICE:')) initialDecorPrice = p.replace('PRICE:', '');
       if (p.startsWith('NOTE:')) initialDecorNote = p.replace('NOTE:', '');
@@ -294,8 +295,8 @@ export default function EditBookingDialog({ booking, trigger }: { booking: Booki
                 <option value="4">4 - Nơ Trắng</option>
                 <option value="5">5 - Background Nâu</option>
                 <option value="6">6 - Nơ Hồng</option>
-                <option value="7">7 - Free S4 1 (Miễn phí)</option>
-                <option value="8">8 - Free S4 2 (Miễn phí)</option>
+                <option value="7">7 - Free S4 Mẫu 1 (5 bộ - Tối đa 5 bàn)</option>
+                <option value="8">8 - Free S4 Mẫu 2 (5 bộ - Tối đa 5 bàn)</option>
                 <option value="9">9 - Hoa Tươi (2.500.000 đ)</option>
                 <option value="custom">Decor Yêu Cầu - (Tự nhập giá)</option>
               </select>

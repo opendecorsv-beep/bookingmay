@@ -229,8 +229,8 @@ export default function AddBookingDialog() {
                 <option value="4">4 - Nơ Trắng</option>
                 <option value="5">5 - Background Nâu</option>
                 <option value="6">6 - Nơ Hồng</option>
-                <option value="7">7 - Free S4 1 (Miễn phí)</option>
-                <option value="8">8 - Free S4 2 (Miễn phí)</option>
+                <option value="7">7 - Free S4 Mẫu 1 (5 bộ - Tối đa 5 bàn)</option>
+                <option value="8">8 - Free S4 Mẫu 2 (5 bộ - Tối đa 5 bàn)</option>
                 <option value="9">9 - Hoa Tươi (2.500.000 đ)</option>
                 <option value="custom">Decor Yêu Cầu - (Tự nhập giá)</option>
               </select>

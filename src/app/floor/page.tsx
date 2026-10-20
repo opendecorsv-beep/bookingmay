@@ -1,13 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { mockBookings } from "@/lib/data";
 import { format } from "date-fns";
 import { Sparkles, Users, CheckCircle, MapPin, DoorOpen, Clock, Phone, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import { setFloorStatus, fetchBookings } from "@/app/actions";
 
-import { isBookingArchived, getVietnamNow, parseSpecialRequest } from "@/lib/bookingUtils";
+import { isBookingArchived, getVietnamNow, parseSpecialRequest, parseDecorRequest, DECOR_PACKAGE_NAMES } from "@/lib/bookingUtils";
 
 function getFloorFromRoom(room?: string): string {
   if (!room || room === 'Chưa chọn') return '';
@@ -28,16 +27,8 @@ export default async function FloorPage() {
     .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
   
   let decorBookings = pendingBookings.filter(b => {
-    let occasion = "Không có";
-    let pkg = "";
-    let note = "";
-    const parts = (b.decorRequest || "").split('|');
-    occasion = parts[0] || "Không có";
-    parts.forEach(p => {
-      if (p.startsWith('PKG:')) pkg = p.replace('PKG:', '');
-      if (p.startsWith('NOTE:')) note = p.replace('NOTE:', '');
-    });
-    return occasion !== 'Không có' || pkg !== '' || note !== '';
+    const { occasion, pkg, note } = parseDecorRequest(b.decorRequest);
+    return (occasion && occasion !== 'Không có') || pkg !== '' || note !== '';
   });
 
   const groupedBookings = decorBookings.reduce((acc, b) => {
@@ -68,17 +59,7 @@ export default async function FloorPage() {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {dayBookings.map((b) => {
-          let occasion = "Không có";
-          let pkg = "";
-          let price = "";
-          let note = "";
-          const parts = (b.decorRequest || "").split('|');
-          occasion = parts[0] || "Không có";
-          parts.forEach(p => {
-            if (p.startsWith('PKG:')) pkg = p.replace('PKG:', '');
-            if (p.startsWith('PRICE:')) price = p.replace('PRICE:', '');
-            if (p.startsWith('NOTE:')) note = p.replace('NOTE:', '');
-          });
+          const { occasion, pkg, price, note, pkgName } = parseDecorRequest(b.decorRequest);
 
           const isSVIP = b.customerName.includes('[SVIP]');
           const isVIP = b.customerName.includes('[VIP]');
@@ -197,17 +178,7 @@ export default async function FloorPage() {
                     {pkg === 'custom' ? (
                       `Gói Decor: Decor Yêu Cầu${price ? ` - Giá: ${price}` : ''}`
                     ) : (
-                      `Gói Decor: Mây ${pkg} (${{
-                        "1": "Bướm Ngũ Sắc", 
-                        "2": "Bướm Trắng", 
-                        "3": "Bướm Đỏ", 
-                        "4": "Nơ Trắng", 
-                        "5": "Background Nâu", 
-                        "6": "Nơ Hồng",
-                        "7": "Free S4 1 (Miễn phí)",
-                        "8": "Free S4 2 (Miễn phí)",
-                        "9": "Hoa Tươi (2.500.000 đ)"
-                      }[pkg] || ""})`
+                      `Gói Decor: ${pkgName || DECOR_PACKAGE_NAMES[pkg] || `Mây ${pkg}`}`
                     )}
                   </h4>
                   {pkg !== 'custom' ? (
