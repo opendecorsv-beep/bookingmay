@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 };
 
 import { AuthProvider } from "@/context/AuthContext";
-import AppNavbar from "@/components/AppNavbar";
+import MainHeader from "@/components/MainHeader";
 import StaffAccessGuard from "@/components/StaffAccessGuard";
 import { getAuthUserAction } from "@/app/actions";
 
@@ -30,17 +30,7 @@ export default async function RootLayout({
       <body className={`${inter.className} bg-slate-50 min-h-screen flex flex-col`}>
         <AuthProvider initialUser={user}>
           <AutoRefresh interval={7000} />
-          <header className="bg-white border-b sticky top-0 z-10 shadow-2xs">
-            <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-4">
-              <Link href="/" className="flex items-center gap-3 text-xl font-bold text-slate-800 shrink-0">
-                <div className="relative w-10 h-10 overflow-hidden rounded-md border border-slate-100 shadow-sm">
-                  <Image src="/logo.jpg" alt="Mây Restaurant Logo" fill className="object-cover" />
-                </div>
-                <span className="tracking-tight hidden md:block">Mây Restaurant</span>
-              </Link>
-              <AppNavbar />
-            </div>
-          </header>
+          <MainHeader />
           <main className="flex-1 container mx-auto px-4 py-8">
             <StaffAccessGuard>
               {children}
@@ -51,4 +41,5 @@ export default async function RootLayout({
     </html>
   );
 }
+
 

@@ -11,8 +11,8 @@ export default function StaffAccessGuard({ children }: { children: React.ReactNo
   const router = useRouter();
   const { isStaffOnly, user } = useAuth();
 
-  // If user is logged in as staff (nhanvien) and tries to view any route other than /cms
-  if (isStaffOnly && pathname !== '/cms') {
+  // If user is logged in as staff (nhanvien) and tries to view any route other than /nv or /nhanvien
+  if (isStaffOnly && pathname !== '/nv' && pathname !== '/nhanvien') {
     return (
       <div className="max-w-md mx-auto my-16 p-8 bg-white rounded-2xl border border-amber-200 shadow-xl text-center space-y-4">
         <div className="w-16 h-16 mx-auto bg-amber-100 text-amber-700 rounded-full flex items-center justify-center">
@@ -20,20 +20,21 @@ export default function StaffAccessGuard({ children }: { children: React.ReactNo
         </div>
         <h2 className="text-xl font-bold text-slate-800">Quyền Truy Cập Bị Giới Hạn</h2>
         <p className="text-sm text-slate-600 leading-relaxed">
-          Tài khoản <strong>{user?.name || 'Nhân viên'}</strong> chỉ có quyền theo dõi bảng xếp hạng và hoa hồng tại module <strong>CMS Thưởng</strong>. Các phân hệ vận hành khác chỉ dành cho Quản Lý & Giám Sát.
+          Tài khoản <strong>{user?.name || 'Nhân viên'}</strong> chỉ có quyền theo dõi bảng xếp hạng và hoa hồng tại <strong>Cổng Nhân Viên</strong>. Các phân hệ vận hành nhà hàng chỉ dành cho Quản Lý & Giám Sát.
         </p>
         <div className="pt-2">
           <Button 
-            onClick={() => router.push('/cms')} 
+            onClick={() => router.push('/nv')} 
             className="bg-amber-600 hover:bg-amber-700 text-white font-semibold flex items-center gap-2 mx-auto px-6 py-2.5 rounded-xl shadow-md"
           >
-            <span>Vào Xem CMS Thưởng</span>
+            <span>Vào Cổng Nhân Viên & CMS</span>
             <ArrowRight className="w-4 h-4" />
           </Button>
         </div>
       </div>
     );
   }
+
 
   return <>{children}</>;
 }

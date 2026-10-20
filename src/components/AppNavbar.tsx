@@ -27,16 +27,17 @@ export default function AppNavbar() {
     return (
       <nav className="flex gap-4 text-sm font-medium text-slate-600 overflow-x-auto whitespace-nowrap scrollbar-hide flex-1 justify-start md:justify-end py-2 items-center">
         <Link 
-          href="/cms" 
+          href="/nv" 
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 text-white font-semibold shadow-sm hover:bg-amber-600 transition-all shrink-0"
         >
           <Sparkles className="w-4 h-4 text-amber-200 animate-spin" />
-          <span>CMS Thưởng Bán Hàng</span>
+          <span>Cổng Nhân Viên & CMS</span>
         </Link>
         <NavbarAuth />
       </nav>
     );
   }
+
 
   return (
     <nav className="flex gap-2 sm:gap-4 md:gap-5 text-sm font-medium text-slate-600 overflow-x-auto whitespace-nowrap scrollbar-hide flex-1 justify-start md:justify-end py-2 items-center">

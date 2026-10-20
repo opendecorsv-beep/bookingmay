@@ -75,9 +75,9 @@ export function AuthProvider({
       } else if (res?.user) {
         setUser(res.user);
         setIsModalOpen(false);
-        // If staff logs in, direct to /cms
+        // If staff logs in, direct to /nv
         if (res.user.role === 'staff') {
-          window.location.href = '/cms';
+          window.location.href = '/nv';
         } else {
           window.location.reload();
         }
