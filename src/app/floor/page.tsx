@@ -178,7 +178,7 @@ export default async function FloorPage() {
                     {pkg === 'custom' ? (
                       `Gói Decor: Decor Yêu Cầu${price ? ` - Giá: ${price}` : ''}`
                     ) : (
-                      `Gói Decor: ${pkgName || DECOR_PACKAGE_NAMES[pkg] || `Mây ${pkg}`}`
+                      `Gói Decor: ${pkgName || DECOR_PACKAGE_NAMES[pkg] || `Mây ${pkg}`}${price ? ` - Giá: ${price}` : ''}`
                     )}
                   </h4>
                   {pkg !== 'custom' ? (

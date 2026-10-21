@@ -287,8 +287,8 @@ export const DECOR_PACKAGE_NAMES: Record<string, string> = {
   "6": "Mây 6 - Nơ Hồng",
   "7": "Free S4 Mẫu 1 (5 bộ - Tối đa 5 bàn)",
   "8": "Free S4 Mẫu 2 (5 bộ - Tối đa 5 bàn)",
-  "9": "Gói Hoa Tươi (2.500.000 đ)",
-  "custom": "Decor Theo Yêu Cầu Riêng (Tự nhập giá)"
+  "9": "Gói Hoa Tươi",
+  "custom": "Decor Theo Yêu Cầu Riêng"
 };
 
 export const DECOR_PACKAGE_CAPACITIES: Record<string, number> = {

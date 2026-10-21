@@ -163,7 +163,7 @@ export default async function BookingsPage() {
                             let res = occ;
                             if (pkg) {
                               if (pkg === 'custom') {
-                                res += ` - Decor Yêu Cầu${customPrice ? ` (Giá: ${customPrice})` : ''}`;
+                                res += ` - Decor Theo Yêu Cầu${customPrice ? ` (Giá: ${customPrice})` : ''}`;
                               } else {
                                 const pkgNames: Record<string, string> = {
                                   "1": "Bướm Ngũ Sắc", 
@@ -172,11 +172,11 @@ export default async function BookingsPage() {
                                   "4": "Nơ Trắng", 
                                   "5": "Background Nâu", 
                                   "6": "Nơ Hồng",
-                                  "7": "Free S4 1 (Miễn phí)",
-                                  "8": "Free S4 2 (Miễn phí)",
-                                  "9": "Hoa Tươi (2.500.000 đ)"
+                                  "7": "Free S4 Mẫu 1",
+                                  "8": "Free S4 Mẫu 2",
+                                  "9": "Hoa Tươi"
                                 };
-                                res += ` - Gói Mây ${pkg} (${pkgNames[pkg] || ""})`;
+                                res += ` - Gói Mây ${pkg} (${pkgNames[pkg] || ""})${customPrice ? ` (Giá: ${customPrice})` : ''}`;
                               }
                             }
                             if (note) res += ` - Ghi chú: ${note}`;
@@ -235,24 +235,13 @@ export default async function BookingsPage() {
                                 }
                               }
                             });
-                            if ((b.decorRequest || "").includes('|PKG:')) {
-                               const pkgStr = b.decorRequest.split('|').find(p => p.startsWith('PKG:'));
-                               if (pkgStr && pkgStr !== 'PKG:') {
-                                 const pNum = pkgStr.replace('PKG:', '');
-                                 if (pNum === 'custom') {
-                                   const priceStr = b.decorRequest.split('|').find(p => p.startsWith('PRICE:'));
-                                   if (priceStr) {
-                                     total += parsePriceToNumber(priceStr.replace('PRICE:', ''));
-                                   }
-                                 } else if (pNum === '7' || pNum === '8') {
-                                   // Free packages
-                                 } else if (pNum === '9') {
-                                   total += 2500000;
-                                 } else {
-                                   total += 3700000;
-                                 }
-                               }
+                            if ((b.decorRequest || "").includes('|PRICE:')) {
+                              const priceStr = b.decorRequest.split('|').find(p => p.startsWith('PRICE:'));
+                              if (priceStr) {
+                                total += parsePriceToNumber(priceStr.replace('PRICE:', ''));
+                              }
                             }
+
                             
                             // Subtract discount
                             const discountMatch = (b.specialRequest || "").match(/\[Giảm giá:\s*([^\]]+)\]/);

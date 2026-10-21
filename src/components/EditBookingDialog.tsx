@@ -130,7 +130,7 @@ export default function EditBookingDialog({ booking, trigger }: { booking: Booki
       const customDecorPrice = formData.get("customDecorPrice") as string;
       const decorNote = formData.get("decorNote") as string;
       if (decorPkg) finalDecor += `|PKG:${decorPkg}`;
-      if (decorPkg === 'custom' && customDecorPrice && customDecorPrice.trim() !== '') {
+      if (customDecorPrice && customDecorPrice.trim() !== '') {
         finalDecor += `|PRICE:${customDecorPrice.trim()}`;
       }
       if (decorNote) finalDecor += `|NOTE:${decorNote}`;
@@ -288,7 +288,7 @@ export default function EditBookingDialog({ booking, trigger }: { booking: Booki
                 onChange={(e) => setDecorPkg(e.target.value)}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
-                <option value="">-- Gói Decor Mây --</option>
+                <option value="">-- Gói Decor Mây (Tự nhập giá) --</option>
                 <option value="1">1 - Bướm Ngũ Sắc</option>
                 <option value="2">2 - Bướm Trắng</option>
                 <option value="3">3 - Bướm Đỏ</option>
@@ -297,25 +297,31 @@ export default function EditBookingDialog({ booking, trigger }: { booking: Booki
                 <option value="6">6 - Nơ Hồng</option>
                 <option value="7">7 - Free S4 Mẫu 1 (5 bộ - Tối đa 5 bàn)</option>
                 <option value="8">8 - Free S4 Mẫu 2 (5 bộ - Tối đa 5 bàn)</option>
-                <option value="9">9 - Hoa Tươi (2.500.000 đ)</option>
-                <option value="custom">Decor Yêu Cầu - (Tự nhập giá)</option>
+                <option value="9">9 - Hoa Tươi</option>
+                <option value="custom">Decor Theo Yêu Cầu Riêng</option>
               </select>
             </div>
-            {decorPkg === "custom" && (
+            {decorPkg && (
               <div className="pt-1.5 space-y-1 animate-in fade-in duration-200">
-                <Label htmlFor="customDecorPrice" className="text-xs font-semibold text-purple-700">
-                  Giá Decor Yêu Cầu (VNĐ)
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="customDecorPrice" className="text-xs font-semibold text-purple-700">
+                    Giá Gói Decor (VNĐ) - Tự nhập giá
+                  </Label>
+                  <span className="text-[11px] text-slate-500 italic">
+                    {(decorPkg === '7' || decorPkg === '8') ? 'Gói Free S4: để trống hoặc nhập 0 đ' : 'Nhập số tiền tính vào bill (vd: 2.000.000, 3tr7, 500k...)'}
+                  </span>
+                </div>
                 <Input 
                   id="customDecorPrice" 
                   name="customDecorPrice" 
                   value={customDecorPrice}
                   onChange={(e) => setCustomDecorPrice(e.target.value)}
-                  placeholder="Nhập giá decor (vd: 2.000.000, 2tr5 hoặc 500k)..." 
+                  placeholder="Nhập giá gói decor tính vào bill..." 
                   className="h-9 border-purple-300 focus-visible:ring-purple-400 bg-purple-50/40 text-sm font-semibold text-purple-900" 
                 />
               </div>
             )}
+
           </div>
 
           <div className="space-y-2">

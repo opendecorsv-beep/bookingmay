@@ -208,18 +208,11 @@ export default function MenuSelector({
 
   const foodTotal = selectedItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
   let decorTotal = 0;
-  if (decorPackage) {
-    if (decorPackage === '7' || decorPackage === '8') {
-      decorTotal = 0;
-    } else if (decorPackage === '9') {
-      decorTotal = 2500000;
-    } else if (decorPackage === 'custom') {
-      decorTotal = parsePriceToNumber(customDecorPrice);
-    } else {
-      decorTotal = 3700000;
-    }
+  if (decorPackage && customDecorPrice) {
+    decorTotal = parsePriceToNumber(customDecorPrice);
   }
   const grandTotal = foodTotal + decorTotal;
+
 
   return (
     <div className="space-y-4 border rounded-md p-4 bg-slate-50/50">
@@ -395,7 +388,7 @@ export default function MenuSelector({
           <div className="flex justify-between text-sm">
             <span className="text-slate-600">
               {decorPackage === 'custom' ? (
-                'Decor Yêu Cầu (Tự nhập giá):'
+                'Decor Theo Yêu Cầu:'
               ) : (
                 `Gói Decor Mây ${decorPackage} (${{
                   "1": "Bướm Ngũ Sắc", 
@@ -404,21 +397,20 @@ export default function MenuSelector({
                   "4": "Nơ Trắng", 
                   "5": "Background Nâu", 
                   "6": "Nơ Hồng", 
-                  "7": "Free S4 1", 
-                  "8": "Free S4 2",
+                  "7": "Free S4 Mẫu 1", 
+                  "8": "Free S4 Mẫu 2", 
                   "9": "Hoa Tươi"
                 }[decorPackage] || ""}):`
               )}
             </span>
             <span className="font-semibold text-purple-600">
-              {decorPackage === 'custom'
-                ? (decorTotal > 0 ? `${decorTotal.toLocaleString('vi-VN')} đ` : (customDecorPrice ? customDecorPrice : '0 đ'))
-                : ((decorPackage === '7' || decorPackage === '8') 
-                    ? 'Miễn phí' 
-                    : (decorPackage === '9' ? '2.500.000 đ' : '3.700.000 đ'))}
+              {decorTotal > 0 
+                ? `${decorTotal.toLocaleString('vi-VN')} đ` 
+                : (customDecorPrice && customDecorPrice.trim() !== '' ? customDecorPrice : '0 đ')}
             </span>
           </div>
         )}
+
         <div className="flex justify-between text-base pt-2 border-t font-bold">
           <span className="text-slate-800">TỔNG CỘNG:</span>
           <span className="text-orange-600">{grandTotal.toLocaleString('vi-VN')} đ</span>
