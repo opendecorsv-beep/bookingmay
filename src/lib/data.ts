@@ -324,3 +324,172 @@ export const KNOWN_ACCOUNTS: Record<string, { pass: string; name: string; role: 
   nhanvien: { pass: 'may2026', name: 'Nhân Viên Mây', role: 'staff' },
 };
 
+// ---------------------------------------------------------------------------
+// REALTIME CHAT STATION & MESSAGE TYPES (CHO PHÒNG VIP, THU NGÂN, BẾP, GIÁM SÁT)
+// ---------------------------------------------------------------------------
+
+export type ChatStationId = 
+  | 'thu_ngan'
+  | 'giam_sat'
+  | 'bep'
+  | 'bar'
+  | 'le_tan'
+  | 'vip_101'
+  | 'vip_102'
+  | 'vip_103'
+  | 'vip_104'
+  | 'vip_105'
+  | 'vip_106'
+  | 'vip_201'
+  | 'vip_202'
+  | 'vip_203'
+  | 'vip_204'
+  | 'vip_205'
+  | 'sanh';
+
+export type ChatChannel = 'general' | 'cashier' | 'kitchen' | 'supervisor' | 'vip';
+
+export type ChatMessageType = 
+  | 'text' 
+  | 'bill_request' 
+  | 'rush_dish' 
+  | 'drink_ice' 
+  | 'supplies' 
+  | 'urgent_call' 
+  | 'bill_done' 
+  | 'resolved';
+
+export interface ChatMessage {
+  id: string;
+  senderStation: ChatStationId;
+  stationName: string;
+  senderName: string;
+  channel: ChatChannel;
+  content: string;
+  type: ChatMessageType;
+  isUrgent: boolean;
+  createdAt: string;
+  roomTag?: string;
+}
+
+export interface ChatStationConfig {
+  id: ChatStationId;
+  name: string;
+  shortName: string;
+  category: 'vip' | 'support' | 'management';
+  color: string;
+  badgeBg: string;
+  badgeBorder: string;
+  iconName: string;
+}
+
+export const CHAT_STATIONS: ChatStationConfig[] = [
+  { id: 'thu_ngan', name: 'Quầy Thu Ngân', shortName: 'Thu Ngân', category: 'support', color: 'text-emerald-700', badgeBg: 'bg-emerald-50', badgeBorder: 'border-emerald-300', iconName: 'CreditCard' },
+  { id: 'giam_sat', name: 'Giám Sát Trực Ca', shortName: 'Giám Sát', category: 'management', color: 'text-purple-700', badgeBg: 'bg-purple-50', badgeBorder: 'border-purple-300', iconName: 'ShieldCheck' },
+  { id: 'bep', name: 'Bếp / Tiếp Thực', shortName: 'Bếp', category: 'support', color: 'text-orange-700', badgeBg: 'bg-orange-50', badgeBorder: 'border-orange-300', iconName: 'Utensils' },
+  { id: 'bar', name: 'Quầy Bar / Nước', shortName: 'Quầy Bar', category: 'support', color: 'text-blue-700', badgeBg: 'bg-blue-50', badgeBorder: 'border-blue-300', iconName: 'Wine' },
+  { id: 'le_tan', name: 'Lễ Tân / Cửa Đón', shortName: 'Lễ Tân', category: 'support', color: 'text-pink-700', badgeBg: 'bg-pink-50', badgeBorder: 'border-pink-300', iconName: 'BellRing' },
+  
+  // Tầng 1 VIP
+  { id: 'vip_101', name: 'Phòng VIP 101', shortName: 'VIP 101', category: 'vip', color: 'text-amber-800', badgeBg: 'bg-amber-50', badgeBorder: 'border-amber-300', iconName: 'Crown' },
+  { id: 'vip_102', name: 'Phòng VIP 102', shortName: 'VIP 102', category: 'vip', color: 'text-amber-800', badgeBg: 'bg-amber-50', badgeBorder: 'border-amber-300', iconName: 'Crown' },
+  { id: 'vip_103', name: 'Phòng VIP 103', shortName: 'VIP 103', category: 'vip', color: 'text-amber-800', badgeBg: 'bg-amber-50', badgeBorder: 'border-amber-300', iconName: 'Crown' },
+  { id: 'vip_104', name: 'Phòng VIP 104', shortName: 'VIP 104', category: 'vip', color: 'text-amber-800', badgeBg: 'bg-amber-50', badgeBorder: 'border-amber-300', iconName: 'Crown' },
+  { id: 'vip_105', name: 'Phòng VIP 105', shortName: 'VIP 105', category: 'vip', color: 'text-amber-800', badgeBg: 'bg-amber-50', badgeBorder: 'border-amber-300', iconName: 'Crown' },
+  { id: 'vip_106', name: 'Phòng VIP 106', shortName: 'VIP 106', category: 'vip', color: 'text-amber-800', badgeBg: 'bg-amber-50', badgeBorder: 'border-amber-300', iconName: 'Crown' },
+
+  // Tầng 2 VIP
+  { id: 'vip_201', name: 'Phòng VIP 201', shortName: 'VIP 201', category: 'vip', color: 'text-amber-800', badgeBg: 'bg-amber-50', badgeBorder: 'border-amber-300', iconName: 'Crown' },
+  { id: 'vip_202', name: 'Phòng VIP 202', shortName: 'VIP 202', category: 'vip', color: 'text-amber-800', badgeBg: 'bg-amber-50', badgeBorder: 'border-amber-300', iconName: 'Crown' },
+  { id: 'vip_203', name: 'Phòng VIP 203', shortName: 'VIP 203', category: 'vip', color: 'text-amber-800', badgeBg: 'bg-amber-50', badgeBorder: 'border-amber-300', iconName: 'Crown' },
+  { id: 'vip_204', name: 'Phòng VIP 204', shortName: 'VIP 204', category: 'vip', color: 'text-amber-800', badgeBg: 'bg-amber-50', badgeBorder: 'border-amber-300', iconName: 'Crown' },
+  { id: 'vip_205', name: 'Phòng VIP 205', shortName: 'VIP 205', category: 'vip', color: 'text-amber-800', badgeBg: 'bg-amber-50', badgeBorder: 'border-amber-300', iconName: 'Crown' },
+  { id: 'sanh', name: 'Bàn Sảnh / Ngoài Trời', shortName: 'Sảnh', category: 'vip', color: 'text-slate-800', badgeBg: 'bg-slate-50', badgeBorder: 'border-slate-300', iconName: 'DoorOpen' },
+];
+
+export interface ChatPreset {
+  id: string;
+  label: string;
+  content: string;
+  type: ChatMessageType;
+  isUrgent: boolean;
+  targetRole: string;
+  icon: string;
+  btnClass: string;
+}
+
+export const CHAT_PRESETS: ChatPreset[] = [
+  {
+    id: 'req_bill',
+    label: 'Xin in tạm tính',
+    content: 'Xin Thu Ngân in tạm tính / hóa đơn bàn này',
+    type: 'bill_request',
+    isUrgent: true,
+    targetRole: 'Thu Ngân',
+    icon: '🧾',
+    btnClass: 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-300',
+  },
+  {
+    id: 'rush_dish',
+    label: 'Giục ra món nhanh',
+    content: 'Khách VIP đang chờ, xin Bếp ưu tiên ra món nhanh',
+    type: 'rush_dish',
+    isUrgent: true,
+    targetRole: 'Bếp',
+    icon: '⏳',
+    btnClass: 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-300',
+  },
+  {
+    id: 'add_ice',
+    label: 'Xin thêm đá / nước lọc',
+    content: 'Bàn cần châm thêm đá và nước lọc',
+    type: 'drink_ice',
+    isUrgent: false,
+    targetRole: 'Bar',
+    icon: '🧊',
+    btnClass: 'bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200',
+  },
+  {
+    id: 'add_supplies',
+    label: 'Thêm chén đũa / ly vang',
+    content: 'Xin tiếp thực hỗ trợ thêm chén đũa / ly vang',
+    type: 'supplies',
+    isUrgent: false,
+    targetRole: 'Tiếp Thực',
+    icon: '🥢',
+    btnClass: 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200',
+  },
+  {
+    id: 'call_supervisor',
+    label: 'Cần Giám Sát gấp',
+    content: 'Bàn có việc quan trọng cần Giám Sát hỗ trợ gấp!',
+    type: 'urgent_call',
+    isUrgent: true,
+    targetRole: 'Giám Sát',
+    icon: '🚨',
+    btnClass: 'bg-red-600 hover:bg-red-700 text-white font-bold border-red-700 animate-pulse',
+  },
+  {
+    id: 'bill_finished',
+    label: 'Đã hoàn tất bill',
+    content: 'Thu ngân đã in bill và nhận thanh toán hoàn tất',
+    type: 'bill_done',
+    isUrgent: false,
+    targetRole: 'Thu Ngân',
+    icon: '💳',
+    btnClass: 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-300',
+  },
+  {
+    id: 'acknowledged',
+    label: 'Đã tiếp nhận',
+    content: 'Đã nhận thông tin và đang xử lý ngay!',
+    type: 'resolved',
+    isUrgent: false,
+    targetRole: 'Tất cả',
+    icon: '✅',
+    btnClass: 'bg-emerald-600 hover:bg-emerald-700 text-white font-semibold border-emerald-700',
+  },
+];
+
+export const defaultChatMessages: ChatMessage[] = [];
+

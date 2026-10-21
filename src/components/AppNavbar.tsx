@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import NavbarAuth from '@/components/NavbarAuth';
-import { Sparkles, BarChart3 } from 'lucide-react';
+import { Sparkles, BarChart3, MessageSquare } from 'lucide-react';
 
 export default function AppNavbar() {
   const pathname = usePathname();
@@ -20,18 +20,26 @@ export default function AppNavbar() {
     { href: '/party-menu', label: 'Menu Tiệc' },
     { href: '/dashboard', label: 'Dashboard', icon: BarChart3 },
     { href: '/cms', label: 'CMS Thưởng', highlight: true, icon: Sparkles },
+    { href: '/nv/chat', label: 'Chat VIP', icon: MessageSquare },
     { href: '/archive', label: 'Lưu Trữ' },
   ];
 
   if (isStaffOnly) {
     return (
-      <nav className="flex gap-4 text-sm font-medium text-slate-600 overflow-x-auto whitespace-nowrap scrollbar-hide flex-1 justify-start md:justify-end py-2 items-center">
+      <nav className="flex gap-2 text-sm font-medium text-slate-600 overflow-x-auto whitespace-nowrap scrollbar-hide flex-1 justify-start md:justify-end py-2 items-center">
         <Link 
           href="/nv" 
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 text-white font-semibold shadow-sm hover:bg-amber-600 transition-all shrink-0"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 text-white font-semibold shadow-sm hover:bg-amber-600 transition-all shrink-0 text-xs"
         >
-          <Sparkles className="w-4 h-4 text-amber-200 animate-spin" />
-          <span>Cổng Nhân Viên & CMS</span>
+          <Sparkles className="w-3.5 h-3.5 text-amber-200" />
+          <span>CMS Thưởng</span>
+        </Link>
+        <Link 
+          href="/nv/chat" 
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-semibold shadow-sm hover:bg-indigo-700 transition-all shrink-0 text-xs"
+        >
+          <MessageSquare className="w-3.5 h-3.5 text-indigo-200" />
+          <span>Chat VIP</span>
         </Link>
         <NavbarAuth />
       </nav>

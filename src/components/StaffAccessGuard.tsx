@@ -12,7 +12,7 @@ export default function StaffAccessGuard({ children }: { children: React.ReactNo
   const { isStaffOnly, user } = useAuth();
 
   // If user is logged in as staff (nhanvien) and tries to view any route other than /nv or /nhanvien
-  if (isStaffOnly && pathname !== '/nv' && pathname !== '/nhanvien') {
+  if (isStaffOnly && !pathname.startsWith('/nv') && !pathname.startsWith('/nhanvien')) {
     return (
       <div className="max-w-md mx-auto my-16 p-8 bg-white rounded-2xl border border-amber-200 shadow-xl text-center space-y-4">
         <div className="w-16 h-16 mx-auto bg-amber-100 text-amber-700 rounded-full flex items-center justify-center">

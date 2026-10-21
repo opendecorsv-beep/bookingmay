@@ -2,8 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
-import { getBookings, addBooking, updateBookingData, deleteBookingData, updateKitchenStatus, updateFloorStatus, updateBookingStatus, updateReceptionStatus, getReceptionLogs, saveReceptionLogs, getPartyMenuSets, savePartyMenuSets, getStaffCommissions, saveStaffCommissions } from '@/lib/store';
-import { Booking, BookingStatus, TaskStatus, ReceptionEntry, VisitStatus, ReceptionFeedback, PartyMenuSet, CommissionEntry, AuthUser, KNOWN_ACCOUNTS } from '@/lib/data';
+import { getBookings, addBooking, updateBookingData, deleteBookingData, updateKitchenStatus, updateFloorStatus, updateBookingStatus, updateReceptionStatus, getReceptionLogs, saveReceptionLogs, getPartyMenuSets, savePartyMenuSets, getStaffCommissions, saveStaffCommissions, getChatMessages, saveChatMessages } from '@/lib/store';
+import { Booking, BookingStatus, TaskStatus, ReceptionEntry, VisitStatus, ReceptionFeedback, PartyMenuSet, CommissionEntry, AuthUser, KNOWN_ACCOUNTS, ChatMessage } from '@/lib/data';
 import { normalizeRoomName, isSameRoom, getBookingTableCount, DECOR_PACKAGE_NAMES, DECOR_PACKAGE_CAPACITIES, getVietnamNow, getVietnamTodayString, checkDecorConflict } from '@/lib/bookingUtils';
 
 export async function loginAction(id: string, pass: string) {
@@ -666,6 +666,38 @@ export async function clearAllStaffCommissionsAction() {
   revalidatePath('/cms');
   revalidatePath('/nv');
   return { success: true };
+}
+
+export async function fetchChatMessagesAction(): Promise<ChatMessage[]> {
+  return getChatMessages();
+}
+
+export async function sendChatMessageAction(data: Omit<ChatMessage, 'id' | 'createdAt'>): Promise<{ success: boolean; message?: ChatMessage; error?: string }> {
+  try {
+    const currentMessages = await getChatMessages();
+    const id = `MSG-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
+    const newMsg: ChatMessage = {
+      ...data,
+      id,
+      createdAt: new Date().toISOString(),
+    };
+    const updated = [...currentMessages, newMsg];
+    await saveChatMessages(updated);
+    revalidatePath('/nv/chat');
+    return { success: true, message: newMsg };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Lỗi gửi tin nhắn' };
+  }
+}
+
+export async function clearChatMessagesAction(): Promise<{ success: boolean; error?: string }> {
+  try {
+    await saveChatMessages([]);
+    revalidatePath('/nv/chat');
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Lỗi xóa tin nhắn' };
+  }
 }
 
 
