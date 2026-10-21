@@ -638,6 +638,7 @@ export async function addStaffCommissionAction(data: {
   const updated = [newEntry, ...currentCommissions];
   await saveStaffCommissions(updated);
   revalidatePath('/cms');
+  revalidatePath('/nv');
   return { success: true, entry: newEntry };
 }
 
@@ -651,6 +652,19 @@ export async function deleteStaffCommissionAction(id: string) {
   const updated = currentCommissions.filter(item => item.id !== id);
   await saveStaffCommissions(updated);
   revalidatePath('/cms');
+  revalidatePath('/nv');
+  return { success: true };
+}
+
+export async function clearAllStaffCommissionsAction() {
+  const user = await getAuthUserAction();
+  if (!user || (user.role !== 'admin' && user.role !== 'supervisor')) {
+    return { error: 'Chỉ tài khoản Giám Sát hoặc Quản Lý mới có quyền xóa dữ liệu CMS!' };
+  }
+
+  await saveStaffCommissions([]);
+  revalidatePath('/cms');
+  revalidatePath('/nv');
   return { success: true };
 }
 

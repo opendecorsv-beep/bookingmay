@@ -344,7 +344,7 @@ export async function getStaffCommissions(): Promise<CommissionEntry[]> {
       return globalStaffCommissions;
     }
     const parsed = typeof data.menu === 'string' ? JSON.parse(data.menu) : data.menu;
-    if (Array.isArray(parsed) && parsed.length > 0) {
+    if (Array.isArray(parsed)) {
       globalStaffCommissions = parsed;
       return parsed;
     }

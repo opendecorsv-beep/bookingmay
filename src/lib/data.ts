@@ -265,90 +265,48 @@ export const CMS_WINE_PRODUCTS: CommissionProductReward[] = [
   { id: 'wine-under-3m', name: 'Rượu Vang ≤ 3.000.000 đ/chai', category: 'wine', reward: 100000, unit: 'chai' },
 ];
 
-export const defaultStaffCommissions: CommissionEntry[] = [
-  {
-    id: "CMS-20261020-001",
-    date: "2026-10-20",
-    time: "23:17",
-    staffName: "Ngô Nguyễn Khánh Ly",
-    category: "product",
-    productName: "Cá bơn",
-    unitPriceOrReward: 100000,
-    quantity: 1,
-    totalReward: 100000,
-    tableOrRoom: "Mây 104",
-    note: "Khách VIP gọi thêm 1 con cá bơn hấp Hong Kong",
-    createdByName: "Giám Sát Huy",
-    createdById: "gshuy",
-    createdAt: "2026-10-20T16:17:00.000Z"
-  },
-  {
-    id: "CMS-20261020-002",
-    date: "2026-10-20",
-    time: "21:30",
-    staffName: "Ngô Nguyễn Khánh Ly",
-    category: "wine",
-    productName: "Rượu Vang > 3.000.000 đ/chai",
-    unitPriceOrReward: 150000,
-    quantity: 2,
-    totalReward: 300000,
-    tableOrRoom: "Mây 104",
-    note: "Upsell 2 chai vang cao cấp Montes Alpha",
-    createdByName: "Giám Sát Huy",
-    createdById: "gshuy",
-    createdAt: "2026-10-20T14:30:00.000Z"
-  },
-  {
-    id: "CMS-20261020-003",
-    date: "2026-10-20",
-    time: "20:45",
-    staffName: "Ngô Nguyễn Khánh Ly",
-    category: "booking_bill",
-    productName: "Thưởng bàn booking (T3: 2%)",
-    unitPriceOrReward: 160000,
-    quantity: 1,
-    billAmount: 8000000,
-    billPercent: 2,
-    totalReward: 160000,
-    tableOrRoom: "Mây 104",
-    note: "Bàn tiệc khách VIP bill 8.000.000 đ (2% ngày Thứ 3)",
-    createdByName: "Giám Sát Huy",
-    createdById: "gshuy",
-    createdAt: "2026-10-20T13:45:00.000Z"
-  },
-  {
-    id: "CMS-20261020-004",
-    date: "2026-10-20",
-    time: "19:15",
-    staffName: "Nguyễn Văn Hùng",
-    category: "product",
-    productName: "Cua hoàng đế",
-    unitPriceOrReward: 100000,
-    quantity: 1,
-    totalReward: 100000,
-    tableOrRoom: "Bàn 12",
-    note: "Khách chốt cua hoàng đế 2.8kg",
-    createdByName: "Giám Sát Mai",
-    createdById: "gsmai",
-    createdAt: "2026-10-20T12:15:00.000Z"
-  },
-  {
-    id: "CMS-20261020-005",
-    date: "2026-10-20",
-    time: "18:50",
-    staffName: "Lê Thị Thảo",
-    category: "product",
-    productName: "Hùm Úc",
-    unitPriceOrReward: 100000,
-    quantity: 1,
-    totalReward: 100000,
-    tableOrRoom: "Mây 202",
-    note: "Hùm Úc sashimi",
-    createdByName: "Giám Sát Tiến",
-    createdById: "gstien",
-    createdAt: "2026-10-20T11:50:00.000Z"
-  }
+export interface RestaurantStaff {
+  stt: number;
+  name: string;
+  phone: string;
+  role: string;
+}
+
+export const RESTAURANT_STAFF_LIST: RestaurantStaff[] = [
+  { stt: 1, name: "Lê Thị Thanh Thuý", phone: "0338144180", role: "Phục vụ" },
+  { stt: 2, name: "Lê Thị Thuỳ Trâm", phone: "0822240969", role: "Phục vụ" },
+  { stt: 3, name: "Lương Huyền Linh", phone: "0359517075", role: "Phục vụ" },
+  { stt: 4, name: "Nguyễn Thị Thanh Mai", phone: "0933444225", role: "Giám sát" },
+  { stt: 5, name: "Ngô Nguyễn Khánh Ly", phone: "0835198971", role: "Phục vụ" },
+  { stt: 6, name: "Ngô Nguyễn Thúy Vy", phone: "0328633427", role: "Captain" },
+  { stt: 7, name: "Phạm Thị Quỳnh Như", phone: "0338217057", role: "Phục vụ" },
+  { stt: 8, name: "Phạm Trần Mỹ Tâm", phone: "0947548919", role: "Thu ngân" },
+  { stt: 9, name: "Trương Ánh Tuyết", phone: "0329960862", role: "Phục vụ" },
+  { stt: 10, name: "Trần Diệu Xoan", phone: "0943439248", role: "Thu ngân" },
+  { stt: 11, name: "Trần Thị Bích Loan", phone: "0813505008", role: "Phục vụ" },
+  { stt: 12, name: "Trần Thị Phương Linh", phone: "0347654452", role: "Phục vụ" },
+  { stt: 15, name: "Trần Thị Thùy Linh", phone: "0932497747", role: "Nhân viên bếp" },
+  { stt: 18, name: "Bùi Thị Hồng Thúy", phone: "0398409429", role: "Lễ tân" },
+  { stt: 20, name: "Vũ Thị Lâm Nhi", phone: "0964650510", role: "Lễ tân" },
+  { stt: 21, name: "Võ Thị Ánh Hồng", phone: "0898372482", role: "Phục vụ" },
+  { stt: 22, name: "Nguyễn Thị Kim Trúc", phone: "0813432794", role: "Phục vụ" },
+  { stt: 25, name: "Đào Thị Ngọc Huyền", phone: "0965367186", role: "Phục vụ" },
+  { stt: 26, name: "Phạm Thị Kim Yến", phone: "0399509187", role: "Phục vụ" },
+  { stt: 31, name: "Đoàn Thị Nhật Ánh", phone: "0965801826", role: "Nhân viên" },
+  { stt: 32, name: "Nguyễn Thị Ngọc Hà", phone: "0877560735", role: "Phục vụ" },
+  { stt: 33, name: "Vũ Thị Tuyết Mai", phone: "0366889818", role: "Phục vụ" },
+  { stt: 34, name: "Lê Thị Như Quỳnh", phone: "0949903324", role: "Lễ tân" },
+  { stt: 35, name: "Nguyễn Thị Là", phone: "0352200584", role: "Phục vụ" },
+  { stt: 36, name: "Đào Thị Nga", phone: "0965501710", role: "Phục vụ" },
+  { stt: 38, name: "Nguyễn Thị Ngọc Bích", phone: "0795888186", role: "Phục vụ" },
+  { stt: 40, name: "Nguyễn Thị Ngọc Cúc", phone: "0946613083", role: "Phục vụ" },
+  { stt: 41, name: "Bùi Thị Thanh Tuyền", phone: "0823648314", role: "Phục vụ" },
+  { stt: 42, name: "Lê Thị Thùy Trang", phone: "0926688188", role: "CSKH" },
+  { stt: 43, name: "Lê Nguyễn Anh Huy", phone: "", role: "Giám sát" },
+  { stt: 44, name: "Đồng Văn Tiến", phone: "", role: "Giám sát" },
 ];
+
+export const defaultStaffCommissions: CommissionEntry[] = [];
 
 export type UserRole = 'admin' | 'supervisor' | 'staff';
 
@@ -360,9 +318,9 @@ export interface AuthUser {
 
 export const KNOWN_ACCOUNTS: Record<string, { pass: string; name: string; role: UserRole }> = {
   maybmt: { pass: '1122334455', name: 'Quản Lý Mây', role: 'admin' },
-  gshuy: { pass: 'huy135', name: 'Giám Sát Huy', role: 'supervisor' },
-  gsmai: { pass: 'mai123', name: 'Giám Sát Mai', role: 'supervisor' },
-  gstien: { pass: 'tien246', name: 'Giám Sát Tiến', role: 'supervisor' },
+  gshuy: { pass: 'huy135', name: 'Giám Sát Huy (Lê Nguyễn Anh Huy)', role: 'supervisor' },
+  gsmai: { pass: 'mai123', name: 'Giám Sát Mai (Nguyễn Thị Thanh Mai)', role: 'supervisor' },
+  gstien: { pass: 'tien246', name: 'Giám Sát Tiến (Đồng Văn Tiến)', role: 'supervisor' },
   nhanvien: { pass: 'may2026', name: 'Nhân Viên Mây', role: 'staff' },
 };
 

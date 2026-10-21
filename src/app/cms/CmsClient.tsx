@@ -5,11 +5,14 @@ import {
   CommissionEntry, 
   CMS_STANDARD_PRODUCTS, 
   CMS_WINE_PRODUCTS, 
-  AuthUser 
+  AuthUser,
+  RESTAURANT_STAFF_LIST,
+  RestaurantStaff
 } from '@/lib/data';
 import { 
   addStaffCommissionAction, 
-  deleteStaffCommissionAction 
+  deleteStaffCommissionAction,
+  clearAllStaffCommissionsAction 
 } from '@/app/actions';
 import { getVietnamTodayString } from '@/lib/bookingUtils';
 import { 
@@ -33,7 +36,10 @@ import {
   ChevronRight,
   TrendingUp,
   Percent,
-  X
+  X,
+  Users,
+  Phone,
+  RotateCcw
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -47,21 +53,63 @@ interface CmsClientProps {
 
 type TimeFilter = 'today' | 'week' | 'month' | 'all';
 
-const COMMON_STAFF_NAMES = [
-  "Ngô Nguyễn Khánh Ly",
-  "Nguyễn Văn Hùng",
-  "Lê Thị Thảo",
-  "Trần Quốc Tuấn",
-  "Phạm Hoàng Nam",
-  "Đặng Thu Trang",
-  "Bùi Minh Quân"
-];
-
 export default function CmsClient({ initialCommissions, initialUser }: CmsClientProps) {
   const [commissions, setCommissions] = useState<CommissionEntry[]>(initialCommissions);
   const [filter, setFilter] = useState<TimeFilter>('month');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStaffDetail, setSelectedStaffDetail] = useState<string | null>(null);
+
+  // View Tab State
+  const [activeTab, setActiveTab] = useState<'bxh' | 'staff'>('bxh');
+  const [selectedRoleFilter, setSelectedRoleFilter] = useState<string | null>(null);
+  const [staffSearchQuery, setStaffSearchQuery] = useState('');
+
+  // Grouped Staff by Role for Select / Quick Access
+  const groupedStaffRoles = useMemo(() => {
+    const roleOrder = [
+      "Phục vụ",
+      "Captain",
+      "Thu ngân",
+      "Lễ tân",
+      "CSKH",
+      "Nhân viên bếp",
+      "Giám sát",
+      "Nhân viên"
+    ];
+    return roleOrder.map(role => ({
+      role,
+      staff: RESTAURANT_STAFF_LIST.filter(s => s.role === role)
+    })).filter(g => g.staff.length > 0);
+  }, []);
+
+  // Staff Directory Filter & Stats
+  const filteredStaffList = useMemo(() => {
+    let list = [...RESTAURANT_STAFF_LIST];
+    if (selectedRoleFilter) {
+      list = list.filter(s => s.role.includes(selectedRoleFilter));
+    }
+    if (staffSearchQuery.trim()) {
+      const q = staffSearchQuery.toLowerCase();
+      list = list.filter(s => 
+        s.name.toLowerCase().includes(q) ||
+        s.phone.includes(q) ||
+        s.role.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [selectedRoleFilter, staffSearchQuery]);
+
+  const staffStatsMap = useMemo(() => {
+    const map: Record<string, { count: number; total: number }> = {};
+    commissions.forEach(c => {
+      const name = c.staffName.trim();
+      if (!name) return;
+      if (!map[name]) map[name] = { count: 0, total: 0 };
+      map[name].count += 1;
+      map[name].total += c.totalReward;
+    });
+    return map;
+  }, [commissions]);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -291,6 +339,24 @@ export default function CmsClient({ initialCommissions, initialUser }: CmsClient
     }
   };
 
+  const handleOpenModalForStaff = (staffName: string) => {
+    setFormStaffName(staffName);
+    handleOpenModal();
+  };
+
+  const handleClearAll = async () => {
+    if (!confirm("Bạn có chắc chắn muốn XÓA TOÀN BỘ dữ liệu CMS đang có để làm mới hoàn toàn không?")) {
+      return;
+    }
+    const res = await clearAllStaffCommissionsAction();
+    if (res?.success) {
+      setCommissions([]);
+      alert("Đã xóa toàn bộ dữ liệu CMS thành công. Bây giờ bạn có thể bắt đầu ghi nhận các dữ liệu hoa hồng thực tế!");
+    } else {
+      alert(res?.error || "Lỗi khi xóa dữ liệu CMS");
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
       {/* Top Banner Header */}
@@ -358,7 +424,209 @@ export default function CmsClient({ initialCommissions, initialUser }: CmsClient
         </div>
       </div>
 
-      {/* Hero Spotlight: Top 1 Upseller + Top 2 & 3 Podium */}
+      {/* Navigation Tabs between Leaderboard & Staff Directory */}
+      <div className="flex items-center justify-between gap-3 flex-wrap border-b border-slate-200 pb-3">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setActiveTab('bxh')}
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all ${
+              activeTab === 'bxh'
+                ? 'bg-amber-600 text-white shadow-md'
+                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            <Trophy className="w-4 h-4 text-amber-200" />
+            <span>Bảng Vinh Danh &amp; Nhật Ký CMS</span>
+            {commissions.length > 0 && (
+              <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                activeTab === 'bxh' ? 'bg-amber-800 text-amber-100' : 'bg-slate-100 text-slate-600'
+              }`}>
+                {commissions.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('staff')}
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all ${
+              activeTab === 'staff'
+                ? 'bg-amber-600 text-white shadow-md'
+                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            <Users className="w-4 h-4 text-amber-200" />
+            <span>Đội Ngũ Nhân Sự Nhà Hàng ({RESTAURANT_STAFF_LIST.length})</span>
+          </button>
+        </div>
+
+        {/* Clear All / Reset Button for Supervisor / Admin */}
+        {canEdit && commissions.length > 0 && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleClearAll}
+            className="text-xs text-rose-600 border-rose-200 hover:bg-rose-50 flex items-center gap-1.5 h-8 shadow-2xs"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Xóa Toàn Bộ CMS</span>
+          </Button>
+        )}
+      </div>
+
+      {activeTab === 'staff' ? (
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+            <div>
+              <h2 className="text-base sm:text-lg font-bold text-slate-800 flex items-center gap-2">
+                <Users className="w-5 h-5 text-amber-600" />
+                Danh Sách Nhân Sự Nhà Hàng ({filteredStaffList.length} / {RESTAURANT_STAFF_LIST.length} người)
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Nhấn nút &quot;+ Thưởng CMS&quot; ở từng nhân sự để ghi nhận hoa hồng hoặc lọc theo từng bộ phận
+              </p>
+            </div>
+
+            {/* Search Input */}
+            <div className="relative w-full sm:w-64">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <Input
+                type="text"
+                value={staffSearchQuery}
+                onChange={(e) => setStaffSearchQuery(e.target.value)}
+                placeholder="Tìm tên, SĐT, chức vụ..."
+                className="pl-9 h-9 text-xs rounded-xl bg-slate-50 border-slate-200 focus:bg-white"
+              />
+            </div>
+          </div>
+
+          {/* Department Role Filter Tabs */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-xs font-semibold text-slate-500 mr-1">Bộ phận:</span>
+            <button
+              type="button"
+              onClick={() => setSelectedRoleFilter(null)}
+              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                !selectedRoleFilter ? 'bg-amber-600 text-white shadow-2xs' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              Tất cả ({RESTAURANT_STAFF_LIST.length})
+            </button>
+            {groupedStaffRoles.map(({ role, staff }) => (
+              <button
+                key={role}
+                type="button"
+                onClick={() => setSelectedRoleFilter(role === selectedRoleFilter ? null : role)}
+                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                  selectedRoleFilter === role ? 'bg-amber-600 text-white shadow-2xs font-bold' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {role} ({staff.length})
+              </button>
+            ))}
+          </div>
+
+          {/* Personnel Table */}
+          <div className="overflow-x-auto border border-slate-100 rounded-xl">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="bg-slate-50 text-slate-500 font-bold uppercase text-[10px] border-b border-slate-200">
+                  <th className="py-3 px-3 w-12 text-center">STT</th>
+                  <th className="py-3 px-3">Họ Và Tên</th>
+                  <th className="py-3 px-3">Chức Vụ</th>
+                  <th className="py-3 px-3">Số Điện Thoại</th>
+                  <th className="py-3 px-3 text-center">Lượt CMS</th>
+                  <th className="py-3 px-3 text-right">Tổng Thưởng CMS</th>
+                  {canEdit && <th className="py-3 px-3 text-center w-32">Thao Tác</th>}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredStaffList.map((s) => {
+                  const stat = staffStatsMap[s.name] || { count: 0, total: 0 };
+                  const roleBadgeClass = 
+                    s.role === 'Giám sát' ? 'bg-purple-100 text-purple-800 border-purple-200' :
+                    s.role === 'Captain' ? 'bg-indigo-100 text-indigo-800 border-indigo-200' :
+                    s.role === 'Thu ngân' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
+                    s.role === 'Lễ tân' ? 'bg-pink-100 text-pink-800 border-pink-200' :
+                    s.role === 'CSKH' ? 'bg-cyan-100 text-cyan-800 border-cyan-200' :
+                    s.role === 'Nhân viên bếp' ? 'bg-orange-100 text-orange-800 border-orange-200' :
+                    'bg-amber-100 text-amber-800 border-amber-200';
+
+                  return (
+                    <tr key={s.stt} className="hover:bg-amber-50/30 transition-colors">
+                      <td className="py-3 px-3 text-center text-slate-400 font-bold">
+                        {s.stt}
+                      </td>
+                      <td className="py-3 px-3">
+                        <div className="font-bold text-slate-800 text-xs sm:text-sm">
+                          {s.name}
+                        </div>
+                      </td>
+                      <td className="py-3 px-3">
+                        <span className={`inline-block px-2 py-0.5 rounded-md text-[11px] font-bold border ${roleBadgeClass}`}>
+                          {s.role}
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-slate-600">
+                        {s.phone ? (
+                          <a href={`tel:${s.phone}`} className="hover:underline flex items-center gap-1 font-medium text-slate-700">
+                            <Phone className="w-3 h-3 text-slate-400" />
+                            {s.phone}
+                          </a>
+                        ) : (
+                          <span className="text-slate-300 italic">-</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-3 text-center font-bold text-slate-700">
+                        {stat.count > 0 ? (
+                          <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full text-[11px]">
+                            {stat.count} lượt
+                          </span>
+                        ) : (
+                          <span className="text-slate-300">-</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-3 text-right">
+                        {stat.total > 0 ? (
+                          <span className="font-black text-amber-700 text-xs sm:text-sm">
+                            +{stat.total.toLocaleString('vi-VN')} đ
+                          </span>
+                        ) : (
+                          <span className="text-slate-300">-</span>
+                        )}
+                      </td>
+                      {canEdit && (
+                        <td className="py-3 px-3 text-center">
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => handleOpenModalForStaff(s.name)}
+                            className="h-7 text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-2xs px-2.5 rounded-lg flex items-center gap-1 mx-auto"
+                          >
+                            <Plus className="w-3 h-3" />
+                            <span>Thưởng CMS</span>
+                          </Button>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
+                {filteredStaffList.length === 0 && (
+                  <tr>
+                    <td colSpan={canEdit ? 7 : 6} className="text-center py-8 text-slate-400 italic">
+                      Không tìm thấy nhân viên nào phù hợp với bộ lọc
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Hero Spotlight: Top 1 Upseller + Top 2 & 3 Podium */}
       {top1 ? (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
           
@@ -706,6 +974,8 @@ export default function CmsClient({ initialCommissions, initialUser }: CmsClient
         </div>
 
       </div>
+        </>
+      )}
 
       {/* Commission Policy / Cheat Sheet Card (Full Width) */}
       <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
@@ -834,29 +1104,109 @@ export default function CmsClient({ initialCommissions, initialUser }: CmsClient
               </div>
             </div>
 
-            {/* Staff Name with Quick Select Chips */}
-            <div className="space-y-1.5">
-              <Label htmlFor="cms-staff" className="text-xs">Tên nhân viên nhận thưởng</Label>
-              <Input
-                id="cms-staff"
-                type="text"
+            {/* Staff Selection from 31 Restaurant Personnel */}
+            <div className="space-y-2 bg-amber-50/60 p-3 rounded-xl border border-amber-200/80">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="cms-staff-select" className="text-xs font-bold text-amber-950 flex items-center gap-1.5">
+                  <UserCheck className="w-4 h-4 text-amber-600" />
+                  Nhân viên nhận thưởng ({RESTAURANT_STAFF_LIST.length} nhân sự nhà hàng)
+                </Label>
+                {formStaffName && (
+                  <span className="text-[11px] font-bold text-amber-800 bg-amber-200/70 px-2 py-0.5 rounded-full">
+                    ✓ {formStaffName}
+                  </span>
+                )}
+              </div>
+
+              {/* Grouped Select Dropdown */}
+              <select
+                id="cms-staff-select"
                 value={formStaffName}
                 onChange={(e) => setFormStaffName(e.target.value)}
-                placeholder="Nhập hoặc chọn tên nhân viên..."
-                required
-              />
-              <div className="flex items-center gap-1.5 flex-wrap pt-1">
-                <span className="text-[10px] text-slate-400">Chọn nhanh:</span>
-                {COMMON_STAFF_NAMES.map(name => (
-                  <button
-                    key={name}
-                    type="button"
-                    onClick={() => setFormStaffName(name)}
-                    className="px-2 py-0.5 rounded-full text-[10px] bg-slate-100 hover:bg-amber-100 hover:text-amber-800 text-slate-600 transition-colors"
-                  >
-                    {name}
-                  </button>
+                className="w-full text-xs sm:text-sm font-semibold rounded-lg border border-amber-300 bg-white px-3 py-2 text-slate-800 shadow-2xs focus:outline-none focus:ring-2 focus:ring-amber-500"
+              >
+                <option value="">-- Bấm để chọn nhân viên từ danh sách nhà hàng --</option>
+                {groupedStaffRoles.map(({ role, staff }) => (
+                  <optgroup key={role} label={`Nhóm ${role} (${staff.length} người)`}>
+                    {staff.map(s => (
+                      <option key={s.stt} value={s.name}>
+                        {s.name} ({s.role}{s.phone ? ` - ${s.phone}` : ''})
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
+              </select>
+
+              {/* Quick Search / Type Input */}
+              <div className="space-y-1.5 pt-1">
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    id="cms-staff"
+                    type="text"
+                    value={formStaffName}
+                    onChange={(e) => setFormStaffName(e.target.value)}
+                    placeholder="Hoặc gõ tìm/nhập tên nhân viên..."
+                    className="h-9 text-xs sm:text-sm bg-white border-amber-200 focus-visible:ring-amber-400"
+                    required
+                  />
+                  {formStaffName && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFormStaffName('')}
+                      className="h-9 px-2 text-xs text-slate-400 hover:text-slate-600 shrink-0"
+                    >
+                      Xóa
+                    </Button>
+                  )}
+                </div>
+
+                {/* Role Filter Chips */}
+                <div className="flex items-center gap-1 flex-wrap pt-1">
+                  <span className="text-[10px] text-slate-500 font-medium">Chọn nhanh theo bộ phận:</span>
+                  {["Phục vụ", "Thu ngân", "Lễ tân", "Captain", "CSKH", "Nhân viên bếp", "Giám sát"].map(role => (
+                    <button
+                      key={role}
+                      type="button"
+                      onClick={() => setSelectedRoleFilter(role === selectedRoleFilter ? null : role)}
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-semibold transition-colors ${
+                        selectedRoleFilter === role 
+                          ? 'bg-amber-600 text-white shadow-2xs' 
+                          : 'bg-white border border-slate-200 text-slate-600 hover:bg-amber-50'
+                      }`}
+                    >
+                      {role}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Filtered Staff Quick-Pick Chips */}
+                <div className="flex items-center gap-1.5 flex-wrap max-h-28 overflow-y-auto p-1.5 bg-white/90 rounded-lg border border-slate-200">
+                  {(selectedRoleFilter 
+                    ? RESTAURANT_STAFF_LIST.filter(s => s.role.includes(selectedRoleFilter))
+                    : RESTAURANT_STAFF_LIST.slice(0, 10)
+                  ).map(s => (
+                    <button
+                      key={s.stt}
+                      type="button"
+                      onClick={() => setFormStaffName(s.name)}
+                      className={`px-2 py-0.5 rounded-md text-[11px] transition-all flex items-center gap-1 ${
+                        formStaffName === s.name
+                          ? 'bg-amber-600 text-white font-bold shadow-2xs'
+                          : 'bg-slate-100 hover:bg-amber-100 hover:text-amber-900 text-slate-700'
+                      }`}
+                    >
+                      <span>{s.name}</span>
+                      <span className="text-[9px] opacity-70">({s.role})</span>
+                    </button>
+                  ))}
+                  {!selectedRoleFilter && (
+                    <span className="text-[10px] text-slate-400 italic">
+                      (Bấm lọc bộ phận bên trên để xem đầy đủ các bạn)
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
