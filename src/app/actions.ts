@@ -3,8 +3,9 @@
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { getBookings, addBooking, updateBookingData, deleteBookingData, updateKitchenStatus, updateFloorStatus, updateBookingStatus, updateReceptionStatus, getReceptionLogs, saveReceptionLogs, getPartyMenuSets, savePartyMenuSets, getStaffCommissions, saveStaffCommissions, getChatMessages, saveChatMessages } from '@/lib/store';
-import { Booking, BookingStatus, TaskStatus, ReceptionEntry, VisitStatus, ReceptionFeedback, PartyMenuSet, CommissionEntry, AuthUser, KNOWN_ACCOUNTS, ChatMessage } from '@/lib/data';
+import { Booking, BookingStatus, TaskStatus, ReceptionEntry, VisitStatus, ReceptionFeedback, PartyMenuSet, CommissionEntry, AuthUser, KNOWN_ACCOUNTS, ChatMessage, ReceiptScanResult, ReceiptItem } from '@/lib/data';
 import { normalizeRoomName, isSameRoom, getBookingTableCount, DECOR_PACKAGE_NAMES, DECOR_PACKAGE_CAPACITIES, getVietnamNow, getVietnamTodayString, checkDecorConflict } from '@/lib/bookingUtils';
+import { classifyReceiptItem } from '@/lib/receiptParser';
 
 export async function loginAction(id: string, pass: string) {
   const cleanId = id.trim().toLowerCase();
@@ -616,6 +617,10 @@ export async function addStaffCommissionAction(data: {
   quantity: number;
   billAmount?: number;
   billPercent?: number;
+  billFoodAmount?: number;
+  billExcludedAmount?: number;
+  billItemsSummary?: string;
+  billImageUrl?: string;
   totalReward: number;
   tableOrRoom?: string;
   note?: string;
@@ -640,6 +645,160 @@ export async function addStaffCommissionAction(data: {
   revalidatePath('/cms');
   revalidatePath('/nv');
   return { success: true, entry: newEntry };
+}
+
+export async function parseReceiptWithGeminiAction(params: {
+  base64Image: string;
+  userApiKey?: string;
+}): Promise<{ success: boolean; result?: ReceiptScanResult; error?: string }> {
+  try {
+    const { base64Image, userApiKey } = params;
+    const apiKey = (userApiKey || process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || '').trim();
+
+    if (!apiKey) {
+      return {
+        success: false,
+        error: 'Chưa có Google Gemini API Key. Bạn có thể nhập API Key để quét ảnh trực tiếp hoặc sử dụng tính năng Dán Text Hóa Đơn / Bill Mẫu Thử Nghiệm.'
+      };
+    }
+
+    // Clean base64 string
+    const cleanBase64 = base64Image.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
+
+    const promptText = `
+Bạn là chuyên gia kiểm toán và bóc tách hóa đơn nhà hàng Mây (ẩm thực tiệc, hải sản & phòng VIP).
+Hãy quét và phân tích hình ảnh hóa đơn thanh toán này.
+
+Quy tắc bóc tách và phân loại:
+1. Đọc tên phòng/bàn (ví dụ: VIP 102, Bàn 4...), ngày giờ thanh toán nếu có.
+2. Bóc tách từng dòng món: Tên món, số lượng, đơn giá, thành tiền.
+3. Phân loại CỰC KỲ CHÍNH XÁC:
+   - isFood = true (MÓN ĂN ĐƯỢC TÍNH HOA HỒNG): Mọi món ăn do Bếp & quầy Hải sản chế biến (món khai vị, gỏi, bò, gà, heo, cá mú, cá bơn, tôm hùm, cua, lẩu, cơm, mì, rau, tráng miệng trái cây...).
+   - isFood = false (MẶT HÀNG BỊ LOẠI TRỪ - KHÔNG TÍNH HOA HỒNG):
+     * BIA: Tiger, Heineken, Budweiser, Sài Gòn, Blanc 1664, Corona, Sapporo, Tuborg, bia các loại...
+     * RƯỢU: Rượu vang (Cabernet, Merlot...), rượu mạnh, Chivas, Macallan, Soju, rượu gạo...
+     * NƯỚC NGỌT / NƯỚC SUỐI: Coca, Pepsi, 7up, Redbull, Sting, Aquafina, Dasani, Lavie, trà xanh, C2...
+     * GÓI DECOR / TIỆC: Gói Decor Mẫu 1, Mẫu 2, Hoa tươi, Bong bóng, Nến, Bánh sinh nhật...
+     * PHỤ PHÍ: Khăn lạnh, khăn ướt, đậu phộng gói, xô đá, đá bi...
+     * THUẾ & PHÍ: Thuế VAT 8%, 10%, Phí phục vụ (Service charge), Tiền tip, Voucher giảm giá...
+
+Trả về ĐÚNG JSON nguyên bản (không dùng markdown code block, không giải thích ngoài JSON):
+{
+  "restaurantName": "Nhà hàng Mây",
+  "tableName": "VIP 102",
+  "date": "2026-10-22",
+  "items": [
+    {
+      "name": "Tên món",
+      "quantity": 1,
+      "unitPrice": 100000,
+      "totalPrice": 100000,
+      "isFood": true,
+      "category": "food",
+      "reason": "Món ăn hợp lệ"
+    }
+  ],
+  "totalReceipt": 0,
+  "totalFood": 0,
+  "totalExcluded": 0
+}
+`;
+
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+    const res = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              { text: promptText },
+              {
+                inline_data: {
+                  mime_type: 'image/jpeg',
+                  data: cleanBase64
+                }
+              }
+            ]
+          }
+        ],
+        generationConfig: {
+          response_mime_type: 'application/json',
+          temperature: 0.1
+        }
+      })
+    });
+
+    if (!res.ok) {
+      const errBody = await res.text();
+      console.error('Gemini API Error:', errBody);
+      return {
+        success: false,
+        error: `Lỗi kết nối Gemini API (${res.status}). Vui lòng kiểm tra API Key.`
+      };
+    }
+
+    const data = await res.json();
+    const candidateText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!candidateText) {
+      return { success: false, error: 'Không nhận được dữ liệu phản hồi từ AI Vision.' };
+    }
+
+    let parsed: any;
+    try {
+      parsed = JSON.parse(candidateText);
+    } catch (parseErr) {
+      const cleanJson = candidateText.replace(/```json/gi, '').replace(/```/g, '').trim();
+      parsed = JSON.parse(cleanJson);
+    }
+
+    // Double check & re-validate items with rule engine
+    const items: ReceiptItem[] = (parsed.items || []).map((it: any, idx: number) => {
+      const ruleClass = classifyReceiptItem(it.name || '');
+      // If rule engine says it's excluded (e.g. bia, wine, decor, vat), force exclude
+      const isFood = ruleClass.isFood ? Boolean(it.isFood ?? true) : false;
+      const unitPrice = Number(it.unitPrice) || Number(it.totalPrice) || 0;
+      const totalPrice = Number(it.totalPrice) || (unitPrice * (Number(it.quantity) || 1));
+
+      return {
+        id: `AI-ITEM-${idx + 1}`,
+        name: it.name || `Món #${idx + 1}`,
+        quantity: Number(it.quantity) || 1,
+        unitPrice,
+        totalPrice,
+        isFood,
+        category: ruleClass.category || it.category || (isFood ? 'food' : 'drink'),
+        reason: it.reason || ruleClass.reason
+      };
+    });
+
+    let totalFood = 0;
+    let totalExcluded = 0;
+    items.forEach(it => {
+      if (it.isFood) totalFood += it.totalPrice;
+      else totalExcluded += it.totalPrice;
+    });
+
+    const result: ReceiptScanResult = {
+      restaurantName: parsed.restaurantName || 'Nhà hàng Mây',
+      tableName: parsed.tableName || '',
+      date: parsed.date || '',
+      items,
+      totalReceipt: totalFood + totalExcluded,
+      totalFood,
+      totalExcluded,
+      imageUrl: base64Image.length < 600000 ? base64Image : undefined
+    };
+
+    return { success: true, result };
+  } catch (err: any) {
+    console.error('Error in parseReceiptWithGeminiAction:', err);
+    return {
+      success: false,
+      error: err.message || 'Đã xảy ra lỗi khi bóc tách hóa đơn bằng AI.'
+    };
+  }
 }
 
 export async function deleteStaffCommissionAction(id: string) {

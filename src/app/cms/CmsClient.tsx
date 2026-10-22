@@ -39,12 +39,15 @@ import {
   X,
   Users,
   Phone,
-  RotateCcw
+  RotateCcw,
+  Camera,
+  Eye
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import ReceiptScannerModal from '@/components/ReceiptScannerModal';
 
 interface CmsClientProps {
   initialCommissions: CommissionEntry[];
@@ -134,6 +137,16 @@ export default function CmsClient({ initialCommissions, initialUser }: CmsClient
   const [formCustomReward, setFormCustomReward] = useState<number | ''>(100000);
   const [formTableOrRoom, setFormTableOrRoom] = useState('Mây 104');
   const [formNote, setFormNote] = useState('');
+
+  // Receipt Scanner Modal States
+  const [isReceiptScanOpen, setIsReceiptScanOpen] = useState(false);
+  const [formBillFoodAmount, setFormBillFoodAmount] = useState<number | undefined>(undefined);
+  const [formBillExcludedAmount, setFormBillExcludedAmount] = useState<number | undefined>(undefined);
+  const [formBillItemsSummary, setFormBillItemsSummary] = useState<string>('');
+  const [formBillImageUrl, setFormBillImageUrl] = useState<string | undefined>(undefined);
+
+  // Viewing Audit Receipt Modal
+  const [viewingReceiptEntry, setViewingReceiptEntry] = useState<CommissionEntry | null>(null);
 
   // Check role permissions
   const canEdit = initialUser?.role === 'admin' || initialUser?.role === 'supervisor';
@@ -245,7 +258,33 @@ export default function CmsClient({ initialCommissions, initialUser }: CmsClient
     setFormDate(todayStr);
     setFormTime(curTime);
     updateDayOfWeekPercent(todayStr);
+    setFormBillFoodAmount(undefined);
+    setFormBillExcludedAmount(undefined);
+    setFormBillItemsSummary('');
+    setFormBillImageUrl(undefined);
     setIsModalOpen(true);
+  };
+
+  const handleApplyReceiptResult = (data: {
+    billFoodAmount: number;
+    billAmount: number;
+    billPercent: number;
+    billExcludedAmount: number;
+    billItemsSummary: string;
+    billImageUrl?: string;
+    tableName?: string;
+  }) => {
+    setFormCategory('booking_bill');
+    setFormBillAmount(data.billFoodAmount);
+    setFormBillPercent(data.billPercent);
+    setFormBillFoodAmount(data.billFoodAmount);
+    setFormBillExcludedAmount(data.billExcludedAmount);
+    setFormBillItemsSummary(data.billItemsSummary);
+    if (data.billImageUrl) setFormBillImageUrl(data.billImageUrl);
+    if (data.tableName) setFormTableOrRoom(data.tableName);
+    if (data.billItemsSummary) {
+      setFormNote(`[Bill ${data.billAmount.toLocaleString('vi-VN')} đ | Đồ ăn: ${data.billFoodAmount.toLocaleString('vi-VN')} đ | Trừ: ${data.billExcludedAmount.toLocaleString('vi-VN')} đ]`);
+    }
   };
 
   const calculateModalReward = () => {
@@ -308,6 +347,10 @@ export default function CmsClient({ initialCommissions, initialUser }: CmsClient
         quantity: formQuantity,
         billAmount: formCategory === 'booking_bill' ? (typeof formBillAmount === 'number' ? formBillAmount : undefined) : undefined,
         billPercent: formCategory === 'booking_bill' ? formBillPercent : undefined,
+        billFoodAmount: formCategory === 'booking_bill' ? formBillFoodAmount : undefined,
+        billExcludedAmount: formCategory === 'booking_bill' ? formBillExcludedAmount : undefined,
+        billItemsSummary: formCategory === 'booking_bill' ? formBillItemsSummary : undefined,
+        billImageUrl: formCategory === 'booking_bill' ? formBillImageUrl : undefined,
         totalReward,
         tableOrRoom: formTableOrRoom.trim() || undefined,
         note: formNote.trim() || undefined,
@@ -952,6 +995,20 @@ export default function CmsClient({ initialCommissions, initialUser }: CmsClient
                     </span>
                   </div>
 
+                  {/* Scanned Bill Breakdown Button if available */}
+                  {c.billFoodAmount && (
+                    <div className="pt-1 flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={() => setViewingReceiptEntry(c)}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-semibold hover:bg-emerald-100 transition-colors"
+                      >
+                        <Eye className="w-3 h-3 text-emerald-600" />
+                        <span>Xem bill bóc tách: {c.billFoodAmount.toLocaleString('vi-VN')} đ đồ ăn</span>
+                      </button>
+                    </div>
+                  )}
+
                   {/* Note & Timestamp */}
                   <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5 border-t border-slate-200/50">
                     <span className="truncate max-w-[210px] italic">{c.note || 'Không có ghi chú'}</span>
@@ -1322,14 +1379,53 @@ export default function CmsClient({ initialCommissions, initialUser }: CmsClient
 
             {formCategory === 'booking_bill' && (
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                {/* AI Receipt Scanner Trigger Button */}
+                <Button
+                  type="button"
+                  onClick={() => setIsReceiptScanOpen(true)}
+                  className="w-full bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 text-white font-bold text-xs py-2.5 rounded-xl shadow-xs flex items-center justify-center gap-2 border border-amber-400/40"
+                >
+                  <Camera className="w-4 h-4 text-amber-100" />
+                  <span>Quét Ảnh Hóa Đơn AI (Chỉ tính đồ ăn)</span>
+                  <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded-md font-extrabold uppercase">Tự động</span>
+                </Button>
+
+                {/* Scanned Food Summary Pill if available */}
+                {formBillFoodAmount !== undefined && (
+                  <div className="p-2.5 bg-emerald-50 rounded-lg border border-emerald-200 text-xs space-y-1">
+                    <div className="flex items-center justify-between text-emerald-800 font-bold">
+                      <span className="flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                        Đã bóc tách đồ ăn thành công
+                      </span>
+                      <span>+{formBillFoodAmount.toLocaleString('vi-VN')} đ</span>
+                    </div>
+                    {formBillExcludedAmount !== undefined && (
+                      <p className="text-[11px] text-slate-500">
+                        Đã loại trừ: <strong>{formBillExcludedAmount.toLocaleString('vi-VN')} đ</strong> (Bia, Rượu, Decor, Nước, VAT)
+                      </p>
+                    )}
+                    {formBillItemsSummary && (
+                      <p className="text-[10px] text-slate-400 italic truncate">
+                        Món: {formBillItemsSummary}
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label className="text-xs">Tổng tiền bill thanh toán (VNĐ)</Label>
+                    <Label className="text-xs">
+                      {formBillFoodAmount !== undefined ? 'Tiền đồ ăn tính CMS (VNĐ)' : 'Tổng tiền bill thanh toán (VNĐ)'}
+                    </Label>
                     <Input
                       type="number"
                       step="50000"
                       value={formBillAmount}
-                      onChange={(e) => setFormBillAmount(e.target.value === '' ? '' : parseInt(e.target.value) || 0)}
+                      onChange={(e) => {
+                        setFormBillAmount(e.target.value === '' ? '' : parseInt(e.target.value) || 0);
+                        setFormBillFoodAmount(undefined);
+                      }}
                       placeholder="VD: 8000000"
                       required
                     />
@@ -1341,8 +1437,8 @@ export default function CmsClient({ initialCommissions, initialUser }: CmsClient
                       onChange={(e) => setFormBillPercent(Number(e.target.value))}
                       className="w-full text-xs p-2 rounded-lg border border-slate-300 bg-white"
                     >
-                      <option value={2}>Thứ 2 - Thứ 5: 2% Tổng bill</option>
-                      <option value={1}>Thứ 6, 7, CN: 1% Tổng bill</option>
+                      <option value={2}>Thứ 2 - Thứ 5: 2% Đồ ăn</option>
+                      <option value={1}>Thứ 6, 7, CN: 1% Đồ ăn</option>
                     </select>
                   </div>
                 </div>
@@ -1422,6 +1518,85 @@ export default function CmsClient({ initialCommissions, initialUser }: CmsClient
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* AI Receipt Scanner Modal */}
+      <ReceiptScannerModal
+        isOpen={isReceiptScanOpen}
+        onClose={() => setIsReceiptScanOpen(false)}
+        defaultPercent={formBillPercent}
+        onApplyResult={handleApplyReceiptResult}
+      />
+
+      {/* Audit Receipt Dialog */}
+      <Dialog open={!!viewingReceiptEntry} onOpenChange={() => setViewingReceiptEntry(null)}>
+        <DialogContent className="max-w-md p-5 bg-white max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="pb-2 border-b">
+            <DialogTitle className="text-base font-bold text-slate-800 flex items-center gap-2">
+              <FileText className="w-4 h-4 text-amber-600" />
+              Chi Tiết Bóc Tách Hóa Đơn AI
+            </DialogTitle>
+          </DialogHeader>
+
+          {viewingReceiptEntry && (
+            <div className="space-y-3 text-xs pt-2">
+              <div className="p-3 bg-amber-50/70 rounded-xl border border-amber-200/60 space-y-1">
+                <div className="flex justify-between font-bold text-slate-800">
+                  <span>Nhân viên: {viewingReceiptEntry.staffName}</span>
+                  <span className="text-amber-800">+{viewingReceiptEntry.totalReward.toLocaleString('vi-VN')} đ ({viewingReceiptEntry.billPercent}%)</span>
+                </div>
+                <div className="text-[11px] text-slate-500">
+                  Phòng/Bàn: {viewingReceiptEntry.tableOrRoom || 'Chung'} | Ghi nhận: {viewingReceiptEntry.createdByName} lúc {viewingReceiptEntry.time} ngày {viewingReceiptEntry.date}
+                </div>
+              </div>
+
+              {viewingReceiptEntry.billFoodAmount && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="p-2.5 bg-emerald-50 rounded-lg border border-emerald-200">
+                    <span className="text-[10px] uppercase font-bold text-emerald-700">Đồ ăn tính CMS</span>
+                    <div className="text-sm font-bold text-emerald-800 mt-0.5">
+                      {viewingReceiptEntry.billFoodAmount.toLocaleString('vi-VN')} đ
+                    </div>
+                  </div>
+                  <div className="p-2.5 bg-rose-50 rounded-lg border border-rose-200">
+                    <span className="text-[10px] uppercase font-bold text-rose-600">Đã loại trừ</span>
+                    <div className="text-sm font-bold text-rose-700 mt-0.5">
+                      {viewingReceiptEntry.billExcludedAmount ? `${viewingReceiptEntry.billExcludedAmount.toLocaleString('vi-VN')} đ` : 'Bia, rượu, decor, vat'}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {viewingReceiptEntry.billItemsSummary && (
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+                  <span className="font-semibold text-slate-700">Danh sách món ăn hợp lệ:</span>
+                  <p className="text-[11px] text-slate-600 leading-relaxed font-mono">
+                    {viewingReceiptEntry.billItemsSummary}
+                  </p>
+                </div>
+              )}
+
+              {viewingReceiptEntry.billImageUrl && (
+                <div className="space-y-1">
+                  <span className="font-semibold text-slate-700">Ảnh chụp hóa đơn đối soát:</span>
+                  <div className="relative max-h-60 overflow-hidden rounded-xl border border-slate-200">
+                    <img 
+                      src={viewingReceiptEntry.billImageUrl} 
+                      alt="Ảnh hóa đơn đối soát" 
+                      className="w-full h-auto object-contain max-h-60" 
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-2 text-right">
+                <Button size="sm" onClick={() => setViewingReceiptEntry(null)} className="text-xs">
+                  Đóng
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

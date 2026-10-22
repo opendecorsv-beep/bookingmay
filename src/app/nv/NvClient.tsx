@@ -27,8 +27,10 @@ import {
   Percent, 
   User, 
   FileText,
-  Info
+  Info,
+  Eye
 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -45,6 +47,7 @@ export default function NvClient({ initialCommissions, initialUser }: NvClientPr
   const [commissions] = useState<CommissionEntry[]>(initialCommissions);
   const [filter, setFilter] = useState<TimeFilter>('month');
   const [searchQuery, setSearchQuery] = useState('');
+  const [viewingReceiptEntry, setViewingReceiptEntry] = useState<CommissionEntry | null>(null);
 
   // Login Form State
   const [loginId, setLoginId] = useState('');
@@ -595,6 +598,20 @@ export default function NvClient({ initialCommissions, initialUser }: NvClientPr
                     </span>
                   </div>
 
+                  {/* Scanned Bill Breakdown Button if available */}
+                  {c.billFoodAmount && (
+                    <div className="pt-1 flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={() => setViewingReceiptEntry(c)}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-semibold hover:bg-emerald-100 transition-colors"
+                      >
+                        <Eye className="w-3 h-3 text-emerald-600" />
+                        <span>Xem bill bóc tách: {c.billFoodAmount.toLocaleString('vi-VN')} đ đồ ăn</span>
+                      </button>
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5 border-t border-slate-200/50">
                     <span className="truncate max-w-[210px] italic">{c.note || 'Không có ghi chú'}</span>
                     <span>vào {c.time} ngày {c.date}</span>
@@ -694,6 +711,77 @@ export default function NvClient({ initialCommissions, initialUser }: NvClientPr
           </div>
         </div>
       </div>
+
+      {/* Audit Receipt Dialog for Staff Transparency */}
+      <Dialog open={!!viewingReceiptEntry} onOpenChange={() => setViewingReceiptEntry(null)}>
+        <DialogContent className="max-w-md p-5 bg-white max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="pb-2 border-b">
+            <DialogTitle className="text-base font-bold text-slate-800 flex items-center gap-2">
+              <FileText className="w-4 h-4 text-amber-600" />
+              Chi Tiết Bóc Tách Hóa Đơn Của Bạn
+            </DialogTitle>
+          </DialogHeader>
+
+          {viewingReceiptEntry && (
+            <div className="space-y-3 text-xs pt-2">
+              <div className="p-3 bg-amber-50/70 rounded-xl border border-amber-200/60 space-y-1">
+                <div className="flex justify-between font-bold text-slate-800">
+                  <span>Nhân viên: {viewingReceiptEntry.staffName}</span>
+                  <span className="text-amber-800">+{viewingReceiptEntry.totalReward.toLocaleString('vi-VN')} đ ({viewingReceiptEntry.billPercent}%)</span>
+                </div>
+                <div className="text-[11px] text-slate-500">
+                  Phòng/Bàn: {viewingReceiptEntry.tableOrRoom || 'Chung'} | Giám sát duyệt: {viewingReceiptEntry.createdByName} lúc {viewingReceiptEntry.time} ngày {viewingReceiptEntry.date}
+                </div>
+              </div>
+
+              {viewingReceiptEntry.billFoodAmount && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="p-2.5 bg-emerald-50 rounded-lg border border-emerald-200">
+                    <span className="text-[10px] uppercase font-bold text-emerald-700">Đồ ăn tính CMS</span>
+                    <div className="text-sm font-bold text-emerald-800 mt-0.5">
+                      {viewingReceiptEntry.billFoodAmount.toLocaleString('vi-VN')} đ
+                    </div>
+                  </div>
+                  <div className="p-2.5 bg-rose-50 rounded-lg border border-rose-200">
+                    <span className="text-[10px] uppercase font-bold text-rose-600">Đã loại trừ</span>
+                    <div className="text-sm font-bold text-rose-700 mt-0.5">
+                      {viewingReceiptEntry.billExcludedAmount ? `${viewingReceiptEntry.billExcludedAmount.toLocaleString('vi-VN')} đ` : 'Bia, rượu, decor, vat'}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {viewingReceiptEntry.billItemsSummary && (
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+                  <span className="font-semibold text-slate-700">Danh sách món ăn được tính:</span>
+                  <p className="text-[11px] text-slate-600 leading-relaxed font-mono">
+                    {viewingReceiptEntry.billItemsSummary}
+                  </p>
+                </div>
+              )}
+
+              {viewingReceiptEntry.billImageUrl && (
+                <div className="space-y-1">
+                  <span className="font-semibold text-slate-700">Ảnh hóa đơn đối soát:</span>
+                  <div className="relative max-h-60 overflow-hidden rounded-xl border border-slate-200">
+                    <img 
+                      src={viewingReceiptEntry.billImageUrl} 
+                      alt="Ảnh hóa đơn đối soát" 
+                      className="w-full h-auto object-contain max-h-60" 
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-2 text-right">
+                <Button size="sm" onClick={() => setViewingReceiptEntry(null)} className="text-xs">
+                  Đóng
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -220,6 +220,28 @@ export const defaultSeafoodCategories: SeafoodCategory[] = [
 
 export type CommissionCategory = 'product' | 'booking_bill' | 'wine' | 'custom';
 
+export interface ReceiptItem {
+  id: string;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+  isFood: boolean;
+  category: 'food' | 'drink' | 'wine' | 'decor' | 'tax' | 'other';
+  reason?: string;
+}
+
+export interface ReceiptScanResult {
+  restaurantName?: string;
+  tableName?: string;
+  date?: string;
+  items: ReceiptItem[];
+  totalReceipt: number;
+  totalFood: number;
+  totalExcluded: number;
+  imageUrl?: string;
+}
+
 export interface CommissionEntry {
   id: string; // e.g. "CMS-20261020-1234"
   date: string; // "YYYY-MM-DD"
@@ -229,8 +251,12 @@ export interface CommissionEntry {
   productName?: string; // e.g. "Cá bơn", "Vang > 3tr", "Bàn booking T2-T5"
   unitPriceOrReward: number; // VNĐ
   quantity: number; // Số lượng (con, chai, bàn...)
-  billAmount?: number; // Tổng bill nếu tính % bill
+  billAmount?: number; // Tổng bill gốc nếu tính % bill
   billPercent?: number; // 1% hoặc 2%
+  billFoodAmount?: number; // Tổng tiền đồ ăn thực tế được tính hoa hồng
+  billExcludedAmount?: number; // Tổng tiền bia, rượu, decor, nước, vat bị loại trừ
+  billItemsSummary?: string; // Tóm tắt danh sách món đồ ăn đã bóc tách
+  billImageUrl?: string; // Ảnh hóa đơn đính kèm (base64 thumbnail hoặc URL)
   totalReward: number; // Tổng tiền thưởng nhận được (VNĐ)
   tableOrRoom?: string; // Bàn / phòng phục vụ (vd: "Mây 102", "Bàn 14")
   note?: string; // Ghi chú thêm
