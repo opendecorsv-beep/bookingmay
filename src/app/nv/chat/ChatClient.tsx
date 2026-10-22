@@ -40,7 +40,10 @@ import {
   Wifi,
   PhoneCall,
   Flame,
-  ArrowDown
+  ArrowDown,
+  Volume1,
+  Sliders,
+  X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -53,17 +56,33 @@ interface ChatClientProps {
 }
 
 type ChannelFilter = 'all' | 'urgent' | 'bill' | 'kitchen' | 'my_station';
+export type VolumeMode = 'normal' | 'loud' | 'max_cashier';
 
-// Sound Engine using Web Audio API (100% reliable across all browsers & devices)
+// Sound Engine using Web Audio API with DynamicsCompressor & Harmonic Synthesis
 class SoundEngine {
   private ctx: AudioContext | null = null;
+  private compressor: DynamicsCompressorNode | null = null;
+  private masterGain: GainNode | null = null;
 
-  private getContext(): AudioContext | null {
+  public initAudio(): AudioContext | null {
     if (typeof window === 'undefined') return null;
     if (!this.ctx) {
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       if (AudioCtx) {
         this.ctx = new AudioCtx();
+        // Master Dynamics Compressor: Pushes perceived volume to the max without distortion
+        this.compressor = this.ctx.createDynamicsCompressor();
+        this.compressor.threshold.setValueAtTime(-22, this.ctx.currentTime);
+        this.compressor.knee.setValueAtTime(30, this.ctx.currentTime);
+        this.compressor.ratio.setValueAtTime(12, this.ctx.currentTime);
+        this.compressor.attack.setValueAtTime(0.002, this.ctx.currentTime);
+        this.compressor.release.setValueAtTime(0.2, this.ctx.currentTime);
+
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
+
+        this.compressor.connect(this.masterGain);
+        this.masterGain.connect(this.ctx.destination);
       }
     }
     if (this.ctx && this.ctx.state === 'suspended') {
@@ -72,69 +91,125 @@ class SoundEngine {
     return this.ctx;
   }
 
-  // Melodic ping-dong chime for regular messages
-  playChime() {
+  private playTone(
+    ctx: AudioContext,
+    freq: number,
+    startTime: number,
+    duration: number,
+    gainLevel: number,
+    waveType: OscillatorType = 'triangle'
+  ) {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = waveType;
+    osc.frequency.setValueAtTime(freq, startTime);
+    osc.frequency.exponentialRampToValueAtTime(freq * 0.995, startTime + duration);
+
+    gain.gain.setValueAtTime(gainLevel, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+    osc.connect(gain);
+    if (this.compressor) {
+      gain.connect(this.compressor);
+    } else {
+      gain.connect(ctx.destination);
+    }
+
+    osc.start(startTime);
+    osc.stop(startTime + duration);
+  }
+
+  // Melodic metallic chime for regular messages
+  playChime(mode: VolumeMode = 'max_cashier') {
     try {
-      const ctx = this.getContext();
+      const ctx = this.initAudio();
       if (!ctx) return;
       const now = ctx.currentTime;
 
-      // Note 1: 880Hz (A5)
-      const osc1 = ctx.createOscillator();
-      const gain1 = ctx.createGain();
-      osc1.type = 'sine';
-      osc1.frequency.setValueAtTime(880, now);
-      gain1.gain.setValueAtTime(0.2, now);
-      gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
-      osc1.connect(gain1);
-      gain1.connect(ctx.destination);
-      osc1.start(now);
-      osc1.stop(now + 0.3);
+      if (mode === 'max_cashier') {
+        // High-penetration metallic brass bell chime (C6 + E6 + G6)
+        this.playTone(ctx, 1046.5, now, 0.45, 0.95, 'triangle');
+        this.playTone(ctx, 1568.0, now, 0.45, 0.75, 'square');
+        this.playTone(ctx, 2093.0, now, 0.35, 0.5, 'sine');
 
-      // Note 2: 1320Hz (E6)
-      const osc2 = ctx.createOscillator();
-      const gain2 = ctx.createGain();
-      osc2.type = 'sine';
-      osc2.frequency.setValueAtTime(1320, now + 0.1);
-      gain2.gain.setValueAtTime(0.25, now + 0.1);
-      gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
-      osc2.connect(gain2);
-      gain2.connect(ctx.destination);
-      osc2.start(now + 0.1);
-      osc2.stop(now + 0.5);
+        // Second strike
+        this.playTone(ctx, 1318.5, now + 0.18, 0.65, 1.0, 'triangle');
+        this.playTone(ctx, 1975.5, now + 0.18, 0.65, 0.8, 'square');
+        this.playTone(ctx, 2637.0, now + 0.18, 0.55, 0.5, 'sine');
+      } else if (mode === 'loud') {
+        this.playTone(ctx, 880, now, 0.35, 0.65, 'triangle');
+        this.playTone(ctx, 1320, now + 0.12, 0.5, 0.75, 'triangle');
+      } else {
+        // Normal
+        this.playTone(ctx, 880, now, 0.3, 0.3, 'sine');
+        this.playTone(ctx, 1320, now + 0.1, 0.4, 0.35, 'sine');
+      }
     } catch (e) {
-      // Audio autoplay restriction fallback
+      console.warn('Audio play error:', e);
     }
   }
 
-  // Attention-grabbing alert chime for urgent requests / in bill
-  playUrgentAlert() {
+  // Piercing alert chime / ringtone for urgent requests & bill requests
+  playUrgentAlert(mode: VolumeMode = 'max_cashier') {
     try {
-      const ctx = this.getContext();
+      const ctx = this.initAudio();
       if (!ctx) return;
       const now = ctx.currentTime;
 
-      const tones = [659.25, 880, 1174.66, 880, 1318.51];
-      tones.forEach((freq, idx) => {
-        const t = now + idx * 0.09;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(freq, t);
-        gain.gain.setValueAtTime(0.35, t);
-        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(t);
-        osc.stop(t + 0.14);
-      });
+      if (mode === 'max_cashier') {
+        // LOUD RESTAURANT POS RINGTONE: 3 rapid bursts of dual-tone alarm rings (RENG RENG RENG!)
+        // Lasts ~ 1.8 seconds - IMPOSSIBLE to miss in a noisy restaurant
+        const cycles = 3;
+        const cycleInterval = 0.55;
 
-      // Mobile vibration
-      if (typeof navigator !== 'undefined' && navigator.vibrate) {
-        navigator.vibrate([200, 100, 250, 100, 300]);
+        for (let c = 0; c < cycles; c++) {
+          const t0 = now + c * cycleInterval;
+          // Pulse 1
+          this.playTone(ctx, 987.77, t0, 0.14, 0.95, 'square');
+          this.playTone(ctx, 1479.98, t0, 0.14, 0.85, 'triangle');
+
+          // Pulse 2
+          this.playTone(ctx, 1174.66, t0 + 0.13, 0.14, 1.0, 'square');
+          this.playTone(ctx, 1760.0, t0 + 0.13, 0.14, 0.9, 'triangle');
+
+          // Pulse 3 (Climax ring)
+          this.playTone(ctx, 1318.51, t0 + 0.26, 0.25, 1.0, 'square');
+          this.playTone(ctx, 2093.0, t0 + 0.26, 0.25, 0.95, 'triangle');
+        }
+
+        // Heavy mobile vibration
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+          navigator.vibrate([300, 100, 300, 100, 500, 150, 500]);
+        }
+      } else if (mode === 'loud') {
+        for (let c = 0; c < 2; c++) {
+          const t0 = now + c * 0.45;
+          this.playTone(ctx, 880, t0, 0.12, 0.7, 'triangle');
+          this.playTone(ctx, 1175, t0 + 0.12, 0.12, 0.75, 'triangle');
+          this.playTone(ctx, 1568, t0 + 0.24, 0.18, 0.8, 'triangle');
+        }
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+          navigator.vibrate([200, 100, 200, 100, 300]);
+        }
+      } else {
+        const tones = [659.25, 880, 1174.66, 880, 1318.51];
+        tones.forEach((freq, idx) => {
+          this.playTone(ctx, freq, now + idx * 0.09, 0.14, 0.35, 'triangle');
+        });
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+          navigator.vibrate([150, 100, 200]);
+        }
       }
     } catch (e) {
-      // Audio autoplay restriction fallback
+      console.warn('Urgent alert play error:', e);
+    }
+  }
+
+  public resume() {
+    this.initAudio();
+    if (this.ctx && this.ctx.state === 'suspended') {
+      this.ctx.resume().catch(() => {});
     }
   }
 }
@@ -147,6 +222,15 @@ export default function ChatClient({ initialMessages, initialUser }: ChatClientP
   const [activeStaffName, setActiveStaffName] = useState<string>('');
   const [isStationModalOpen, setIsStationModalOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [volumeMode, setVolumeMode] = useState<VolumeMode>('max_cashier');
+  const [isSoundModalOpen, setIsSoundModalOpen] = useState(false);
+  const [audioUnlocked, setAudioUnlocked] = useState(false);
+  const [urgentAlertBanner, setUrgentAlertBanner] = useState<{
+    stationName: string;
+    content: string;
+    type: ChatMessageType;
+  } | null>(null);
+  const [soundTestPlaying, setSoundTestPlaying] = useState(false);
 
   // Form State
   const [inputText, setInputText] = useState('');
@@ -166,6 +250,7 @@ export default function ChatClient({ initialMessages, initialUser }: ChatClientP
       const savedStation = localStorage.getItem('may_chat_station') as ChatStationId;
       const savedStaff = localStorage.getItem('may_chat_staff');
       const savedSound = localStorage.getItem('may_chat_sound');
+      const savedVolume = localStorage.getItem('may_chat_volume_mode') as VolumeMode;
 
       if (savedStation && CHAT_STATIONS.some(s => s.id === savedStation)) {
         setActiveStationId(savedStation);
@@ -184,6 +269,12 @@ export default function ChatClient({ initialMessages, initialUser }: ChatClientP
 
       if (savedSound !== null) {
         setSoundEnabled(savedSound === 'true');
+      }
+
+      if (savedVolume && ['normal', 'loud', 'max_cashier'].includes(savedVolume)) {
+        setVolumeMode(savedVolume);
+      } else {
+        setVolumeMode('max_cashier'); // Default to max_cashier so Thu ngân never misses alerts!
       }
     }
   }, [initialUser]);
@@ -221,10 +312,17 @@ export default function ChatClient({ initialMessages, initialUser }: ChatClientP
 
         // Trigger ringtone / vibration if sound is enabled
         if (soundEnabled) {
-          if (newMsg.isUrgent || newMsg.type === 'bill_request' || newMsg.type === 'urgent_call') {
-            soundEngine.playUrgentAlert();
+          const isUrgentMsg = newMsg.isUrgent || newMsg.type === 'bill_request' || newMsg.type === 'urgent_call';
+          if (isUrgentMsg) {
+            soundEngine.playUrgentAlert(volumeMode);
+            // Show prominent visual banner for Cashier and all staff
+            setUrgentAlertBanner({
+              stationName: newMsg.stationName,
+              content: newMsg.content,
+              type: newMsg.type
+            });
           } else {
-            soundEngine.playChime();
+            soundEngine.playChime(volumeMode);
           }
         }
 
@@ -240,7 +338,7 @@ export default function ChatClient({ initialMessages, initialUser }: ChatClientP
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [soundEnabled]);
+  }, [soundEnabled, volumeMode]);
 
   // Detect scroll position to show / hide "scroll to bottom" button
   const handleScroll = () => {
@@ -255,6 +353,14 @@ export default function ChatClient({ initialMessages, initialUser }: ChatClientP
     setActiveStationId(stationId);
     localStorage.setItem('may_chat_station', stationId);
 
+    // If selecting Thu Ngân, automatically ensure volumeMode is max_cashier
+    if (stationId === 'thu_ngan') {
+      setVolumeMode('max_cashier');
+      setSoundEnabled(true);
+      localStorage.setItem('may_chat_volume_mode', 'max_cashier');
+      localStorage.setItem('may_chat_sound', 'true');
+    }
+
     if (staffName) {
       setActiveStaffName(staffName);
       localStorage.setItem('may_chat_staff', staffName);
@@ -262,14 +368,15 @@ export default function ChatClient({ initialMessages, initialUser }: ChatClientP
     setIsStationModalOpen(false);
   };
 
-  // Toggle sound
-  const handleToggleSound = () => {
-    const nextVal = !soundEnabled;
-    setSoundEnabled(nextVal);
-    localStorage.setItem('may_chat_sound', String(nextVal));
-    if (nextVal) {
-      soundEngine.playChime();
-    }
+  // Test ringtone
+  const handleTestRingtone = (mode: VolumeMode = volumeMode) => {
+    soundEngine.resume();
+    setAudioUnlocked(true);
+    setSoundTestPlaying(true);
+    soundEngine.playUrgentAlert(mode);
+    setTimeout(() => {
+      setSoundTestPlaying(false);
+    }, 2000);
   };
 
   // Send message
@@ -401,7 +508,9 @@ export default function ChatClient({ initialMessages, initialUser }: ChatClientP
   };
 
   return (
-    <div className="max-w-4xl mx-auto flex flex-col h-[calc(100vh-8rem)] min-h-[550px] bg-white rounded-2xl border border-slate-200/90 shadow-lg overflow-hidden text-slate-800">
+    <div className={`max-w-4xl mx-auto flex flex-col h-[calc(100vh-8rem)] min-h-[550px] bg-white rounded-2xl border border-slate-200/90 shadow-lg overflow-hidden text-slate-800 transition-all ${
+      urgentAlertBanner ? 'ring-4 ring-rose-500 shadow-2xl' : ''
+    }`}>
       
       {/* 1. COMPACT TOP STATION & CONTROLS HEADER */}
       <div className="bg-slate-900 text-white px-3 sm:px-4 py-2.5 flex items-center justify-between gap-2 border-b border-slate-800 shrink-0">
@@ -431,20 +540,39 @@ export default function ChatClient({ initialMessages, initialUser }: ChatClientP
           </div>
         </div>
 
-        {/* Right: Sound Toggle, Change Staff & Clear Action */}
+        {/* Right: Sound Level Button, Clear Action */}
         <div className="flex items-center gap-1.5 shrink-0">
           <button
             type="button"
-            onClick={handleToggleSound}
-            className={`p-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1 transition-all ${
-              soundEnabled
-                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30'
-                : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-slate-200'
+            onClick={() => {
+              soundEngine.resume();
+              setAudioUnlocked(true);
+              setIsSoundModalOpen(true);
+            }}
+            className={`px-2.5 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all ${
+              !soundEnabled
+                ? 'bg-slate-800 text-slate-400 border-slate-700 hover:text-slate-200'
+                : volumeMode === 'max_cashier'
+                  ? 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 border-amber-500/50 shadow-xs'
+                  : 'bg-slate-800 text-amber-300 border-slate-700 hover:bg-slate-700'
             }`}
-            title={soundEnabled ? 'Chuông đang BẬT (bấm để tắt)' : 'Chuông đang TẮT (bấm để bật)'}
+            title="Bấm để cài đặt âm lượng chuông báo Thu Ngân & Thử loa"
           >
-            {soundEnabled ? <Volume2 className="w-4 h-4 text-amber-300" /> : <VolumeX className="w-4 h-4" />}
-            <span className="hidden sm:inline text-[11px]">{soundEnabled ? 'Chuông' : 'Mute'}</span>
+            {!soundEnabled ? (
+              <VolumeX className="w-4 h-4 text-slate-400" />
+            ) : volumeMode === 'max_cashier' ? (
+              <div className="flex items-center gap-1">
+                <Volume2 className="w-4 h-4 text-amber-300 animate-pulse" />
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping"></span>
+              </div>
+            ) : volumeMode === 'loud' ? (
+              <Volume2 className="w-4 h-4 text-amber-300" />
+            ) : (
+              <Volume1 className="w-4 h-4 text-slate-300" />
+            )}
+            <span className="text-[11px] font-bold">
+              {!soundEnabled ? 'Tắt Chuông' : (volumeMode === 'max_cashier' ? 'Chuông Cực Đại' : (volumeMode === 'loud' ? 'Chuông To' : 'Chuông Vừa'))}
+            </span>
           </button>
 
           {(initialUser?.role === 'admin' || initialUser?.role === 'supervisor') && messages.length > 0 && (
@@ -459,6 +587,61 @@ export default function ChatClient({ initialMessages, initialUser }: ChatClientP
           )}
         </div>
       </div>
+
+      {/* Autoplay Unlock Notice Banner */}
+      {!audioUnlocked && (
+        <div 
+          onClick={() => {
+            soundEngine.resume();
+            soundEngine.playChime(volumeMode);
+            setAudioUnlocked(true);
+          }}
+          className="bg-amber-400 hover:bg-amber-500 text-slate-950 px-3 py-1.5 text-xs font-bold flex items-center justify-between gap-2 cursor-pointer transition-colors shrink-0 shadow-xs"
+        >
+          <div className="flex items-center gap-1.5 min-w-0 truncate">
+            <Volume2 className="w-4 h-4 text-slate-950 shrink-0 animate-bounce" />
+            <span className="truncate">🔔 Thu Ngân & VIP: Nhấp vào đây để KÍCH HOẠT CHUÔNG TO (Mở quyền âm thanh)</span>
+          </div>
+          <span className="text-[10px] bg-slate-950 text-white px-2 py-0.5 rounded-md uppercase tracking-wider font-extrabold shrink-0">
+            Kích hoạt ngay
+          </span>
+        </div>
+      )}
+
+      {/* Urgent Message Flashing Banner for Cashier / Supervisor */}
+      {urgentAlertBanner && (
+        <div className="bg-rose-600 text-white px-3 py-2 text-xs flex items-center justify-between gap-2 shadow-md animate-pulse shrink-0 border-b border-rose-700 z-10">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="p-1 bg-white/20 rounded-md shrink-0 text-sm">🚨</span>
+            <div className="min-w-0">
+              <p className="font-extrabold truncate">
+                [{urgentAlertBanner.stationName}] YÊU CẦU: {urgentAlertBanner.content}
+              </p>
+              <span className="text-[10px] text-rose-200">Chuông báo dồn dập đang reo để Thu Ngân / Bếp xử lý ngay</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Button
+              size="sm"
+              onClick={() => {
+                const target = urgentAlertBanner.stationName;
+                handleSendMessage(`[${currentStation.shortName}] Đã tiếp nhận yêu cầu từ ${target}!`, 'resolved', false);
+                setUrgentAlertBanner(null);
+              }}
+              className="bg-white hover:bg-rose-50 text-rose-700 font-bold text-xs h-7 px-2.5 shadow-xs"
+            >
+              Xác Nhận Đã Nhận
+            </Button>
+            <button
+              onClick={() => setUrgentAlertBanner(null)}
+              className="text-white/80 hover:text-white p-1"
+              title="Tắt cảnh báo"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 2. CHANNEL / TOPIC FILTER TABS (COMPACT DENSE PILLS) */}
       <div className="bg-slate-100/90 border-b border-slate-200 px-3 py-1.5 flex items-center justify-between gap-1.5 overflow-x-auto scrollbar-hide shrink-0 text-xs">
@@ -841,6 +1024,211 @@ export default function ChatClient({ initialMessages, initialUser }: ChatClientP
                 Xác Nhận & Bắt Đầu Chat
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Cài Đặt Âm Lượng Chuông Báo Cho Thu Ngân */}
+      <Dialog open={isSoundModalOpen} onOpenChange={setIsSoundModalOpen}>
+        <DialogContent className="max-w-md bg-white p-6 rounded-2xl max-h-[92vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-center gap-2 mb-1">
+              <div className="p-2 bg-amber-100 text-amber-800 rounded-xl">
+                <Volume2 className="w-5 h-5" />
+              </div>
+              <DialogTitle className="text-base font-extrabold text-slate-900">
+                Cài Đặt Chuông Báo Thu Ngân
+              </DialogTitle>
+            </div>
+            <DialogDescription className="text-xs text-slate-500">
+              Tùy chỉnh cường độ chuông to dồn dập giúp Thu Ngân và Bếp luôn nghe rõ ngay cả khi nhà hàng đang đông đúc, ồn ào.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-2">
+            {/* Toggle bật/tắt chuông */}
+            <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl">
+              <div className="flex items-center gap-2">
+                {soundEnabled ? (
+                  <Volume2 className="w-4 h-4 text-emerald-600" />
+                ) : (
+                  <VolumeX className="w-4 h-4 text-slate-400" />
+                )}
+                <div>
+                  <span className="text-xs font-bold text-slate-800 block">Bật âm thanh thông báo</span>
+                  <span className="text-[10px] text-slate-500">Phát chuông khi phòng VIP gọi tính tiền, giục món</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const nextState = !soundEnabled;
+                  setSoundEnabled(nextState);
+                  localStorage.setItem('may_chat_sound', String(nextState));
+                  if (nextState) {
+                    soundEngine.resume();
+                    soundEngine.playChime(volumeMode);
+                  }
+                }}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  soundEnabled ? 'bg-amber-600' : 'bg-slate-300'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    soundEnabled ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Các mức âm lượng */}
+            <div className="space-y-2">
+              <label className="text-[11px] uppercase font-bold text-slate-600 tracking-wider block">
+                Chọn Cường Độ Chuông Báo:
+              </label>
+
+              {/* Mức 1: Cực Đại - Thu Ngân */}
+              <div
+                onClick={() => {
+                  setVolumeMode('max_cashier');
+                  setSoundEnabled(true);
+                  localStorage.setItem('may_chat_volume_mode', 'max_cashier');
+                  localStorage.setItem('may_chat_sound', 'true');
+                  handleTestRingtone('max_cashier');
+                }}
+                className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                  volumeMode === 'max_cashier' && soundEnabled
+                    ? 'border-amber-500 bg-amber-50/70 shadow-xs'
+                    : 'border-slate-200 hover:border-amber-200 bg-white'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">🚨</span>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-black text-amber-950">CỰC ĐẠI - THU NGÂN</span>
+                        <span className="text-[10px] bg-red-600 text-white font-extrabold px-1.5 py-0.2 rounded-sm uppercase">
+                          Khuyên dùng
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-amber-900/80 mt-0.5 leading-snug">
+                        3 hồi chuông báo dồn dập (<span className="font-bold text-amber-950">RENG RENG RENG!</span>) âm sắc bén, tần số xuyên âm thanh ồn ào.
+                      </p>
+                    </div>
+                  </div>
+                  {volumeMode === 'max_cashier' && soundEnabled && (
+                    <div className="w-5 h-5 rounded-full bg-amber-600 text-white flex items-center justify-center shrink-0">
+                      <Check className="w-3.5 h-3.5" />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Mức 2: To Rõ */}
+              <div
+                onClick={() => {
+                  setVolumeMode('loud');
+                  setSoundEnabled(true);
+                  localStorage.setItem('may_chat_volume_mode', 'loud');
+                  localStorage.setItem('may_chat_sound', 'true');
+                  handleTestRingtone('loud');
+                }}
+                className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                  volumeMode === 'loud' && soundEnabled
+                    ? 'border-amber-500 bg-amber-50/70 shadow-xs'
+                    : 'border-slate-200 hover:border-amber-200 bg-white'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">📢</span>
+                    <div>
+                      <span className="text-xs font-bold text-slate-900">CHUÔNG TO RÕ</span>
+                      <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                        2 hồi chuông rõ ràng, phù hợp cho phục vụ mang máy tính bảng hoặc quầy Bar.
+                      </p>
+                    </div>
+                  </div>
+                  {volumeMode === 'loud' && soundEnabled && (
+                    <div className="w-5 h-5 rounded-full bg-amber-600 text-white flex items-center justify-center shrink-0">
+                      <Check className="w-3.5 h-3.5" />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Mức 3: Bình Thường */}
+              <div
+                onClick={() => {
+                  setVolumeMode('normal');
+                  setSoundEnabled(true);
+                  localStorage.setItem('may_chat_volume_mode', 'normal');
+                  localStorage.setItem('may_chat_sound', 'true');
+                  handleTestRingtone('normal');
+                }}
+                className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                  volumeMode === 'normal' && soundEnabled
+                    ? 'border-amber-500 bg-amber-50/70 shadow-xs'
+                    : 'border-slate-200 hover:border-amber-200 bg-white'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">🔉</span>
+                    <div>
+                      <span className="text-xs font-bold text-slate-900">CHUÔNG VỪA PHẢI</span>
+                      <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                        Giai điệu ngắn 1 hồi nhẹ nhàng, thích hợp khi ở văn phòng yên tĩnh.
+                      </p>
+                    </div>
+                  </div>
+                  {volumeMode === 'normal' && soundEnabled && (
+                    <div className="w-5 h-5 rounded-full bg-amber-600 text-white flex items-center justify-center shrink-0">
+                      <Check className="w-3.5 h-3.5" />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Nút Test Loa Trực Tiếp */}
+            <div className="pt-2">
+              <Button
+                type="button"
+                onClick={() => handleTestRingtone(volumeMode)}
+                disabled={soundTestPlaying}
+                className="w-full bg-amber-600 hover:bg-amber-700 text-white font-extrabold h-11 rounded-xl shadow-md flex items-center justify-center gap-2"
+              >
+                {soundTestPlaying ? (
+                  <>
+                    <Volume2 className="w-5 h-5 animate-ping text-white" />
+                    <span>ĐANG REO CHUÔNG TEST (NGHE THỬ)...</span>
+                  </>
+                ) : (
+                  <>
+                    <Volume2 className="w-5 h-5" />
+                    <span>🔊 BẤM THỬ CHUÔNG THU NGÂN NGAY (TEST LOA)</span>
+                  </>
+                )}
+              </Button>
+            </div>
+
+            <div className="p-2.5 bg-amber-50 rounded-xl border border-amber-200 text-[11px] text-amber-900 flex items-start gap-2">
+              <span className="text-amber-600 font-bold shrink-0">💡 Lưu ý:</span>
+              <span>
+                Máy Thu Ngân nên kết nối loa quầy hoặc để volume thiết bị 100%. Nhấp vào màn hình ít nhất 1 lần để trình duyệt cho phép phát chuông tự động liên tục khi có bill mới.
+              </span>
+            </div>
+
+            <Button
+              type="button"
+              onClick={() => setIsSoundModalOpen(false)}
+              className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold h-10 rounded-xl"
+            >
+              Đã Xong & Lưu Cài Đặt
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
