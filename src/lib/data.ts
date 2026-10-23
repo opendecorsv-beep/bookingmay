@@ -41,6 +41,8 @@ export interface ReceptionEntry {
   guestsCount: number;
   room?: string;
   status: VisitStatus;
+  isCleaned?: boolean;
+  cleanedAt?: string;
   notes?: string;
   feedback?: ReceptionFeedback;
   createdAt: string;

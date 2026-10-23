@@ -237,12 +237,13 @@ export async function cleanRoomTableAction(params: {
   date?: string;
   bookingId?: string;
   receptionId?: string;
+  markCleaned?: boolean;
 }) {
-  const { roomName, date, bookingId, receptionId } = params;
+  const { roomName, date, bookingId, receptionId, markCleaned = true } = params;
   const targetDate = date ? date.split('T')[0] : undefined;
 
   try {
-    // 1. Đồng bộ bên Lễ Tân (CONFIG_RECEPTION): chuyển trạng thái khách sang 'left' (đã ra về)
+    // 1. Đồng bộ bên Lễ Tân (CONFIG_RECEPTION): chuyển trạng thái khách sang 'left' và cập nhật isCleaned
     const currentLogs = await getReceptionLogs();
     let receptionChanged = false;
     let linkedBookingIdFromLog: string | undefined;
@@ -252,7 +253,7 @@ export async function cleanRoomTableAction(params: {
         ? item.id === receptionId
         : (isSameRoom(item.room, roomName) &&
            (!targetDate || item.date === targetDate) &&
-           item.status === 'dining');
+           (item.status === 'dining' || (markCleaned && item.status === 'left' && !item.isCleaned)));
 
       if (isTarget) {
         receptionChanged = true;
@@ -260,6 +261,8 @@ export async function cleanRoomTableAction(params: {
         return {
           ...item,
           status: 'left' as VisitStatus,
+          isCleaned: markCleaned,
+          cleanedAt: markCleaned ? new Date().toISOString() : undefined,
           updatedAt: new Date().toISOString()
         };
       }
@@ -270,7 +273,7 @@ export async function cleanRoomTableAction(params: {
       await saveReceptionLogs(updatedLogs);
     }
 
-    // 2. Đồng bộ bên Đặt Bàn (bookings): chuyển receptionStatus & floorStatus sang 'clean'
+    // 2. Đồng bộ bên Đặt Bàn (bookings): chuyển receptionStatus & floorStatus sang 'clean' (nếu dọn xong) hoặc 'done' (nếu khách ra về chờ dọn)
     const allBookings = await getBookings();
     const targetBookingIds = new Set<string>();
 
@@ -278,13 +281,11 @@ export async function cleanRoomTableAction(params: {
     if (linkedBookingIdFromLog) targetBookingIds.add(linkedBookingIdFromLog);
 
     // Nếu không truyền bookingId cụ thể, chỉ tìm các booking ĐÃ ĐƯỢC PHỤC VỤ (in_progress / done) trong phòng đó
-    // TUYỆT ĐỐI KHÔNG tự tiện dọn các booking 'pending' (chưa đón tiếp, khách chưa vào) của ca sau!
     if (targetBookingIds.size === 0 && roomName && targetDate) {
       allBookings.forEach(b => {
         if (isSameRoom(b.room, roomName)) {
           const bDate = (b.dateTime || '').split('T')[0];
           if (bDate === targetDate && b.status !== 'cancelled' && b.receptionStatus !== 'clean') {
-            // Chỉ dọn nếu tiệc đã được checkin phục vụ (in_progress hoặc done)
             if (b.receptionStatus === 'in_progress' || b.receptionStatus === 'done') {
               targetBookingIds.add(b.id);
             }
@@ -296,8 +297,8 @@ export async function cleanRoomTableAction(params: {
     for (const bId of Array.from(targetBookingIds)) {
       try {
         await updateBookingData(bId, {
-          receptionStatus: 'clean',
-          floorStatus: 'clean'
+          receptionStatus: markCleaned ? 'clean' : 'done',
+          floorStatus: markCleaned ? 'clean' : 'done'
         });
       } catch (err) {
         console.error(`Error updating booking ${bId} to clean:`, err);
@@ -358,11 +359,37 @@ export async function resetCleanRoomAction(params: {
   bookingId?: string;
   roomName?: string;
   date?: string;
+  receptionId?: string;
 }) {
-  const { bookingId, roomName, date } = params;
+  const { bookingId, roomName, date, receptionId } = params;
   const targetDate = date ? date.split('T')[0] : undefined;
 
   try {
+    // 1. Reset reception log isCleaned flag
+    const currentLogs = await getReceptionLogs();
+    let receptionChanged = false;
+    const updatedLogs = currentLogs.map(item => {
+      const isTarget = receptionId
+        ? item.id === receptionId
+        : (roomName && isSameRoom(item.room, roomName) && (!targetDate || item.date === targetDate));
+
+      if (isTarget && item.isCleaned) {
+        receptionChanged = true;
+        return {
+          ...item,
+          isCleaned: false,
+          cleanedAt: undefined,
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return item;
+    });
+
+    if (receptionChanged) {
+      await saveReceptionLogs(updatedLogs);
+    }
+
+    // 2. Reset bookings
     const allBookings = await getBookings();
     const targetBookingIds = new Set<string>();
     if (bookingId) targetBookingIds.add(bookingId);
