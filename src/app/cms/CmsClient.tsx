@@ -1114,16 +1114,16 @@ export default function CmsClient({ initialCommissions, initialUser }: CmsClient
 
       {/* Modal: Ghi Nhận CMS Mới (Dành cho Giám Sát & Quản Lý) */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-xl max-h-[88dvh] overflow-y-auto p-3.5 sm:p-6">
           <DialogHeader>
-            <div className="flex items-center gap-2">
-              <div className="p-2 bg-amber-100 text-amber-700 rounded-xl">
-                <Sparkles className="w-5 h-5 text-amber-600" />
+            <div className="flex items-center gap-2 pr-6 sm:pr-0">
+              <div className="p-1.5 sm:p-2 bg-amber-100 text-amber-700 rounded-xl shrink-0">
+                <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600" />
               </div>
-              <DialogTitle className="text-lg sm:text-xl font-bold">Ghi Nhận CMS / Thưởng Bán Hàng</DialogTitle>
+              <DialogTitle className="text-base sm:text-xl font-bold truncate">Ghi Nhận CMS / Thưởng Bán Hàng</DialogTitle>
             </div>
-            <DialogDescription className="text-slate-500 text-xs pt-1">
-              Người ghi nhận hiện tại: <strong>{initialUser?.name || 'Giám Sát'} ({initialUser?.id})</strong>
+            <DialogDescription className="text-slate-500 text-xs pt-0.5 line-clamp-1">
+              Người ghi: <strong>{initialUser?.name || 'Giám Sát'} ({initialUser?.id})</strong>
             </DialogDescription>
           </DialogHeader>
 
@@ -1507,12 +1507,12 @@ export default function CmsClient({ initialCommissions, initialUser }: CmsClient
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)} disabled={isSubmitting}>
+            {/* Sticky Actions */}
+            <div className="sticky -bottom-3.5 sm:-bottom-6 -mx-3.5 sm:-mx-6 p-3 bg-white/95 backdrop-blur-xs border-t border-slate-200 shadow-md flex items-center justify-end gap-2 z-10">
+              <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)} disabled={isSubmitting} className="h-10 sm:h-9 text-xs sm:text-sm px-4">
                 Hủy
               </Button>
-              <Button type="submit" disabled={isSubmitting} className="bg-amber-600 hover:bg-amber-700 text-white font-semibold flex items-center gap-1.5">
+              <Button type="submit" disabled={isSubmitting} className="bg-amber-600 hover:bg-amber-700 text-white font-bold h-10 sm:h-9 text-xs sm:text-sm px-5 flex items-center gap-1.5 shadow-xs cursor-pointer">
                 <CheckCircle2 className="w-4 h-4" />
                 <span>{isSubmitting ? 'Đang lưu...' : 'Xác Nhận & Ghi Nhận'}</span>
               </Button>
@@ -1531,7 +1531,7 @@ export default function CmsClient({ initialCommissions, initialUser }: CmsClient
 
       {/* Audit Receipt Dialog */}
       <Dialog open={!!viewingReceiptEntry} onOpenChange={() => setViewingReceiptEntry(null)}>
-        <DialogContent className="max-w-md p-5 bg-white max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-md p-3.5 sm:p-5 bg-white max-h-[88dvh] overflow-y-auto">
           <DialogHeader className="pb-2 border-b">
             <DialogTitle className="text-base font-bold text-slate-800 flex items-center gap-2">
               <FileText className="w-4 h-4 text-amber-600" />

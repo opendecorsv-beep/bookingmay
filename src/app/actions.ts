@@ -750,8 +750,8 @@ Trả về ĐÚNG JSON nguyên bản (không dùng markdown code block, không g
 }
 `;
 
-    // Use latest Gemini 3.8 / 3.5 models with auto-fallback
-    const candidateModels = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-2.5-flash'];
+    // Use ultra-fast Gemini 3.5 models with auto-fallback (1.5s - 3s response time)
+    const candidateModels = ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.8-flash'];
     let res: Response | null = null;
     let lastError = '';
 
@@ -777,7 +777,8 @@ Trả về ĐÚNG JSON nguyên bản (không dùng markdown code block, không g
             ],
             generationConfig: {
               response_mime_type: 'application/json',
-              temperature: 0.1
+              temperature: 0.1,
+              max_output_tokens: 2048
             }
           })
         });

@@ -182,7 +182,7 @@ export async function compressReceiptImage(file: File | Blob): Promise<string> {
         const canvas = document.createElement('canvas');
         let width = img.width;
         let height = img.height;
-        const maxDim = 1280;
+        const maxDim = 1024;
 
         if (width > maxDim || height > maxDim) {
           if (width > height) {
@@ -203,8 +203,8 @@ export async function compressReceiptImage(file: File | Blob): Promise<string> {
         }
 
         ctx.drawImage(img, 0, 0, width, height);
-        // Nén chất lượng JPEG 0.78
-        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.78);
+        // Nén chất lượng JPEG 0.72 (đạt dung lượng tối ưu ~120KB - 150KB cho OCR siêu tốc)
+        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.72);
         resolve(compressedBase64);
       };
       img.onerror = () => reject(new Error('Không thể tải dữ liệu ảnh'));

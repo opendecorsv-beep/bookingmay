@@ -340,19 +340,19 @@ export default function ReceiptScannerModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto p-4 sm:p-6 bg-slate-50">
-        <DialogHeader className="pb-3 border-b border-slate-200">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="p-2 bg-amber-500 text-white rounded-xl shadow-xs">
-                <Sparkles className="w-5 h-5" />
+      <DialogContent className="max-w-2xl max-h-[88dvh] overflow-y-auto p-3.5 sm:p-6 bg-slate-50">
+        <DialogHeader className="pb-2.5 border-b border-slate-200">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0 pr-8 sm:pr-0">
+              <span className="p-1.5 sm:p-2 bg-amber-500 text-white rounded-xl shadow-xs shrink-0">
+                <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
               </span>
-              <div>
-                <DialogTitle className="text-base sm:text-lg font-bold text-slate-800">
-                  Quét Hóa Đơn Tự Động (AI Vision)
+              <div className="min-w-0">
+                <DialogTitle className="text-sm sm:text-lg font-bold text-slate-800 truncate">
+                  Quét Hóa Đơn Tự Động (AI)
                 </DialogTitle>
-                <DialogDescription className="text-xs text-slate-500">
-                  Tự động tách <strong>Đồ ăn tính hoa hồng</strong> và loại trừ <strong>Bia, Rượu, Decor, Nước ngọt, VAT</strong>
+                <DialogDescription className="text-[11px] sm:text-xs text-slate-500 line-clamp-1">
+                  Tách <strong>Đồ ăn</strong> & loại trừ Bia, Rượu, Decor, VAT
                 </DialogDescription>
               </div>
             </div>
@@ -363,7 +363,7 @@ export default function ReceiptScannerModal({
               variant="outline"
               size="sm"
               onClick={() => setShowKeyConfig(!showKeyConfig)}
-              className={`text-xs h-8 px-2.5 flex items-center gap-1.5 border transition-all ${
+              className={`text-xs h-8 px-2 sm:px-2.5 flex items-center gap-1 border transition-all shrink-0 ${
                 geminiApiKey || systemKeySynced
                   ? 'border-emerald-300 text-emerald-700 bg-emerald-50/50 hover:bg-emerald-100/50'
                   : 'border-amber-300 text-amber-700 bg-amber-50/50 hover:bg-amber-100/50 animate-pulse'
@@ -784,26 +784,26 @@ export default function ReceiptScannerModal({
               </div>
             </div>
 
-            {/* Bottom Actions */}
-            <div className="flex items-center justify-between pt-2 border-t border-slate-200">
+            {/* Sticky Bottom Actions on mobile */}
+            <div className="sticky -bottom-3.5 sm:-bottom-6 -mx-3.5 sm:-mx-6 p-3 bg-white/95 backdrop-blur-xs border-t border-slate-200 shadow-md flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 z-10">
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
                 onClick={handleReset}
-                className="text-xs text-slate-500 hover:text-slate-800 flex items-center gap-1"
+                className="text-xs text-slate-500 hover:text-slate-800 flex items-center justify-center gap-1 order-2 sm:order-1"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 <span>Quét lại bill khác</span>
               </Button>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 order-1 sm:order-2">
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   onClick={onClose}
-                  className="text-xs"
+                  className="text-xs flex-1 sm:flex-none h-10 sm:h-9"
                 >
                   Đóng
                 </Button>
@@ -811,10 +811,10 @@ export default function ReceiptScannerModal({
                   type="button"
                   size="sm"
                   onClick={handleConfirmApply}
-                  className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-4 h-9 shadow-md flex items-center gap-1.5"
+                  className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs sm:text-sm px-4 h-10 sm:h-9 shadow-md flex items-center justify-center gap-1.5 flex-[2] sm:flex-none cursor-pointer"
                 >
                   <Check className="w-4 h-4" />
-                  <span>Áp Dụng Vào CMS ({totalFood.toLocaleString('vi-VN')} đ)</span>
+                  <span>Áp Dụng ({totalFood.toLocaleString('vi-VN')} đ)</span>
                 </Button>
               </div>
             </div>

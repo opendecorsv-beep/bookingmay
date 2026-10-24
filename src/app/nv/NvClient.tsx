@@ -714,7 +714,7 @@ export default function NvClient({ initialCommissions, initialUser }: NvClientPr
 
       {/* Audit Receipt Dialog for Staff Transparency */}
       <Dialog open={!!viewingReceiptEntry} onOpenChange={() => setViewingReceiptEntry(null)}>
-        <DialogContent className="max-w-md p-5 bg-white max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-md p-3.5 sm:p-5 bg-white max-h-[88dvh] overflow-y-auto">
           <DialogHeader className="pb-2 border-b">
             <DialogTitle className="text-base font-bold text-slate-800 flex items-center gap-2">
               <FileText className="w-4 h-4 text-amber-600" />
