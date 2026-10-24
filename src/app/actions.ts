@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
-import { getBookings, addBooking, updateBookingData, deleteBookingData, updateKitchenStatus, updateFloorStatus, updateBookingStatus, updateReceptionStatus, getReceptionLogs, saveReceptionLogs, getPartyMenuSets, savePartyMenuSets, getStaffCommissions, saveStaffCommissions, getChatMessages, saveChatMessages } from '@/lib/store';
+import { getBookings, addBooking, updateBookingData, deleteBookingData, updateKitchenStatus, updateFloorStatus, updateBookingStatus, updateReceptionStatus, getReceptionLogs, saveReceptionLogs, getPartyMenuSets, savePartyMenuSets, getStaffCommissions, saveStaffCommissions, getChatMessages, saveChatMessages, getSystemGeminiApiKey, saveSystemGeminiApiKey } from '@/lib/store';
 import { Booking, BookingStatus, TaskStatus, ReceptionEntry, VisitStatus, ReceptionFeedback, PartyMenuSet, CommissionEntry, AuthUser, KNOWN_ACCOUNTS, ChatMessage, ReceiptScanResult, ReceiptItem } from '@/lib/data';
 import { normalizeRoomName, isSameRoom, getBookingTableCount, DECOR_PACKAGE_NAMES, DECOR_PACKAGE_CAPACITIES, getVietnamNow, getVietnamTodayString, checkDecorConflict } from '@/lib/bookingUtils';
 import { classifyReceiptItem } from '@/lib/receiptParser';
@@ -674,18 +674,37 @@ export async function addStaffCommissionAction(data: {
   return { success: true, entry: newEntry };
 }
 
+export async function getSystemGeminiApiKeyAction(): Promise<string> {
+  return getSystemGeminiApiKey();
+}
+
+export async function saveSystemGeminiApiKeyAction(key: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    await saveSystemGeminiApiKey(key);
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Lỗi lưu Gemini API Key lên Supabase' };
+  }
+}
+
 export async function parseReceiptWithGeminiAction(params: {
   base64Image: string;
   userApiKey?: string;
 }): Promise<{ success: boolean; result?: ReceiptScanResult; error?: string }> {
   try {
     const { base64Image, userApiKey } = params;
-    const apiKey = (userApiKey || process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || '').trim();
+    let apiKey = (userApiKey || '').trim();
+    if (!apiKey) {
+      apiKey = await getSystemGeminiApiKey();
+    }
+    if (!apiKey) {
+      apiKey = (process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || '').trim();
+    }
 
     if (!apiKey) {
       return {
         success: false,
-        error: 'Chưa có Google Gemini API Key. Bạn có thể nhập API Key để quét ảnh trực tiếp hoặc sử dụng tính năng Dán Text Hóa Đơn / Bill Mẫu Thử Nghiệm.'
+        error: 'Chưa có Google Gemini API Key. Quản lý có thể nhập API Key trong phần "Cấu hình Khóa AI" để kích hoạt cho toàn bộ nhân viên nhà hàng, hoặc sử dụng tính năng Dán Text Hóa Đơn / Bill Mẫu Thử Nghiệm.'
       };
     }
 

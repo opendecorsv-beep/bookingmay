@@ -421,4 +421,59 @@ export async function saveChatMessages(messages: ChatMessage[]): Promise<void> {
   }
 }
 
+let globalSystemAiKey: string = '';
+
+export async function getSystemGeminiApiKey(): Promise<string> {
+  if (globalSystemAiKey) return globalSystemAiKey;
+
+  if (process.env.GEMINI_API_KEY) {
+    globalSystemAiKey = process.env.GEMINI_API_KEY.trim();
+    return globalSystemAiKey;
+  }
+  if (process.env.NEXT_PUBLIC_GEMINI_API_KEY) {
+    globalSystemAiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY.trim();
+    return globalSystemAiKey;
+  }
+
+  try {
+    const { data, error } = await supabase.from('bookings').select('menu').eq('id', 'CONFIG_AI').single();
+    if (error || !data) {
+      return globalSystemAiKey;
+    }
+    const parsed = typeof data.menu === 'string' ? JSON.parse(data.menu) : data.menu;
+    if (parsed && typeof parsed.geminiApiKey === 'string') {
+      globalSystemAiKey = parsed.geminiApiKey.trim();
+      return globalSystemAiKey;
+    }
+    return globalSystemAiKey;
+  } catch (err) {
+    return globalSystemAiKey;
+  }
+}
+
+export async function saveSystemGeminiApiKey(key: string): Promise<void> {
+  const cleanKey = (key || '').trim();
+  globalSystemAiKey = cleanKey;
+  try {
+    const { error } = await supabase.from('bookings').upsert([{
+      id: 'CONFIG_AI',
+      customerName: 'AI_GEMINI_CONFIG',
+      phone: '0000000000',
+      dateTime: new Date().toISOString(),
+      guestsCount: 0,
+      room: 'CONFIG',
+      menu: JSON.stringify({ geminiApiKey: cleanKey, updatedAt: new Date().toISOString() }),
+      specialRequest: '',
+      decorRequest: '',
+      status: 'cancelled',
+      receptionStatus: 'done',
+      kitchenStatus: 'done',
+      floorStatus: 'done'
+    }]);
+    if (error) console.error("Error saving Gemini API key to Supabase:", error);
+  } catch (err) {
+    console.error("Error saving Gemini API key to Supabase:", err);
+  }
+}
+
 

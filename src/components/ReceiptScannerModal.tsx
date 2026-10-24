@@ -11,7 +11,7 @@ import {
   parseReceiptText, 
   DEMO_RECEIPT_RESULT 
 } from '@/lib/receiptParser';
-import { parseReceiptWithGeminiAction } from '@/app/actions';
+import { parseReceiptWithGeminiAction, getSystemGeminiApiKeyAction, saveSystemGeminiApiKeyAction } from '@/app/actions';
 import { 
   Camera, 
   Upload, 
@@ -70,6 +70,8 @@ export default function ReceiptScannerModal({
   const [geminiApiKey, setGeminiApiKey] = useState('');
   const [showKeyConfig, setShowKeyConfig] = useState(false);
   const [savedKeySuccess, setSavedKeySuccess] = useState(false);
+  const [isSavingKey, setIsSavingKey] = useState(false);
+  const [systemKeySynced, setSystemKeySynced] = useState(false);
 
   // Text Paste State
   const [pastedText, setPastedText] = useState('');
@@ -81,11 +83,28 @@ export default function ReceiptScannerModal({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedKey = localStorage.getItem('may_gemini_api_key') || '';
-      setGeminiApiKey(savedKey);
+    async function initKey() {
+      if (typeof window !== 'undefined') {
+        const savedKey = localStorage.getItem('may_gemini_api_key') || '';
+        if (savedKey) setGeminiApiKey(savedKey);
+      }
+      try {
+        const sysKey = await getSystemGeminiApiKeyAction();
+        if (sysKey) {
+          setGeminiApiKey(sysKey);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('may_gemini_api_key', sysKey);
+          }
+          setSystemKeySynced(true);
+        }
+      } catch (err) {
+        console.error('Failed to load system key:', err);
+      }
     }
-  }, []);
+    if (isOpen) {
+      initKey();
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     setSelectedPercent(defaultPercent);
@@ -143,15 +162,34 @@ export default function ReceiptScannerModal({
     }));
   };
 
-  // Save API key
-  const handleSaveApiKey = () => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('may_gemini_api_key', geminiApiKey.trim());
-      setSavedKeySuccess(true);
-      setTimeout(() => {
-        setSavedKeySuccess(false);
-        setShowKeyConfig(false);
-      }, 1200);
+  // Save API key to both LocalStorage and Supabase central DB
+  const handleSaveApiKey = async () => {
+    const keyToSave = geminiApiKey.trim();
+    if (!keyToSave) {
+      setScanError('Vui lòng nhập API Key hợp lệ!');
+      return;
+    }
+    setIsSavingKey(true);
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('may_gemini_api_key', keyToSave);
+      }
+      const res = await saveSystemGeminiApiKeyAction(keyToSave);
+      if (res.success) {
+        setSavedKeySuccess(true);
+        setSystemKeySynced(true);
+        setScanError('');
+        setTimeout(() => {
+          setSavedKeySuccess(false);
+          setShowKeyConfig(false);
+        }, 1500);
+      } else {
+        setScanError(res.error || 'Lỗi khi lưu key lên hệ thống đám mây!');
+      }
+    } catch (err: any) {
+      setScanError(err.message || 'Lỗi lưu key');
+    } finally {
+      setIsSavingKey(false);
     }
   };
 
@@ -168,25 +206,23 @@ export default function ReceiptScannerModal({
       const compressedBase64 = await compressReceiptImage(file);
       setPreviewImage(compressedBase64);
 
-      // 2. Kiểm tra nếu có API key thì gọi Gemini AI Vision
+      // 2. Gửi ảnh lên server action parseReceiptWithGeminiAction
+      // Server action sẽ ưu tiên userApiKey, nếu rỗng sẽ tự động lấy từ Supabase CONFIG_AI hoặc process.env
       const effectiveKey = geminiApiKey.trim();
-      if (effectiveKey) {
-        const res = await parseReceiptWithGeminiAction({
-          base64Image: compressedBase64,
-          userApiKey: effectiveKey
-        });
+      const res = await parseReceiptWithGeminiAction({
+        base64Image: compressedBase64,
+        userApiKey: effectiveKey || undefined
+      });
 
-        if (res.success && res.result) {
-          setScanResult(res.result);
-          setIsScanning(false);
-          return;
-        } else {
-          // If Gemini fails, display error but allow manual or demo
-          setScanError(res.error || 'Không thể đọc được hóa đơn qua AI. Vui lòng kiểm tra lại ảnh hoặc API Key.');
-        }
+      if (res.success && res.result) {
+        setScanResult(res.result);
+        setIsScanning(false);
+        return;
       } else {
-        // Chưa có API key
-        setScanError('Chưa thiết lập Google Gemini API Key. Bạn có thể bấm nút "⚡ Dùng Bill Mẫu Nhà Hàng Mây" để xem thử nghiệm, hoặc nhập API Key miễn phí.');
+        setScanError(res.error || 'Không thể đọc được hóa đơn qua AI. Vui lòng kiểm tra lại ảnh hoặc API Key.');
+        if (res.error?.includes('Chưa có Google Gemini API Key')) {
+          setShowKeyConfig(true);
+        }
       }
     } catch (err: any) {
       setScanError(err.message || 'Lỗi khi xử lý ảnh hóa đơn.');
@@ -274,42 +310,71 @@ export default function ReceiptScannerModal({
               variant="outline"
               size="sm"
               onClick={() => setShowKeyConfig(!showKeyConfig)}
-              className="text-xs h-8 px-2.5 flex items-center gap-1.5 border-slate-200 text-slate-600 hover:text-amber-700"
+              className={`text-xs h-8 px-2.5 flex items-center gap-1.5 border transition-all ${
+                geminiApiKey || systemKeySynced
+                  ? 'border-emerald-300 text-emerald-700 bg-emerald-50/50 hover:bg-emerald-100/50'
+                  : 'border-amber-300 text-amber-700 bg-amber-50/50 hover:bg-amber-100/50 animate-pulse'
+              }`}
             >
-              <Key className="w-3.5 h-3.5 text-amber-600" />
+              <Key className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Khóa AI</span>
+              {geminiApiKey ? (
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              ) : (
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+              )}
             </Button>
           </div>
 
           {/* API Key Drawer */}
           {showKeyConfig && (
-            <div className="mt-3 p-3 bg-white rounded-xl border border-amber-200 shadow-2xs space-y-2 text-xs">
+            <div className="mt-3 p-3.5 bg-gradient-to-br from-amber-50/90 to-orange-50/70 rounded-xl border border-amber-200 shadow-2xs space-y-2.5 text-xs">
               <div className="flex items-center justify-between">
-                <span className="font-semibold text-slate-800 flex items-center gap-1">
-                  <Key className="w-3.5 h-3.5 text-amber-600" />
-                  Cấu hình Google Gemini API Key
+                <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                  <Key className="w-4 h-4 text-amber-600" />
+                  Cấu hình Google Gemini AI Key (Đồng bộ Cloud)
                 </span>
-                <span className="text-[10px] text-emerald-600 font-medium">Miễn phí 100%</span>
+                {geminiApiKey ? (
+                  <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Đã kết nối Supabase Cloud
+                  </span>
+                ) : (
+                  <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold">
+                    Chưa cài đặt Key
+                  </span>
+                )}
               </div>
-              <p className="text-[11px] text-slate-500 leading-relaxed">
-                Tạo khóa miễn phí tại <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-blue-600 underline font-semibold">Google AI Studio</a> và dán vào đây để app đọc trực tiếp ảnh chụp hóa đơn bằng AI Vision.
+              <p className="text-[11px] text-slate-600 leading-relaxed">
+                Key này được <strong>lưu trực tiếp lên đám mây Supabase</strong>. Chỉ cần Quản Lý/Giám Sát nhập 1 lần duy nhất, toàn bộ điện thoại và máy tính của nhân viên đều tự động kích hoạt tính năng chụp bill mà không cần nhập lại.
               </p>
               <div className="flex gap-2">
                 <Input
                   type="password"
                   value={geminiApiKey}
                   onChange={(e) => setGeminiApiKey(e.target.value)}
-                  placeholder="AIzaSy..."
-                  className="text-xs h-8 bg-slate-50"
+                  placeholder="Dán mã khóa AIzaSy... vào đây"
+                  className="text-xs h-9 bg-white border-amber-200 focus-visible:ring-amber-500"
                 />
                 <Button
                   type="button"
                   size="sm"
+                  disabled={isSavingKey}
                   onClick={handleSaveApiKey}
-                  className="h-8 px-3 text-xs bg-amber-600 hover:bg-amber-700 text-white shrink-0"
+                  className="h-9 px-3.5 text-xs bg-amber-600 hover:bg-amber-700 text-white shrink-0 font-medium shadow-2xs"
                 >
-                  {savedKeySuccess ? 'Đã lưu ✓' : 'Lưu lại'}
+                  {isSavingKey ? 'Đang lưu...' : savedKeySuccess ? 'Đã đồng bộ ✓' : 'Lưu vào Cloud'}
                 </Button>
+              </div>
+              <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-amber-100/80">
+                <span>Khóa hoàn toàn miễn phí từ Google</span>
+                <a
+                  href="https://aistudio.google.com/app/apikey"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-blue-600 underline font-semibold hover:text-blue-800"
+                >
+                  Lấy API Key tại Google AI Studio ↗
+                </a>
               </div>
             </div>
           )}
