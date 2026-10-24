@@ -31,7 +31,8 @@ import {
   ChevronDown, 
   ChevronUp, 
   Info,
-  DollarSign
+  DollarSign,
+  Image as ImageIcon
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -79,8 +80,10 @@ export default function ReceiptScannerModal({
   // Items State for manual adjustment
   const [currentItems, setCurrentItems] = useState<ReceiptItem[]>([]);
 
-  // File input ref
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // File input refs (Gallery without capture, Camera with capture)
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     async function initKey() {
@@ -193,9 +196,8 @@ export default function ReceiptScannerModal({
     }
   };
 
-  // Process File Upload
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  // Process Single File / Blob (From input, drag-and-drop, or paste)
+  const processFile = async (file: File | Blob) => {
     if (!file) return;
 
     setIsScanning(true);
@@ -228,9 +230,60 @@ export default function ReceiptScannerModal({
       setScanError(err.message || 'Lỗi khi xử lý ảnh hóa đơn.');
     } finally {
       setIsScanning(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      if (galleryInputRef.current) galleryInputRef.current.value = '';
+      if (cameraInputRef.current) cameraInputRef.current.value = '';
     }
   };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processFile(file);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      processFile(file);
+    }
+  };
+
+  // Clipboard Paste listener (Ctrl+V)
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      if (!isOpen || activeTab !== 'upload' || scanResult || isScanning) return;
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          const blob = items[i].getAsFile();
+          if (blob) {
+            e.preventDefault();
+            processFile(blob);
+            break;
+          }
+        }
+      }
+    };
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, [isOpen, activeTab, scanResult, isScanning, geminiApiKey]);
 
   // Use Demo Bill
   const handleUseDemo = () => {
@@ -427,8 +480,16 @@ export default function ReceiptScannerModal({
             {/* Tab 1: Upload / Camera */}
             {activeTab === 'upload' && (
               <div className="space-y-3">
+                {/* 2 Hidden inputs: 1 for Gallery/File Selection (NO capture), 1 for Camera (WITH capture) */}
                 <input
-                  ref={fileInputRef}
+                  ref={galleryInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/jpg,image/heic,image/*"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+                <input
+                  ref={cameraInputRef}
                   type="file"
                   accept="image/*"
                   capture="environment"
@@ -437,28 +498,61 @@ export default function ReceiptScannerModal({
                 />
 
                 <div 
-                  onClick={() => fileInputRef.current?.click()}
-                  className="p-8 border-2 border-dashed border-amber-300 hover:border-amber-500 bg-amber-50/40 hover:bg-amber-50/80 rounded-2xl cursor-pointer transition-all text-center space-y-2 group"
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  className={`p-6 sm:p-8 border-2 border-dashed rounded-2xl transition-all text-center space-y-4 ${
+                    isDragging
+                      ? 'border-amber-500 bg-amber-100/60 scale-[1.01]'
+                      : 'border-amber-300 hover:border-amber-400 bg-amber-50/40'
+                  }`}
                 >
-                  <div className="w-14 h-14 mx-auto rounded-full bg-amber-100 group-hover:scale-105 transition-transform flex items-center justify-center text-amber-700 shadow-2xs">
+                  <div className="w-14 h-14 mx-auto rounded-full bg-amber-100 flex items-center justify-center text-amber-700 shadow-2xs">
                     {isScanning ? (
                       <Sparkles className="w-7 h-7 animate-spin text-amber-600" />
                     ) : (
-                      <Camera className="w-7 h-7 text-amber-600" />
+                      <ImageIcon className="w-7 h-7 text-amber-600" />
                     )}
                   </div>
+
                   <div>
-                    <h4 className="font-bold text-slate-800 text-sm">
-                      {isScanning ? 'Đang nén ảnh & AI phân tích bóc tách...' : 'Bấm để Chụp ảnh hoặc Tải ảnh hóa đơn'}
+                    <h4 className="font-bold text-slate-800 text-sm sm:text-base">
+                      {isScanning ? 'Đang nén ảnh & AI Vision đang bóc tách...' : 'Tải Lên Hoặc Chụp Ảnh Hóa Đơn'}
                     </h4>
-                    <p className="text-xs text-slate-500 mt-1">
-                      Hỗ trợ ảnh chụp camera điện thoại, hóa đơn in nhiệt PosApp, CukCuk, KiotViet
+                    <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                      Hỗ trợ tải file ảnh từ máy tính / điện thoại (.jpg, .png, .webp, .heic) hoặc chụp trực tiếp bằng camera
                     </p>
                   </div>
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-200 rounded-full text-[11px] font-medium text-slate-600 shadow-2xs">
-                    <Upload className="w-3 h-3 text-amber-600" />
-                    <span>Tải ảnh từ thư viện máy</span>
+
+                  {/* 2 Big Action Buttons */}
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 pt-1">
+                    {/* Primary Button: Upload from device / gallery */}
+                    <Button
+                      type="button"
+                      disabled={isScanning}
+                      onClick={() => galleryInputRef.current?.click()}
+                      className="w-full sm:w-auto h-10 px-5 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-xs rounded-xl flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <Upload className="w-4 h-4" />
+                      <span>Chọn Ảnh Từ Máy / Thư Viện</span>
+                    </Button>
+
+                    {/* Secondary Button: Live Camera */}
+                    <Button
+                      type="button"
+                      disabled={isScanning}
+                      variant="outline"
+                      onClick={() => cameraInputRef.current?.click()}
+                      className="w-full sm:w-auto h-10 px-5 text-xs font-semibold bg-white border-amber-300 text-amber-900 hover:bg-amber-100/60 shadow-2xs rounded-xl flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <Camera className="w-4 h-4 text-amber-600" />
+                      <span>Chụp Ảnh Bằng Camera</span>
+                    </Button>
                   </div>
+
+                  <p className="text-[11px] text-slate-400">
+                    💡 Mẹo trên máy tính: Bạn có thể <strong>kéo thả file ảnh vào đây</strong> hoặc nhấn <strong>Ctrl + V</strong> để dán ảnh chụp màn hình/Zalo.
+                  </p>
                 </div>
 
                 {/* Quick Demo Button */}

@@ -173,7 +173,7 @@ export function classifyReceiptItem(name: string): {
  * Nén ảnh hóa đơn trên trình duyệt bằng Canvas
  * Đảm bảo kích thước tối đa 1200px, JPEG 0.75, dung lượng < 800KB để không lag, không timeout
  */
-export async function compressReceiptImage(file: File): Promise<string> {
+export async function compressReceiptImage(file: File | Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
