@@ -750,38 +750,54 @@ Trả về ĐÚNG JSON nguyên bản (không dùng markdown code block, không g
 }
 `;
 
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    // Use latest Gemini 3.8 / 3.5 models with auto-fallback
+    const candidateModels = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-2.5-flash'];
+    let res: Response | null = null;
+    let lastError = '';
 
-    const res = await fetch(apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              { text: promptText },
+    for (const model of candidateModels) {
+      try {
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const candidateRes = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [
               {
-                inline_data: {
-                  mime_type: 'image/jpeg',
-                  data: cleanBase64
-                }
+                parts: [
+                  { text: promptText },
+                  {
+                    inline_data: {
+                      mime_type: 'image/jpeg',
+                      data: cleanBase64
+                    }
+                  }
+                ]
               }
-            ]
-          }
-        ],
-        generationConfig: {
-          response_mime_type: 'application/json',
-          temperature: 0.1
-        }
-      })
-    });
+            ],
+            generationConfig: {
+              response_mime_type: 'application/json',
+              temperature: 0.1
+            }
+          })
+        });
 
-    if (!res.ok) {
-      const errBody = await res.text();
-      console.error('Gemini API Error:', errBody);
+        if (candidateRes.ok) {
+          res = candidateRes;
+          break;
+        } else {
+          lastError = await candidateRes.text();
+          console.warn(`Model ${model} returned status ${candidateRes.status}:`, lastError);
+        }
+      } catch (callErr: any) {
+        lastError = callErr.message || 'Lỗi kết nối Gemini API';
+      }
+    }
+
+    if (!res) {
       return {
         success: false,
-        error: `Lỗi kết nối Gemini API (${res.status}). Vui lòng kiểm tra API Key.`
+        error: `Lỗi kết nối Gemini API. Vui lòng kiểm tra lại API Key hoặc đường truyền.`
       };
     }
 
