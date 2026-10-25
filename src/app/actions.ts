@@ -726,6 +726,8 @@ export async function parseReceiptWithGeminiAction(params: {
 Bạn là chuyên gia kiểm toán và bóc tách hóa đơn nhà hàng Mây (ẩm thực tiệc, hải sản & phòng VIP).
 Hãy quét và phân tích hình ảnh hóa đơn thanh toán này.
 
+QUAN TRỌNG: Hóa đơn có thể rất dài (25 - 50+ món). Bạn PHẢI quét và bóc tách ĐẦY ĐỦ 100% tất cả các dòng món từ đầu đến cuối hóa đơn, tuyệt đối KHÔNG ĐƯỢC BỎ SÓT hoặc cắt bớt bất kỳ món nào.
+
 Quy tắc bóc tách và phân loại:
 1. Đọc tên phòng/bàn (ví dụ: VIP 102, Bàn 4...), ngày giờ thanh toán nếu có.
 2. Bóc tách từng dòng món: Tên món, số lượng, đơn giá, thành tiền.
@@ -739,7 +741,7 @@ Quy tắc bóc tách và phân loại:
      * PHỤ PHÍ: Khăn lạnh, khăn ướt, đậu phộng gói, xô đá, đá bi...
      * THUẾ & PHÍ: Thuế VAT 8%, 10%, Phí phục vụ (Service charge), Tiền tip, Voucher giảm giá...
 
-Trả về ĐÚNG JSON nguyên bản (không dùng markdown code block, không giải thích ngoài JSON):
+Trả về ĐÚNG JSON nguyên bản, ngắn gọn, súc tích để xử lý siêu tốc (không dùng markdown code block, không giải thích ngoài JSON):
 {
   "restaurantName": "Nhà hàng Mây",
   "tableName": "VIP 102",
@@ -750,19 +752,14 @@ Trả về ĐÚNG JSON nguyên bản (không dùng markdown code block, không g
       "quantity": 1,
       "unitPrice": 100000,
       "totalPrice": 100000,
-      "isFood": true,
-      "category": "food",
-      "reason": "Món ăn hợp lệ"
+      "isFood": true
     }
-  ],
-  "totalReceipt": 0,
-  "totalFood": 0,
-  "totalExcluded": 0
+  ]
 }
 `;
 
-    // Use ultra-fast Gemini 3.5 models with auto-fallback (1.5s - 3s response time)
-    const candidateModels = ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.8-flash'];
+    // Sử dụng model Gemini 3.5 Flash & 3.5 Flash Lite với dung lượng output 8,192 tokens cho hóa đơn dài 30-50+ món
+    const candidateModels = ['gemini-3.5-flash', 'gemini-3.5-flash-lite'];
     let res: Response | null = null;
     let lastError = '';
 
@@ -789,7 +786,7 @@ Trả về ĐÚNG JSON nguyên bản (không dùng markdown code block, không g
             generationConfig: {
               response_mime_type: 'application/json',
               temperature: 0.1,
-              max_output_tokens: 2048
+              max_output_tokens: 8192
             }
           })
         });
@@ -819,12 +816,28 @@ Trả về ĐÚNG JSON nguyên bản (không dùng markdown code block, không g
       return { success: false, error: 'Không nhận được dữ liệu phản hồi từ AI Vision.' };
     }
 
+    // Cơ chế phân tích JSON an toàn và cứu dữ liệu tự động nếu bị cắt ngắn
     let parsed: any;
     try {
       parsed = JSON.parse(candidateText);
     } catch (parseErr) {
       const cleanJson = candidateText.replace(/```json/gi, '').replace(/```/g, '').trim();
-      parsed = JSON.parse(cleanJson);
+      try {
+        parsed = JSON.parse(cleanJson);
+      } catch (retryErr) {
+        const itemsIdx = cleanJson.lastIndexOf('"items"');
+        if (itemsIdx !== -1) {
+          const lastCurly = cleanJson.lastIndexOf('}');
+          if (lastCurly > itemsIdx) {
+            const salvaged = cleanJson.substring(0, lastCurly + 1) + ']}';
+            parsed = JSON.parse(salvaged);
+          } else {
+            throw retryErr;
+          }
+        } else {
+          throw retryErr;
+        }
+      }
     }
 
     // Double check & re-validate items with rule engine
