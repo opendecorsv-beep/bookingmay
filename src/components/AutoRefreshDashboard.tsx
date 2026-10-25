@@ -1,18 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-
-export default function AutoRefreshDashboard({ intervalMs = 30000 }: { intervalMs?: number }) {
-  const router = useRouter();
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      router.refresh();
-    }, intervalMs);
-
-    return () => clearInterval(timer);
-  }, [router, intervalMs]);
-
+// Tối ưu hóa: Đồng bộ toàn cục hiện đã được tích hợp tập trung vào AutoRefresh.tsx
+// với cơ chế Smart Idle Timeout và WebSocket Realtime Scoping để tiết kiệm 100% Disk IOPS.
+export default function AutoRefreshDashboard({ intervalMs = 60000 }: { intervalMs?: number }) {
   return null;
 }

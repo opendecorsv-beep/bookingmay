@@ -6,6 +6,7 @@ import { getBookings, addBooking, updateBookingData, deleteBookingData, updateKi
 import { Booking, BookingStatus, TaskStatus, ReceptionEntry, VisitStatus, ReceptionFeedback, PartyMenuSet, CommissionEntry, AuthUser, KNOWN_ACCOUNTS, ChatMessage, ReceiptScanResult, ReceiptItem } from '@/lib/data';
 import { normalizeRoomName, isSameRoom, getBookingTableCount, DECOR_PACKAGE_NAMES, DECOR_PACKAGE_CAPACITIES, getVietnamNow, getVietnamTodayString, checkDecorConflict } from '@/lib/bookingUtils';
 import { classifyReceiptItem } from '@/lib/receiptParser';
+import { supabase } from '@/lib/supabase';
 
 export async function loginAction(id: string, pass: string) {
   const cleanId = id.trim().toLowerCase();
@@ -921,5 +922,22 @@ export async function clearChatMessagesAction(): Promise<{ success: boolean; err
     return { success: false, error: err.message || 'Lỗi xóa tin nhắn' };
   }
 }
+
+export async function forceReloadAllClientsAction(): Promise<{ success: boolean; error?: string }> {
+  try {
+    await verifyAuthPermission();
+    const channel = supabase.channel('system-control');
+    await channel.send({
+      type: 'broadcast',
+      event: 'force-reload',
+      payload: { initiatedAt: new Date().toISOString() }
+    });
+    supabase.removeChannel(channel);
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Lỗi gửi lệnh làm mới' };
+  }
+}
+
 
 

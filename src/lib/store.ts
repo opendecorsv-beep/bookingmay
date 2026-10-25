@@ -3,7 +3,7 @@ import { supabase } from './supabase';
 import { isVisitExpired, normalizeRoomName } from './bookingUtils';
 
 // In-memory micro-cache with TTL to protect Supabase Disk IO Budget & Vercel Transfer
-const CACHE_TTL_MS = 10000; // 10 seconds
+const CACHE_TTL_MS = 30000; // 30 seconds (Writes automatically invalidate cache instantly)
 
 let cacheBookings: { data: Booking[]; time: number } | null = null;
 let cacheSeafood: { data: { updatedAt: string; categories: SeafoodCategory[] }; time: number } | null = null;
