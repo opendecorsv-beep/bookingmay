@@ -66,7 +66,7 @@ export async function createNewBooking(data: Omit<Booking, 'id'>) {
   if (error) return { error };
 
   const normalizedRoom = normalizeRoomName(data.room || 'Chưa chọn');
-  await addBooking({
+  const newBooking = await addBooking({
     ...data,
     room: normalizedRoom
   });
@@ -75,7 +75,7 @@ export async function createNewBooking(data: Omit<Booking, 'id'>) {
   revalidatePath('/kitchen');
   revalidatePath('/floor');
   revalidatePath('/floor-plan');
-  return { success: true };
+  return { success: true, booking: newBooking };
 }
 
 export async function updateExistingBooking(id: string, data: Partial<Omit<Booking, 'id'>>) {
