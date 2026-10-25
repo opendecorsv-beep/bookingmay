@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Calendar, Clock, Sparkles, User, Phone, Users, Home, AlertCircle } from "lucide-react";
+import { Calendar, Clock, Sparkles, User, Phone, Users, Home, AlertCircle, Crown, Star } from "lucide-react";
 import { createNewBooking } from "@/app/actions";
 import { Booking } from "@/lib/data";
 import MenuSelector from "./MenuSelector";
@@ -19,12 +19,14 @@ const FLOORS = [
   { name: "Tầng 4 (Sân thượng)", rooms: Array.from({ length: 25 }, (_, i) => `Bàn ${i + 1}`) },
 ];
 
+const QUICK_TIMES = ["11:30", "12:00", "12:30", "13:00", "17:30", "18:00", "18:30", "19:00", "19:30", "20:00"];
+
 interface DirectFloorBookingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultRoom?: string;
   defaultDate?: string; // yyyy-MM-dd
-  defaultSession?: 'lunch' | 'dinner';
+  defaultTime?: string; // HH:mm
   onBookingCreated?: (booking: Booking) => void;
 }
 
@@ -33,7 +35,7 @@ export default function DirectFloorBookingDialog({
   onOpenChange,
   defaultRoom = "Mây 101",
   defaultDate = "",
-  defaultSession = "lunch",
+  defaultTime = "18:00",
   onBookingCreated,
 }: DirectFloorBookingDialogProps) {
   const { isLoggedIn, openLoginModal } = useAuth();
@@ -42,12 +44,10 @@ export default function DirectFloorBookingDialog({
   const [sourceOption, setSourceOption] = useState("Khách quen");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Form controlled state for quick ca toggling
   const [room, setRoom] = useState(defaultRoom);
   const [date, setDate] = useState(defaultDate || new Date().toISOString().split("T")[0]);
-  const [time, setTime] = useState(defaultSession === 'dinner' ? "18:30" : "11:30");
-  const [activeSession, setActiveSession] = useState<'lunch' | 'dinner'>(defaultSession);
-  const [priority, setPriority] = useState<string>("Bình thường");
+  const [time, setTime] = useState(defaultTime || "18:00");
+  const [priority, setPriority] = useState<"Bình thường" | "VIP" | "SVIP">("Bình thường");
 
   useEffect(() => {
     if (defaultRoom) setRoom(defaultRoom);
@@ -58,16 +58,8 @@ export default function DirectFloorBookingDialog({
   }, [defaultDate]);
 
   useEffect(() => {
-    if (defaultSession) {
-      setActiveSession(defaultSession);
-      setTime(defaultSession === 'dinner' ? "18:30" : "11:30");
-    }
-  }, [defaultSession]);
-
-  const handleSelectSession = (sess: 'lunch' | 'dinner') => {
-    setActiveSession(sess);
-    setTime(sess === 'dinner' ? "18:30" : "11:30");
-  };
+    if (defaultTime) setTime(defaultTime);
+  }, [defaultTime]);
 
   const handleOpenChange = (newOpen: boolean) => {
     if (newOpen && !isLoggedIn) {
@@ -165,46 +157,63 @@ export default function DirectFloorBookingDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl font-bold text-slate-800">
             <Sparkles className="w-5 h-5 text-orange-500" />
-            <span>Đặt Tiệc Nhanh Tại Bàn</span>
+            <span>Đặt Tiệc / Bàn Mới</span>
             <span className="text-orange-600 bg-orange-50 px-2 py-0.5 rounded-md text-sm border border-orange-200">
               {room || defaultRoom}
             </span>
           </DialogTitle>
           <p className="text-xs text-slate-500">
-            Nhập tiệc trực tiếp vào sơ đồ bàn. Dữ liệu sẽ đồng bộ sang Bếp, Sảnh và Lễ Tân.
+            Nhập trực tiếp tiệc cho bàn tại Sơ đồ bàn. Dữ liệu sẽ tự động đồng bộ sang Bếp, Sảnh và Lễ Tân.
           </p>
         </DialogHeader>
 
         <form action={onSubmit} className="space-y-4 py-2">
-          {/* Quick Meal Session Selection (Trưa / Tối) */}
-          <div className="bg-slate-100 p-2 rounded-xl space-y-2 border border-slate-200">
+          {/* MỨC ĐỘ ƯU TIÊN (NORMAL - VIP - SVIP) NỔI BẬT */}
+          <div className="space-y-1.5 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
             <Label className="text-xs font-bold text-slate-700 flex items-center justify-between">
-              <span>Lựa chọn Ca Phục Vụ:</span>
-              <span className="text-[11px] text-slate-500">Bấm để tự động điền khung giờ</span>
+              <span>Mức độ ưu tiên khách hàng:</span>
+              <span className="text-[11px] font-semibold text-slate-500">
+                {priority === "SVIP" ? "👑 Khách Siêu VIP (Đặc biệt)" : priority === "VIP" ? "⭐ Khách VIP" : "Khách thường"}
+              </span>
             </Label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
-                onClick={() => handleSelectSession('lunch')}
-                className={`py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                  activeSession === 'lunch'
-                    ? 'bg-amber-500 text-white shadow-sm ring-2 ring-amber-300'
-                    : 'bg-white text-slate-700 hover:bg-amber-50'
+                onClick={() => setPriority("Bình thường")}
+                className={`py-2 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 border ${
+                  priority === "Bình thường"
+                    ? "bg-slate-800 text-white border-slate-800 shadow-sm ring-2 ring-slate-400"
+                    : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
                 }`}
               >
-                <span>☀️ Ca Trưa (11:30)</span>
+                <User className="w-3.5 h-3.5" />
+                <span>Bình thường</span>
               </button>
 
               <button
                 type="button"
-                onClick={() => handleSelectSession('dinner')}
-                className={`py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                  activeSession === 'dinner'
-                    ? 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-300'
-                    : 'bg-white text-slate-700 hover:bg-indigo-50'
+                onClick={() => setPriority("VIP")}
+                className={`py-2 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 border ${
+                  priority === "VIP"
+                    ? "bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white border-fuchsia-500 shadow-md ring-2 ring-fuchsia-300"
+                    : "bg-purple-50 text-purple-800 border-purple-200 hover:bg-purple-100"
                 }`}
               >
-                <span>🌙 Ca Tối (18:30)</span>
+                <Star className="w-3.5 h-3.5 fill-white text-white" />
+                <span>⭐ VIP</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPriority("SVIP")}
+                className={`py-2 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 border ${
+                  priority === "SVIP"
+                    ? "bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 text-white border-amber-400 shadow-md ring-2 ring-yellow-300"
+                    : "bg-amber-50 text-amber-900 border-amber-200 hover:bg-amber-100"
+                }`}
+              >
+                <Crown className="w-3.5 h-3.5 fill-white text-white" />
+                <span>👑 SVIP</span>
               </button>
             </div>
           </div>
@@ -212,7 +221,7 @@ export default function DirectFloorBookingDialog({
           {/* Date, Time & Room Pickers */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="date" className="text-xs font-bold text-slate-700">Ngày tiệc</Label>
+              <Label htmlFor="date" className="text-xs font-bold text-slate-700">Ngày tiệc *</Label>
               <Input
                 id="date"
                 name="date"
@@ -225,7 +234,10 @@ export default function DirectFloorBookingDialog({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="time" className="text-xs font-bold text-slate-700">Giờ đón khách</Label>
+              <Label htmlFor="time" className="text-xs font-bold text-slate-700 flex items-center justify-between">
+                <span>Giờ đón khách *</span>
+                <span className="text-[10px] text-slate-400">Tự nhập giờ</span>
+              </Label>
               <Input
                 id="time"
                 name="time"
@@ -259,9 +271,28 @@ export default function DirectFloorBookingDialog({
             </div>
           </div>
 
-          {/* Customer Name, Priority, Phone & Guests */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+          {/* Gợi ý giờ bấm nhanh (Tùy chọn, vẫn tự gõ được bất kỳ giờ nào ở trên) */}
+          <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+            <span className="text-[11px] font-semibold text-slate-500">Giờ gợi ý:</span>
+            {QUICK_TIMES.map((qt) => (
+              <button
+                key={qt}
+                type="button"
+                onClick={() => setTime(qt)}
+                className={`px-2 py-0.5 rounded text-[11px] font-semibold border transition-all cursor-pointer ${
+                  time === qt
+                    ? "bg-orange-600 text-white border-orange-600"
+                    : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
+                }`}
+              >
+                {qt}
+              </button>
+            ))}
+          </div>
+
+          {/* Customer Name, Phone & Guests */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="space-y-1.5 sm:col-span-1">
               <Label htmlFor="customerName" className="text-xs font-bold text-slate-700">Tên khách hàng *</Label>
               <Input
                 id="customerName"
@@ -272,46 +303,7 @@ export default function DirectFloorBookingDialog({
               />
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs font-bold text-slate-700">Mức độ ưu tiên</Label>
-              <div className="grid grid-cols-3 gap-1 h-9">
-                <button
-                  type="button"
-                  onClick={() => setPriority("Bình thường")}
-                  className={`text-[11px] font-bold rounded border transition-all cursor-pointer ${
-                    priority === "Bình thường"
-                      ? "bg-slate-700 text-white border-slate-700"
-                      : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
-                  }`}
-                >
-                  Thường
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPriority("VIP")}
-                  className={`text-[11px] font-bold rounded border transition-all cursor-pointer ${
-                    priority === "VIP"
-                      ? "bg-fuchsia-600 text-white border-fuchsia-600 shadow-xs"
-                      : "bg-fuchsia-50 text-fuchsia-800 border-fuchsia-200 hover:bg-fuchsia-100"
-                  }`}
-                >
-                  ⭐ VIP
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPriority("SVIP")}
-                  className={`text-[11px] font-bold rounded border transition-all cursor-pointer ${
-                    priority === "SVIP"
-                      ? "bg-amber-500 text-white border-amber-500 shadow-xs"
-                      : "bg-amber-50 text-amber-900 border-amber-200 hover:bg-amber-100"
-                  }`}
-                >
-                  👑 SVIP
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 sm:col-span-1">
               <Label htmlFor="phone" className="text-xs font-bold text-slate-700">Số điện thoại *</Label>
               <Input
                 id="phone"
@@ -323,7 +315,7 @@ export default function DirectFloorBookingDialog({
               />
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 sm:col-span-1">
               <Label htmlFor="guestsCount" className="text-xs font-bold text-slate-700">Số lượng khách *</Label>
               <Input
                 id="guestsCount"
@@ -451,7 +443,7 @@ export default function DirectFloorBookingDialog({
             </div>
           </div>
 
-          {/* Menu Selection (Collapsible / Accordion) */}
+          {/* Menu Selection */}
           <div className="pt-2">
             <MenuSelector decorPackage={decorPkg} customDecorPrice={customDecorPrice} />
           </div>
