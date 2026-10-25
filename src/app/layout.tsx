@@ -37,7 +37,7 @@ export default async function RootLayout({
     <html lang="vi" className={cn("font-sans", inter.variable)}>
       <body className={`${inter.className} bg-slate-50 min-h-screen flex flex-col`}>
         <AuthProvider initialUser={user}>
-          <AutoRefresh interval={7000} />
+          <AutoRefresh />
           <MainHeader />
           <main className="flex-1 container mx-auto px-4 py-8">
             <StaffAccessGuard>

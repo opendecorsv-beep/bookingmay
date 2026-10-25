@@ -2,6 +2,37 @@ import { Booking, BookingStatus, TaskStatus, SeafoodCategory, defaultSeafoodCate
 import { supabase } from './supabase';
 import { isVisitExpired, normalizeRoomName } from './bookingUtils';
 
+// In-memory micro-cache with TTL to protect Supabase Disk IO Budget & Vercel Transfer
+const CACHE_TTL_MS = 10000; // 10 seconds
+
+let cacheBookings: { data: Booking[]; time: number } | null = null;
+let cacheSeafood: { data: { updatedAt: string; categories: SeafoodCategory[] }; time: number } | null = null;
+let cachePartyMenus: { data: PartyMenuSet[]; time: number } | null = null;
+let cacheReceptionLogs: { data: ReceptionEntry[]; time: number } | null = null;
+let cacheCommissions: { data: CommissionEntry[]; time: number } | null = null;
+let cacheChatMessages: { data: ChatMessage[]; time: number } | null = null;
+
+// Timeout wrapper to prevent hanging when Supabase IOPS are throttled
+async function withTimeout<T>(promiseLike: PromiseLike<T>, timeoutMs: number, fallbackValue: any): Promise<T> {
+  let timer: any;
+  const timeoutPromise = new Promise<T>((resolve) => {
+    timer = setTimeout(() => {
+      resolve(fallbackValue as T);
+    }, timeoutMs);
+  });
+  const nativePromise = Promise.resolve(promiseLike);
+  return Promise.race([
+    nativePromise.then((res) => {
+      clearTimeout(timer);
+      return res;
+    }).catch(() => {
+      clearTimeout(timer);
+      return fallbackValue as T;
+    }),
+    timeoutPromise
+  ]);
+}
+
 let globalChatMessages: ChatMessage[] = defaultChatMessages;
 let globalStaffCommissions: CommissionEntry[] = defaultStaffCommissions;
 
@@ -77,38 +108,51 @@ let globalBookings: Booking[] = [
   }
 ];
 
-export async function getBookings() {
+export async function getBookings(): Promise<Booking[]> {
+  const now = Date.now();
+  if (cacheBookings && (now - cacheBookings.time) < CACHE_TTL_MS) {
+    return cacheBookings.data;
+  }
+
   try {
-    const { data, error } = await supabase.from('bookings').select('*');
-    if (error) {
-      console.warn("Supabase fetch failed (table might not exist). Falling back to memory.", error);
-      return globalBookings;
+    const query = supabase
+      .from('bookings')
+      .select('*')
+      .not('id', 'like', 'CONFIG_%');
+
+    const res = await withTimeout(
+      query,
+      4500,
+      { data: null as any, error: 'TIMEOUT' as any }
+    );
+    const data = res.data;
+    const error = res.error;
+
+    if (error || !data) {
+      console.warn("Supabase fetch slow/failed. Falling back to memory/cache.", error);
+      return cacheBookings?.data || globalBookings;
     }
     
     // Nếu bảng rỗng (người dùng vừa tạo bảng nhưng chưa có data), tự động nạp dữ liệu mẫu
-    if (data && data.length === 0) {
-      console.log("Seeding initial data to Supabase...");
-      for (const b of globalBookings) {
-        await supabase.from('bookings').insert([{
-          ...b,
-          menu: JSON.stringify(b.menu)
-        }]);
-      }
+    if (data && data.length === 0 && globalBookings.length > 0) {
       return globalBookings;
     }
 
-    return data
-      .filter(b => b.id !== 'CONFIG_SEAFOOD' && !b.id.startsWith('CONFIG_'))
-      .map(b => ({
-        ...b,
-        menu: typeof b.menu === 'string' ? JSON.parse(b.menu) : (b.menu || [])
-      })) as Booking[];
+    const formatted = data.map((b: any) => ({
+      ...b,
+      menu: typeof b.menu === 'string' ? JSON.parse(b.menu) : (b.menu || [])
+    })) as Booking[];
+
+    cacheBookings = { data: formatted, time: now };
+    globalBookings = formatted;
+    return formatted;
   } catch (err) {
-    return globalBookings;
+    return cacheBookings?.data || globalBookings;
   }
 }
 
 export async function addBooking(booking: Omit<Booking, 'id'>) {
+  cacheBookings = null;
   const newId = "MAY-" + Math.random().toString(36).substring(2, 8).toUpperCase();
   const newBooking = { ...booking, id: newId };
   
@@ -126,6 +170,7 @@ export async function addBooking(booking: Omit<Booking, 'id'>) {
 }
 
 export async function updateBookingData(id: string, data: Partial<Omit<Booking, 'id'>>) {
+  cacheBookings = null;
   globalBookings = globalBookings.map(b => b.id === id ? { ...b, ...data } : b);
   try {
     const updatePayload: any = { ...data };
@@ -140,6 +185,7 @@ export async function updateBookingData(id: string, data: Partial<Omit<Booking, 
 }
 
 export async function deleteBookingData(id: string) {
+  cacheBookings = null;
   globalBookings = globalBookings.filter(b => b.id !== id);
   try {
     const { error } = await supabase.from('bookings').delete().eq('id', id);
@@ -150,6 +196,7 @@ export async function deleteBookingData(id: string) {
 }
 
 export async function updateKitchenStatus(id: string, status: TaskStatus) {
+  cacheBookings = null;
   globalBookings = globalBookings.map(b => b.id === id ? { ...b, kitchenStatus: status } : b);
   try {
     const { error } = await supabase.from('bookings').update({ kitchenStatus: status }).eq('id', id);
@@ -160,6 +207,7 @@ export async function updateKitchenStatus(id: string, status: TaskStatus) {
 }
 
 export async function updateReceptionStatus(id: string, status: TaskStatus) {
+  cacheBookings = null;
   globalBookings = globalBookings.map(b => b.id === id ? { ...b, receptionStatus: status } : b);
   try {
     const { error } = await supabase.from('bookings').update({ receptionStatus: status }).eq('id', id);
@@ -170,6 +218,7 @@ export async function updateReceptionStatus(id: string, status: TaskStatus) {
 }
 
 export async function updateFloorStatus(id: string, status: TaskStatus) {
+  cacheBookings = null;
   globalBookings = globalBookings.map(b => b.id === id ? { ...b, floorStatus: status } : b);
   try {
     const { error } = await supabase.from('bookings').update({ floorStatus: status }).eq('id', id);
@@ -180,6 +229,7 @@ export async function updateFloorStatus(id: string, status: TaskStatus) {
 }
 
 export async function updateBookingStatus(id: string, status: BookingStatus) {
+  cacheBookings = null;
   globalBookings = globalBookings.map(b => b.id === id ? { ...b, status } : b);
   try {
     const { error } = await supabase.from('bookings').update({ status }).eq('id', id);
@@ -190,22 +240,32 @@ export async function updateBookingStatus(id: string, status: BookingStatus) {
 }
 
 export async function getSeafoodInventory(): Promise<{ updatedAt: string; categories: SeafoodCategory[] }> {
+  const now = Date.now();
+  if (cacheSeafood && (now - cacheSeafood.time) < CACHE_TTL_MS) {
+    return cacheSeafood.data;
+  }
   try {
-    const { data, error } = await supabase.from('bookings').select('menu, dateTime').eq('id', 'CONFIG_SEAFOOD').single();
+    const query = supabase.from('bookings').select('menu, dateTime').eq('id', 'CONFIG_SEAFOOD').single();
+    const res = await withTimeout(query, 4500, { data: null as any, error: 'TIMEOUT' as any });
+    const data = res.data;
+    const error = res.error;
     if (error || !data) {
-      return globalSeafoodData;
+      return cacheSeafood?.data || globalSeafoodData;
     }
     const parsed = typeof data.menu === 'string' ? JSON.parse(data.menu) : data.menu;
     if (parsed && parsed.categories) {
+      cacheSeafood = { data: parsed, time: now };
+      globalSeafoodData = parsed;
       return parsed;
     }
-    return globalSeafoodData;
+    return cacheSeafood?.data || globalSeafoodData;
   } catch (err) {
-    return globalSeafoodData;
+    return cacheSeafood?.data || globalSeafoodData;
   }
 }
 
 export async function saveSeafoodInventory(inventory: { updatedAt: string; categories: SeafoodCategory[] }) {
+  cacheSeafood = null;
   globalSeafoodData = inventory;
   try {
     const { error } = await supabase.from('bookings').upsert([{
@@ -230,23 +290,32 @@ export async function saveSeafoodInventory(inventory: { updatedAt: string; categ
 }
 
 export async function getPartyMenuSets(): Promise<PartyMenuSet[]> {
+  const now = Date.now();
+  if (cachePartyMenus && (now - cachePartyMenus.time) < CACHE_TTL_MS) {
+    return cachePartyMenus.data;
+  }
   try {
-    const { data, error } = await supabase.from('bookings').select('menu').eq('id', 'CONFIG_PARTY_MENUS').single();
+    const query = supabase.from('bookings').select('menu').eq('id', 'CONFIG_PARTY_MENUS').single();
+    const res = await withTimeout(query, 4500, { data: null as any, error: 'TIMEOUT' as any });
+    const data = res.data;
+    const error = res.error;
     if (error || !data) {
-      return globalPartyMenuSets;
+      return cachePartyMenus?.data || globalPartyMenuSets;
     }
     const parsed = typeof data.menu === 'string' ? JSON.parse(data.menu) : data.menu;
     if (Array.isArray(parsed) && parsed.length > 0) {
+      cachePartyMenus = { data: parsed, time: now };
       globalPartyMenuSets = parsed;
       return parsed;
     }
-    return globalPartyMenuSets;
+    return cachePartyMenus?.data || globalPartyMenuSets;
   } catch (err) {
-    return globalPartyMenuSets;
+    return cachePartyMenus?.data || globalPartyMenuSets;
   }
 }
 
 export async function savePartyMenuSets(sets: PartyMenuSet[]): Promise<void> {
+  cachePartyMenus = null;
   globalPartyMenuSets = sets;
   try {
     const { error } = await supabase.from('bookings').upsert([{
@@ -294,27 +363,37 @@ function normalizeReceptionList(logs: ReceptionEntry[]): { normalized: Reception
 }
 
 export async function getReceptionLogs(): Promise<ReceptionEntry[]> {
+  const now = Date.now();
+  if (cacheReceptionLogs && (now - cacheReceptionLogs.time) < CACHE_TTL_MS) {
+    return cacheReceptionLogs.data;
+  }
   try {
-    const { data, error } = await supabase.from('bookings').select('menu').eq('id', 'CONFIG_RECEPTION').single();
+    const query = supabase.from('bookings').select('menu').eq('id', 'CONFIG_RECEPTION').single();
+    const res = await withTimeout(query, 4500, { data: null as any, error: 'TIMEOUT' as any });
+    const data = res.data;
+    const error = res.error;
     if (error || !data) {
-      return normalizeReceptionList(globalReceptionLogs).normalized;
+      return cacheReceptionLogs?.data || normalizeReceptionList(globalReceptionLogs).normalized;
     }
     const parsed = typeof data.menu === 'string' ? JSON.parse(data.menu) : data.menu;
     if (Array.isArray(parsed)) {
       const filtered = parsed.filter((item: any) => !item.id?.startsWith('REC-20261014-00') && !item.id?.startsWith('REC-20261013-00'));
       const { normalized, hasChanges } = normalizeReceptionList(filtered);
+      cacheReceptionLogs = { data: normalized, time: now };
+      globalReceptionLogs = normalized;
       if (hasChanges) {
         saveReceptionLogs(normalized).catch(err => console.error("Error auto-updating expired reception logs:", err));
       }
       return normalized;
     }
-    return normalizeReceptionList(globalReceptionLogs).normalized;
+    return cacheReceptionLogs?.data || normalizeReceptionList(globalReceptionLogs).normalized;
   } catch (err) {
-    return normalizeReceptionList(globalReceptionLogs).normalized;
+    return cacheReceptionLogs?.data || normalizeReceptionList(globalReceptionLogs).normalized;
   }
 }
 
 export async function saveReceptionLogs(logs: ReceptionEntry[]) {
+  cacheReceptionLogs = null;
   globalReceptionLogs = logs;
   try {
     const { error } = await supabase.from('bookings').upsert([{
@@ -339,23 +418,32 @@ export async function saveReceptionLogs(logs: ReceptionEntry[]) {
 }
 
 export async function getStaffCommissions(): Promise<CommissionEntry[]> {
+  const now = Date.now();
+  if (cacheCommissions && (now - cacheCommissions.time) < CACHE_TTL_MS) {
+    return cacheCommissions.data;
+  }
   try {
-    const { data, error } = await supabase.from('bookings').select('menu').eq('id', 'CONFIG_CMS').single();
+    const query = supabase.from('bookings').select('menu').eq('id', 'CONFIG_CMS').single();
+    const res = await withTimeout(query, 4500, { data: null as any, error: 'TIMEOUT' as any });
+    const data = res.data;
+    const error = res.error;
     if (error || !data) {
-      return globalStaffCommissions;
+      return cacheCommissions?.data || globalStaffCommissions;
     }
     const parsed = typeof data.menu === 'string' ? JSON.parse(data.menu) : data.menu;
     if (Array.isArray(parsed)) {
+      cacheCommissions = { data: parsed, time: now };
       globalStaffCommissions = parsed;
       return parsed;
     }
-    return globalStaffCommissions;
+    return cacheCommissions?.data || globalStaffCommissions;
   } catch (err) {
-    return globalStaffCommissions;
+    return cacheCommissions?.data || globalStaffCommissions;
   }
 }
 
 export async function saveStaffCommissions(commissions: CommissionEntry[]): Promise<void> {
+  cacheCommissions = null;
   globalStaffCommissions = commissions;
   try {
     const { error } = await supabase.from('bookings').upsert([{
@@ -380,23 +468,32 @@ export async function saveStaffCommissions(commissions: CommissionEntry[]): Prom
 }
 
 export async function getChatMessages(): Promise<ChatMessage[]> {
+  const now = Date.now();
+  if (cacheChatMessages && (now - cacheChatMessages.time) < 3000) {
+    return cacheChatMessages.data;
+  }
   try {
-    const { data, error } = await supabase.from('bookings').select('menu').eq('id', 'CONFIG_CHAT_MESSAGES').single();
+    const query = supabase.from('bookings').select('menu').eq('id', 'CONFIG_CHAT_MESSAGES').single();
+    const res = await withTimeout(query, 4000, { data: null as any, error: 'TIMEOUT' as any });
+    const data = res.data;
+    const error = res.error;
     if (error || !data) {
-      return globalChatMessages;
+      return cacheChatMessages?.data || globalChatMessages;
     }
     const parsed = typeof data.menu === 'string' ? JSON.parse(data.menu) : data.menu;
     if (Array.isArray(parsed)) {
+      cacheChatMessages = { data: parsed, time: now };
       globalChatMessages = parsed;
       return parsed;
     }
-    return globalChatMessages;
+    return cacheChatMessages?.data || globalChatMessages;
   } catch (err) {
-    return globalChatMessages;
+    return cacheChatMessages?.data || globalChatMessages;
   }
 }
 
 export async function saveChatMessages(messages: ChatMessage[]): Promise<void> {
+  cacheChatMessages = null;
   const capped = messages.slice(-200);
   globalChatMessages = capped;
   try {
