@@ -331,7 +331,7 @@ export default function ReceiptScannerModal({
       billPercent: selectedPercent,
       billExcludedAmount: totalExcluded,
       billItemsSummary: summaryText,
-      billImageUrl: previewImage || undefined,
+      billImageUrl: undefined,
       tableName: scanResult?.tableName || undefined
     });
 

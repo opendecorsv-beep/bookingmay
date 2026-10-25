@@ -3,7 +3,7 @@ import { supabase } from './supabase';
 import { isVisitExpired, normalizeRoomName } from './bookingUtils';
 
 // In-memory micro-cache with TTL to protect Supabase Disk IO Budget & Vercel Transfer
-const CACHE_TTL_MS = 30000; // 30 seconds (Writes automatically invalidate cache instantly)
+const CACHE_TTL_MS = 60000; // 60 seconds (Writes automatically invalidate cache instantly)
 
 let cacheBookings: { data: Booking[]; time: number } | null = null;
 let cacheSeafood: { data: { updatedAt: string; categories: SeafoodCategory[] }; time: number } | null = null;
@@ -117,7 +117,7 @@ export async function getBookings(): Promise<Booking[]> {
   try {
     const query = supabase
       .from('bookings')
-      .select('*')
+      .select('id, customerName, phone, dateTime, guestsCount, room, menu, specialRequest, decorRequest, status, receptionStatus, kitchenStatus, floorStatus')
       .not('id', 'like', 'CONFIG_%');
 
     const res = await withTimeout(
@@ -444,7 +444,15 @@ export async function getStaffCommissions(): Promise<CommissionEntry[]> {
 
 export async function saveStaffCommissions(commissions: CommissionEntry[]): Promise<void> {
   cacheCommissions = null;
-  globalStaffCommissions = commissions;
+  // Bỏ toàn bộ base64 ảnh hóa đơn để bảo vệ dung lượng Supabase Egress
+  const sanitized = commissions.slice(0, 500).map(item => {
+    if (item.billImageUrl && item.billImageUrl.startsWith('data:')) {
+      const { billImageUrl, ...rest } = item;
+      return rest;
+    }
+    return item;
+  });
+  globalStaffCommissions = sanitized;
   try {
     const { error } = await supabase.from('bookings').upsert([{
       id: 'CONFIG_CMS',
@@ -453,7 +461,7 @@ export async function saveStaffCommissions(commissions: CommissionEntry[]): Prom
       dateTime: new Date().toISOString(),
       guestsCount: 0,
       room: 'CONFIG',
-      menu: JSON.stringify(commissions),
+      menu: JSON.stringify(sanitized),
       specialRequest: '',
       decorRequest: '',
       status: 'cancelled',

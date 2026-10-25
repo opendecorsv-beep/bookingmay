@@ -151,7 +151,15 @@ export default function EditBookingDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
+      {trigger ? (
+        <DialogTrigger asChild>{trigger}</DialogTrigger>
+      ) : !isControlled ? (
+        <DialogTrigger asChild>
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:text-orange-600">
+            <PenLine className="w-4 h-4" />
+          </Button>
+        </DialogTrigger>
+      ) : null}
       <DialogContent className="w-[95vw] sm:max-w-[560px] max-h-[92vh] overflow-y-auto p-4 sm:p-6 rounded-2xl">
         {booking && (
           <EditBookingInnerForm

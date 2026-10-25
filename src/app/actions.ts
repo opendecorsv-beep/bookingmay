@@ -664,15 +664,21 @@ export async function addStaffCommissionAction(data: {
 
   const currentCommissions = await getStaffCommissions();
   const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+
+  const cleanData = { ...data };
+  if (cleanData.billImageUrl && cleanData.billImageUrl.startsWith('data:')) {
+    delete cleanData.billImageUrl;
+  }
+
   const newEntry: CommissionEntry = {
-    ...data,
+    ...cleanData,
     id: `CMS-${data.date.replace(/-/g, '')}-${randomSuffix}`,
     createdById: user.id,
     createdByName: user.name,
     createdAt: new Date().toISOString()
   };
 
-  const updated = [newEntry, ...currentCommissions];
+  const updated = [newEntry, ...currentCommissions].slice(0, 500);
   await saveStaffCommissions(updated);
   revalidatePath('/cms');
   revalidatePath('/nv');
@@ -856,7 +862,7 @@ Trả về ĐÚNG JSON nguyên bản (không dùng markdown code block, không g
       totalReceipt: totalFood + totalExcluded,
       totalFood,
       totalExcluded,
-      imageUrl: base64Image.length < 600000 ? base64Image : undefined
+      imageUrl: undefined
     };
 
     return { success: true, result };
