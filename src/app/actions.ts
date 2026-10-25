@@ -135,7 +135,10 @@ export async function updateExistingBooking(id: string, data: Partial<Omit<Booki
   revalidatePath('/floor');
   revalidatePath('/floor-plan');
   revalidatePath('/archive');
-  return { success: true };
+  
+  const allBookings = await getBookings();
+  const updatedBooking = allBookings.find(b => b.id === id);
+  return { success: true, booking: updatedBooking };
 }
 
 export async function deleteBookingAction(id: string) {
@@ -159,6 +162,7 @@ export async function deleteBookingAction(id: string) {
   revalidatePath('/floor');
   revalidatePath('/floor-plan');
   revalidatePath('/archive');
+  return { success: true };
 }
 
 export async function transferReceptionRoomAction(id: string, newRoom: string) {

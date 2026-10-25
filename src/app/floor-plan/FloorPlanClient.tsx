@@ -31,9 +31,11 @@ import {
   Phone,
   RefreshCw,
   RotateCcw,
-  Plus
+  Plus,
+  PenLine
 } from "lucide-react";
 import DirectFloorBookingDialog from "@/components/DirectFloorBookingDialog";
+import EditBookingDialog from "@/components/EditBookingDialog";
 import {
   isBookingArchived,
   isVisitExpired,
@@ -103,6 +105,49 @@ export default function FloorPlanClient({
         ...prev,
         booking: prev.booking || newBooking,
         bookings: updatedBookings
+      };
+    });
+  };
+
+  const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
+
+  const handleBookingUpdated = (updatedBooking: Booking) => {
+    setBookings(prev => prev.map(b => b.id === updatedBooking.id ? updatedBooking : b));
+    setSelectedRoomDetail(prev => {
+      if (!prev) return null;
+      if (!isSameRoom(prev.roomName, updatedBooking.room)) {
+        const remaining = (prev.bookings || []).filter(b => b.id !== updatedBooking.id);
+        if (remaining.length === 0 && !prev.reception) {
+          return null;
+        }
+        return {
+          ...prev,
+          booking: remaining[0],
+          bookings: remaining,
+        };
+      } else {
+        const updatedList = (prev.bookings || []).map(b => b.id === updatedBooking.id ? updatedBooking : b);
+        return {
+          ...prev,
+          booking: updatedList[0],
+          bookings: updatedList,
+        };
+      }
+    });
+  };
+
+  const handleBookingDeleted = (bookingId: string) => {
+    setBookings(prev => prev.filter(b => b.id !== bookingId));
+    setSelectedRoomDetail(prev => {
+      if (!prev) return null;
+      const remaining = (prev.bookings || []).filter(b => b.id !== bookingId);
+      if (remaining.length === 0 && !prev.reception) {
+        return null;
+      }
+      return {
+        ...prev,
+        booking: remaining[0],
+        bookings: remaining,
       };
     });
   };
@@ -1480,9 +1525,21 @@ export default function FloorPlanClient({
                             <span className="font-extrabold text-xs text-orange-600 uppercase tracking-wider">
                               Tiệc {bIdx + 1}: {format(new Date(booking.dateTime), "HH:mm")}
                             </span>
-                            <Badge variant="outline" className="text-[10px] bg-white">
-                              {booking.guestsCount} khách
-                            </Badge>
+                            <div className="flex items-center gap-1.5">
+                              <Badge variant="outline" className="text-[10px] bg-white font-bold">
+                                {booking.guestsCount} khách
+                              </Badge>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setEditingBooking(booking)}
+                                className="h-6 px-2 text-[10px] font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border-amber-300 flex items-center gap-1 shadow-2xs cursor-pointer"
+                              >
+                                <PenLine className="w-3 h-3 text-amber-600" />
+                                Sửa tiệc
+                              </Button>
+                            </div>
                           </div>
                         )}
 
@@ -1546,8 +1603,20 @@ export default function FloorPlanClient({
                               👥 {booking.guestsCount} khách
                             </span>
 
-                            {/* Action button tailored to booking lifecycle */}
-                            <div className="mt-1.5">
+                            {/* Action button tailored to booking lifecycle + Sửa tiệc */}
+                            <div className="mt-1.5 flex items-center gap-1.5 flex-wrap justify-end">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setEditingBooking(booking)}
+                                className="h-7 px-2.5 text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border-amber-300 flex items-center gap-1 shadow-2xs cursor-pointer"
+                                title="Chỉnh sửa thông tin tiệc, món ăn, đổi bàn, ghi chú..."
+                              >
+                                <PenLine className="w-3.5 h-3.5 text-amber-600" />
+                                <span>Sửa tiệc</span>
+                              </Button>
+
                               {booking.receptionStatus === 'clean' ? (
                                 <Button
                                   type="button"
@@ -1601,28 +1670,56 @@ export default function FloorPlanClient({
                         {/* HIGHLIGHTED NOTE / DẶN DÒ CỦA KHÁCH - GIÁM SÁT / PHỤC VỤ / BẾP */}
                         {parsedReq.cleanNotes ? (
                           <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-3.5 space-y-2 shadow-xs">
-                            <div className="flex items-center gap-1.5 text-amber-900 font-extrabold text-xs uppercase tracking-wide">
-                              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-                              <span>Lưu Ý &amp; Dặn Dò Của Khách (Quan Trọng)</span>
+                            <div className="flex items-center justify-between text-amber-900 font-extrabold text-xs uppercase tracking-wide">
+                              <div className="flex items-center gap-1.5">
+                                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                                <span>Lưu Ý &amp; Dặn Dò Của Khách (Quan Trọng)</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setEditingBooking(booking)}
+                                className="text-[11px] font-bold text-amber-800 hover:underline flex items-center gap-1 cursor-pointer"
+                              >
+                                <PenLine className="w-3 h-3" />
+                                Sửa dặn dò
+                              </button>
                             </div>
                             <div className="bg-white/95 p-3 rounded-lg border border-amber-200 text-xs sm:text-sm font-semibold text-amber-950 whitespace-pre-line leading-relaxed shadow-2xs">
                               {parsedReq.cleanNotes}
                             </div>
                           </div>
                         ) : (
-                          <div className="bg-slate-50 border border-slate-200 rounded-lg p-2.5 flex items-center gap-2 text-xs text-slate-500">
-                            <FileText className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                            <span>Ghi chú dặn dò: <span className="italic text-slate-400">Không có yêu cầu riêng</span></span>
+                          <div className="bg-slate-50 border border-slate-200 rounded-lg p-2.5 flex items-center justify-between text-xs text-slate-500">
+                            <div className="flex items-center gap-2">
+                              <FileText className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                              <span>Ghi chú dặn dò: <span className="italic text-slate-400">Không có yêu cầu riêng</span></span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setEditingBooking(booking)}
+                              className="text-[11px] font-bold text-amber-700 hover:underline flex items-center gap-1 cursor-pointer"
+                            >
+                              <PenLine className="w-3 h-3" />
+                              Thêm ghi chú
+                            </button>
                           </div>
                         )}
 
                         {/* Menu */}
-                        {booking.menu && booking.menu.length > 0 && (
+                        {booking.menu && booking.menu.length > 0 ? (
                           <div>
                             <div className="flex items-center justify-between mb-1">
                               <h4 className="text-xs font-bold text-slate-700">
                                 Thực đơn đã gọi ({booking.menu.length} món):
                               </h4>
+                              <button
+                                type="button"
+                                onClick={() => setEditingBooking(booking)}
+                                className="text-[11px] font-bold text-orange-600 hover:text-orange-700 hover:underline flex items-center gap-1 cursor-pointer"
+                              >
+                                <PenLine className="w-3 h-3" />
+                                Đổi món
+                              </button>
                             </div>
                             <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200 max-h-40 overflow-y-auto space-y-1">
                               {booking.menu.map((item, idx) => (
@@ -1635,6 +1732,18 @@ export default function FloorPlanClient({
                               ))}
                             </div>
                           </div>
+                        ) : (
+                          <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs text-slate-500">
+                            <span>Chưa có thực đơn đặt trước</span>
+                            <button
+                              type="button"
+                              onClick={() => setEditingBooking(booking)}
+                              className="text-[11px] font-bold text-orange-600 hover:underline flex items-center gap-1 cursor-pointer"
+                            >
+                              <Plus className="w-3 h-3" />
+                              Chọn món ngay
+                            </button>
+                          </div>
                         )}
 
                         {/* Decor Request Details */}
@@ -1644,11 +1753,21 @@ export default function FloorPlanClient({
                               <Sparkles className="w-3.5 h-3.5 text-purple-600 shrink-0" />
                               Yêu Cầu Decor
                             </span>
-                            {decorParsed.occasion && decorParsed.occasion !== "Không có" && (
-                              <Badge className="bg-purple-600 text-white text-[10px]">
-                                {decorParsed.occasion}
-                              </Badge>
-                            )}
+                            <div className="flex items-center gap-2">
+                              {decorParsed.occasion && decorParsed.occasion !== "Không có" && (
+                                <Badge className="bg-purple-600 text-white text-[10px]">
+                                  {decorParsed.occasion}
+                                </Badge>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => setEditingBooking(booking)}
+                                className="text-[11px] font-bold text-purple-700 hover:underline flex items-center gap-1 cursor-pointer"
+                              >
+                                <PenLine className="w-3 h-3" />
+                                Sửa decor
+                              </button>
+                            </div>
                           </div>
 
                           {decorParsed.pkg ? (
@@ -1716,6 +1835,15 @@ export default function FloorPlanClient({
         defaultDate={selectedDate}
         defaultTime={directBookingTime}
         onBookingCreated={handleBookingCreated}
+      />
+
+      {/* 6. Edit Booking Dialog (Sửa món, đổi bàn, đổi thông tin booking) */}
+      <EditBookingDialog
+        booking={editingBooking}
+        open={!!editingBooking}
+        onOpenChange={(open) => !open && setEditingBooking(null)}
+        onBookingUpdated={handleBookingUpdated}
+        onBookingDeleted={handleBookingDeleted}
       />
     </div>
   );
