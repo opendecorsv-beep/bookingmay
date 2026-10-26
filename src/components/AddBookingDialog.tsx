@@ -154,7 +154,8 @@ export default function AddBookingDialog() {
                   <option value="Mây 106">Mây 106</option>
                 </optgroup>
                 <optgroup label="Tầng 2 (VIP & Đại sảnh 201)">
-                  <option value="Mây 201">👑 Mây 201 (Nguyên phòng lớn)</option>
+                  <option value="Mây 201 (Nguyên phòng)">👑 Mây 201 (Nguyên phòng lớn)</option>
+                  <option value="Mây 201">Mây 201 (Đại sảnh chung)</option>
                   <option value="Mây 201.1">↳ Mây 201.1</option>
                   <option value="Mây 201.2">↳ Mây 201.2</option>
                   <option value="Mây 201.3">↳ Mây 201.3</option>
@@ -166,7 +167,8 @@ export default function AddBookingDialog() {
                   <option value="Mây 204">Mây 204</option>
                 </optgroup>
                 <optgroup label="Tầng 3 (VIP & Đại sảnh 301)">
-                  <option value="Mây 301">👑 Mây 301 (Nguyên phòng lớn)</option>
+                  <option value="Mây 301 (Nguyên phòng)">👑 Mây 301 (Nguyên phòng lớn)</option>
+                  <option value="Mây 301">Mây 301 (Đại sảnh chung)</option>
                   <option value="Mây 301.1">↳ Mây 301.1</option>
                   <option value="Mây 301.2">↳ Mây 301.2</option>
                   <option value="Mây 301.3">↳ Mây 301.3</option>

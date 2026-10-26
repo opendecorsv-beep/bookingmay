@@ -51,7 +51,8 @@ import {
   MASTER_ROOMS,
   isMasterRoom,
   getSubRoomsOf,
-  getParentMasterRoom
+  getParentMasterRoom,
+  isFullHallBanquet
 } from "@/lib/bookingUtils";
 import { transferReceptionRoomAction, cleanRoomTableAction, resetCleanRoomAction, checkInBookingFromFloorAction } from "@/app/actions";
 
@@ -562,7 +563,9 @@ export default function FloorPlanClient({
   const renderSingleRoomCard = (
     room: string,
     isSubTable: boolean = false,
-    parentMasterBooking?: Booking
+    parentMasterBooking?: Booking,
+    assignedBooking?: Booking,
+    assignedReception?: ReceptionEntry
   ) => {
     // If room is a sub-table and parentMasterBooking is provided (entire master room booked)
     if (parentMasterBooking) {
@@ -605,10 +608,24 @@ export default function FloorPlanClient({
       );
     }
 
-    const allRoomBookings = getAllRoomBookings(room);
-    const activeRoomBookings = getActiveUpcomingRoomBookings(room);
-    const diningReception = isSelectedToday ? getRoomDiningReception(room) : undefined;
-    const latestReception = getRoomLatestReception(room);
+    const specificAllBookings = getAllRoomBookings(room);
+    const specificActiveBookings = getActiveUpcomingRoomBookings(room);
+    const allRoomBookings = specificAllBookings.length > 0
+      ? specificAllBookings
+      : (assignedBooking ? [assignedBooking] : []);
+    const activeRoomBookings = specificActiveBookings.length > 0
+      ? specificActiveBookings
+      : (assignedBooking ? [assignedBooking] : []);
+
+    const specificDiningReception = isSelectedToday ? getRoomDiningReception(room) : undefined;
+    const diningReception = specificDiningReception || (
+      isSelectedToday && assignedReception?.status === 'dining' && !isVisitExpired(assignedReception.date, assignedReception.time)
+        ? assignedReception
+        : undefined
+    );
+
+    const specificLatestReception = getRoomLatestReception(room);
+    const latestReception = specificLatestReception || assignedReception;
 
     // An in-progress booking means guests are actively dining in the room!
     const inProgressBooking = isSelectedToday ? activeRoomBookings.find(b => b.receptionStatus === 'in_progress') : undefined;
@@ -1196,21 +1213,74 @@ export default function FloorPlanClient({
                     const masterAllBookings = getAllRoomBookings(room);
                     const masterActiveBookings = getActiveUpcomingRoomBookings(room);
                     const masterDiningReception = isSelectedToday ? getRoomDiningReception(room) : undefined;
-                    const masterInProgress = isSelectedToday ? masterActiveBookings.find(b => b.receptionStatus === 'in_progress') : undefined;
-                    const isMasterDiningNow = Boolean(isSelectedToday && (masterDiningReception || masterInProgress));
-                    const masterPendingBookings = masterActiveBookings.filter(b => b.receptionStatus !== 'in_progress');
-                    const hasMasterBooking = !isMasterDiningNow && masterPendingBookings.length > 0;
-                    const masterActiveBooking = isMasterDiningNow ? (masterInProgress || masterAllBookings[0]) : masterPendingBookings[0];
+
+                    // 1. Kiểm tra xem có tiệc đặt NGUYÊN PHÒNG thực sự không
+                    // Điều kiện: booking có chứa [nguyên phòng], (nguyên phòng), hoặc >= 25 khách
+                    const fullHallBanquetBooking = masterActiveBookings.find(b => isFullHallBanquet(b));
+                    const isMasterFullHallDining = Boolean(
+                      isSelectedToday && (
+                        (masterDiningReception && isFullHallBanquet(masterDiningReception.room || masterDiningReception.notes, masterDiningReception.guestsCount)) ||
+                        (fullHallBanquetBooking && fullHallBanquetBooking.receptionStatus === 'in_progress')
+                      )
+                    );
+                    const isFullHallOccupied = isMasterFullHallDining || Boolean(fullHallBanquetBooking);
+                    const masterFullHallBooking = isMasterFullHallDining
+                      ? (fullHallBanquetBooking || masterAllBookings.find(b => isFullHallBanquet(b)))
+                      : fullHallBanquetBooking;
+
+                    // 2. Các tiệc thông thường đặt chung phòng đại sảnh (vd: 10 khách, không phải nguyên phòng)
+                    const genericMasterBookings = isFullHallOccupied
+                      ? []
+                      : masterActiveBookings.filter(b => !isFullHallBanquet(b));
+
+                    // Các lượt khách vãng lai hoặc lễ tân chưa chỉ định bàn con cụ thể:
+                    const genericReceptions = isFullHallOccupied || !isSelectedToday
+                      ? []
+                      : dayReceptionLogs.filter(l =>
+                          isSameRoom(l.room, room) &&
+                          !isSubRoom(l.room) &&
+                          !isFullHallBanquet(l.room || l.notes, l.guestsCount) &&
+                          !genericMasterBookings.some(b => b.id && b.id === l.bookingId)
+                        );
+
+                    // 3. Phân bổ thông minh vào 6 bàn con
+                    const subRoomBookingMap: Record<string, Booking | undefined> = {};
+                    const subRoomReceptionMap: Record<string, ReceptionEntry | undefined> = {};
+                    let genericBIdx = 0;
+                    let genericRIdx = 0;
+
+                    subRooms.forEach((sub) => {
+                      const subActive = getActiveUpcomingRoomBookings(sub);
+                      const subDining = isSelectedToday ? getRoomDiningReception(sub) : undefined;
+                      const subLatest = isSelectedToday ? getRoomLatestReception(sub) : undefined;
+
+                      if (subDining || subActive.length > 0) {
+                        subRoomBookingMap[sub] = subActive[0];
+                        subRoomReceptionMap[sub] = subDining || subLatest;
+                      } else if (genericBIdx < genericMasterBookings.length) {
+                        subRoomBookingMap[sub] = genericMasterBookings[genericBIdx];
+                        const linkedRec = dayReceptionLogs.find(l => l.bookingId === genericMasterBookings[genericBIdx].id);
+                        subRoomReceptionMap[sub] = linkedRec;
+                        genericBIdx++;
+                      } else if (genericRIdx < genericReceptions.length) {
+                        subRoomReceptionMap[sub] = genericReceptions[genericRIdx];
+                        genericRIdx++;
+                      } else {
+                        subRoomBookingMap[sub] = undefined;
+                        subRoomReceptionMap[sub] = undefined;
+                      }
+                    });
 
                     // Đếm số bàn con trống
                     let emptySubCount = 0;
-                    subRooms.forEach(sub => {
-                      const subActive = getActiveUpcomingRoomBookings(sub);
-                      const subDining = isSelectedToday ? getRoomDiningReception(sub) : undefined;
-                      if (!subDining && subActive.length === 0) emptySubCount++;
+                    subRooms.forEach((sub) => {
+                      const hasAssignedBooking = Boolean(subRoomBookingMap[sub]);
+                      const assignedRec = subRoomReceptionMap[sub];
+                      const isDining = assignedRec?.status === 'dining' && !isVisitExpired(assignedRec.date, assignedRec.time);
+                      if (!isDining && !hasAssignedBooking) {
+                        emptySubCount++;
+                      }
                     });
-
-                    const isFullHallOccupied = isMasterDiningNow || hasMasterBooking;
 
                     return (
                       <div
@@ -1228,11 +1298,11 @@ export default function FloorPlanClient({
                                 <span className="font-extrabold text-sm sm:text-base text-slate-800 tracking-tight">
                                   {room === "Mây 201" ? "MÂY 201 - ĐẠI SẢNH VIP" : "MÂY 301 - ĐẠI SẢNH VIP"}
                                 </span>
-                                {isMasterDiningNow ? (
+                                {isMasterFullHallDining ? (
                                   <span className="bg-emerald-600 text-white text-[10px] px-2 py-0.5 rounded font-black tracking-wider leading-none shadow-xs">
                                     🟢 ĐANG TIỆC NGUYÊN PHÒNG
                                   </span>
-                                ) : hasMasterBooking ? (
+                                ) : isFullHallOccupied ? (
                                   <span className="bg-yellow-500 text-yellow-950 text-[10px] px-2 py-0.5 rounded font-black tracking-wider leading-none shadow-xs">
                                     👑 ĐÃ ĐẶT NGUYÊN PHÒNG
                                   </span>
@@ -1245,21 +1315,23 @@ export default function FloorPlanClient({
                               <p className="text-[11px] text-slate-500 font-medium">
                                 {isFullHallOccupied
                                   ? "Đang có tiệc lớn bao trọn đại sảnh này"
-                                  : "Phòng lớn đa năng: có thể nhận tiệc nguyên phòng hoặc chia 6 bàn con độc lập"}
+                                  : genericMasterBookings.length > 0
+                                    ? `Đang phục vụ ${6 - emptySubCount}/6 bàn con (${genericMasterBookings.length} tiệc đã xếp bàn)`
+                                    : "Phòng lớn đa năng: có thể nhận tiệc nguyên phòng hoặc chia 6 bàn con độc lập"}
                               </p>
                             </div>
                           </div>
 
                           {/* Action Button */}
                           <div className="flex items-center gap-2">
-                            {isFullHallOccupied && masterActiveBooking ? (
+                            {isFullHallOccupied && masterFullHallBooking ? (
                               <Button
                                 type="button"
                                 size="sm"
                                 onClick={() => {
                                   setSelectedRoomDetail({
                                     roomName: room,
-                                    booking: masterActiveBooking,
+                                    booking: masterFullHallBooking,
                                     bookings: masterAllBookings,
                                     reception: masterDiningReception || getRoomLatestReception(room),
                                   });
@@ -1272,7 +1344,7 @@ export default function FloorPlanClient({
                               <Button
                                 type="button"
                                 size="sm"
-                                onClick={() => handleOpenDirectBooking(room)}
+                                onClick={() => handleOpenDirectBooking(`${room} (Nguyên phòng)`)}
                                 className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-bold text-xs h-7 px-2.5 rounded-lg shadow-xs cursor-pointer flex items-center gap-1"
                               >
                                 <Crown className="w-3.5 h-3.5" />
@@ -1283,12 +1355,12 @@ export default function FloorPlanClient({
                         </div>
 
                         {/* If Master banquet active: Show Highlight Banner */}
-                        {isFullHallOccupied && masterActiveBooking && (
+                        {isFullHallOccupied && masterFullHallBooking && (
                           <div
                             onClick={() => {
                               setSelectedRoomDetail({
                                 roomName: room,
-                                booking: masterActiveBooking,
+                                booking: masterFullHallBooking,
                                 bookings: masterAllBookings,
                                 reception: masterDiningReception || getRoomLatestReception(room),
                               });
@@ -1300,16 +1372,16 @@ export default function FloorPlanClient({
                               <div>
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <span className="font-black text-sm text-yellow-950">
-                                    {masterActiveBooking.customerName}
+                                    {masterFullHallBooking.customerName}
                                   </span>
                                   <span className="bg-yellow-500 text-white text-[9px] px-1.5 py-0.5 rounded font-black">
                                     TIỆC LỚN BAO PHÒNG
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-2 text-xs font-semibold text-yellow-900 mt-0.5">
-                                  <span>👥 {masterActiveBooking.guestsCount} khách</span>
+                                  <span>👥 {masterFullHallBooking.guestsCount} khách</span>
                                   <span>•</span>
-                                  <span>🕒 {format(new Date(masterActiveBooking.dateTime), "HH:mm")}</span>
+                                  <span>🕒 {format(new Date(masterFullHallBooking.dateTime), "HH:mm")}</span>
                                   <span>•</span>
                                   <span className="italic">Toàn bộ 6 bàn con phục vụ cho đoàn này</span>
                                 </div>
@@ -1331,7 +1403,13 @@ export default function FloorPlanClient({
                           </div>
                           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
                             {subRooms.map((subRoom) =>
-                              renderSingleRoomCard(subRoom, true, isFullHallOccupied ? masterActiveBooking : undefined)
+                              renderSingleRoomCard(
+                                subRoom,
+                                true,
+                                isFullHallOccupied ? masterFullHallBooking : undefined,
+                                subRoomBookingMap[subRoom],
+                                subRoomReceptionMap[subRoom]
+                              )
                             )}
                           </div>
                         </div>

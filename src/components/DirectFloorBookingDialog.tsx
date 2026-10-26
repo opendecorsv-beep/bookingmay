@@ -27,7 +27,8 @@ const FLOORS = [
   { 
     name: "Tầng 2 (VIP & Đại sảnh 201)", 
     rooms: [
-      { id: "Mây 201", label: "👑 Mây 201 (Nguyên phòng lớn)" },
+      { id: "Mây 201 (Nguyên phòng)", label: "👑 Mây 201 (Nguyên phòng lớn)" },
+      { id: "Mây 201", label: "Mây 201 (Đại sảnh chung)" },
       { id: "Mây 201.1", label: "↳ Mây 201.1" },
       { id: "Mây 201.2", label: "↳ Mây 201.2" },
       { id: "Mây 201.3", label: "↳ Mây 201.3" },
@@ -42,7 +43,8 @@ const FLOORS = [
   { 
     name: "Tầng 3 (VIP & Đại sảnh 301)", 
     rooms: [
-      { id: "Mây 301", label: "👑 Mây 301 (Nguyên phòng lớn)" },
+      { id: "Mây 301 (Nguyên phòng)", label: "👑 Mây 301 (Nguyên phòng lớn)" },
+      { id: "Mây 301", label: "Mây 301 (Đại sảnh chung)" },
       { id: "Mây 301.1", label: "↳ Mây 301.1" },
       { id: "Mây 301.2", label: "↳ Mây 301.2" },
       { id: "Mây 301.3", label: "↳ Mây 301.3" },

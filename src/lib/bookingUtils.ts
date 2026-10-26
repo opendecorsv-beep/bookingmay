@@ -116,6 +116,35 @@ export const SUB_ROOMS_MAP: Record<string, string[]> = {
 
 export const MASTER_ROOMS = Object.keys(SUB_ROOMS_MAP);
 
+/**
+ * Kiểm tra xem một booking hoặc tên phòng có phải là ĐẶT NGUYÊN PHÒNG (Bao trọn đại sảnh) hay không:
+ * - Tên phòng hoặc ghi chú có chữ "nguyên phòng", "bao trọn", "bao phòng"
+ * - Hoặc số lượng khách rất lớn (>= 25 khách) được xếp vào phòng 201 hoặc 301
+ */
+export function isFullHallBanquet(bookingOrRoom: Booking | string | undefined | null, guestsCount?: number): boolean {
+  if (!bookingOrRoom) return false;
+  if (typeof bookingOrRoom === 'string') {
+    const s = bookingOrRoom.toLowerCase();
+    return s.includes('nguyên phòng') || s.includes('nguyen phong') || s.includes('bao trọn') || s.includes('bao phong');
+  }
+
+  const b = bookingOrRoom;
+  const roomLower = (b.room || '').toLowerCase();
+  const notesLower = (b.specialRequest || '').toLowerCase() + (b.decorRequest || '').toLowerCase();
+
+  if (roomLower.includes('nguyên phòng') || roomLower.includes('nguyen phong') || roomLower.includes('bao phòng')) {
+    return true;
+  }
+  if (notesLower.includes('[nguyên phòng]') || notesLower.includes('[bao phòng]') || notesLower.includes('[nguyen phong]')) {
+    return true;
+  }
+  if ((b.guestsCount || 0) >= 25 && (roomLower.includes('201') || roomLower.includes('301'))) {
+    return true;
+  }
+
+  return false;
+}
+
 export function getParentMasterRoom(room: string | undefined | null): string | null {
   if (!room) return null;
   const norm = normalizeRoomName(room);
@@ -128,13 +157,15 @@ export function getParentMasterRoom(room: string | undefined | null): string | n
 export function getSubRoomsOf(masterRoom: string | undefined | null): string[] {
   if (!masterRoom) return [];
   const norm = normalizeRoomName(masterRoom);
-  return SUB_ROOMS_MAP[norm] || [];
+  const base = norm.includes('201') ? 'Mây 201' : (norm.includes('301') ? 'Mây 301' : norm);
+  return SUB_ROOMS_MAP[base] || [];
 }
 
 export function isMasterRoom(room: string | undefined | null): boolean {
   if (!room) return false;
   const norm = normalizeRoomName(room);
-  return MASTER_ROOMS.includes(norm);
+  return (norm.startsWith('Mây 201') && !norm.includes('201.')) ||
+         (norm.startsWith('Mây 301') && !norm.includes('301.'));
 }
 
 export function isSubRoom(room: string | undefined | null): boolean {
@@ -153,6 +184,12 @@ export function normalizeRoomName(raw: string | undefined | null): string {
   if (!s || s === 'Chưa chọn' || s === 'Sảnh chung') return s;
 
   const lower = s.toLowerCase().replace(/\s+/g, ' ');
+
+  // 0. Khớp nguyên phòng
+  if (lower.includes('nguyên phòng') || lower.includes('nguyen phong') || lower.includes('bao trọn') || lower.includes('bao phong')) {
+    if (lower.includes('201')) return 'Mây 201 (Nguyên phòng)';
+    if (lower.includes('301')) return 'Mây 301 (Nguyên phòng)';
+  }
 
   // 1. Khớp phòng tầng VIP và các bàn con: "mây 101", "may 101", "m101", "201.1", "301.6"
   const mayMatch = lower.match(/^(?:m(?:ây|ay)?\s*)?([1-3]\d{2}(?:\.[1-6])?)$/i);
@@ -244,6 +281,13 @@ export function isSameRoom(roomA: string | undefined | null, roomB: string | und
   const normA = normalizeRoomName(a);
   const normB = normalizeRoomName(b);
   if (normA && normB && normA.toLowerCase() === normB.toLowerCase()) {
+    return true;
+  }
+
+  // Khớp nguyên phòng với phòng cha đại sảnh (vd: "Mây 301 (Nguyên phòng)" và "Mây 301")
+  const baseMasterA = normA.includes('201') && !normA.includes('201.') ? 'Mây 201' : (normA.includes('301') && !normA.includes('301.') ? 'Mây 301' : null);
+  const baseMasterB = normB.includes('201') && !normB.includes('201.') ? 'Mây 201' : (normB.includes('301') && !normB.includes('301.') ? 'Mây 301' : null);
+  if (baseMasterA && baseMasterB && baseMasterA === baseMasterB) {
     return true;
   }
 
@@ -473,9 +517,9 @@ export function checkDecorConflict(
 
 /**
  * Kiểm tra xem phòng/bàn ứng viên có bị trùng lịch hoặc xung đột cha - con với các booking hiện có không
- * - Nếu đặt nguyên phòng "Mây 201": kiểm tra xem Mây 201 hoặc bất kỳ bàn con (201.1 - 201.6) nào đã có khách chưa.
- * - Nếu đặt bàn con "Mây 201.1": kiểm tra xem nguyên phòng Mây 201 đã được bao trọn chưa, hoặc chính 201.1 đã có khách chưa.
- * - Khoảng cách tối thiểu giữa 2 lượt khách cùng phòng: 4 tiếng.
+ * - Chỉ coi là xung đột nguyên phòng khi booking THỰC SỰ là tiệc nguyên phòng (chứa chữ "Nguyên phòng", "Bao phòng" hoặc >= 25 khách)
+ * - Nếu chỉ ghi chung "Mây 301" hoặc "Mây 201" với số lượng khách thông thường (vd: 10 khách), hệ thống cho phép nhiều tiệc cùng ngồi vì phòng có 6 bàn con.
+ * - Khoảng cách tối thiểu giữa 2 lượt khách cùng bàn: 4 tiếng.
  */
 export function checkRoomBookingConflict(
   bookings: Booking[],
@@ -491,6 +535,7 @@ export function checkRoomBookingConflict(
   if (isNaN(targetTime)) return null;
 
   const [candDate] = candidateDateTimeStr.split('T');
+  const candidateIsFullHall = isFullHallBanquet(candidateRoom);
 
   for (const b of bookings) {
     if (b.id === currentBookingId) continue;
@@ -509,36 +554,42 @@ export function checkRoomBookingConflict(
     const normBRoom = normalizeRoomName(b.room);
     const bTokens = extractRoomTokens(b.room);
     const bTimeFormatted = bTimePart ? bTimePart.substring(0, 5) : b.dateTime;
+    const bIsFullHall = isFullHallBanquet(b);
 
-    // Kịch bản 1: Đặt NGUYÊN PHÒNG (vd: "Mây 201" hoặc "Mây 301")
-    if (isMasterRoom(normCandidate)) {
-      const subRooms = getSubRoomsOf(normCandidate);
-      // Kiểm tra trùng nguyên phòng
-      if (isSameRoom(normCandidate, normBRoom)) {
-        return `Phòng ${normCandidate} đã được khách "${b.customerName}" đặt nguyên phòng lúc ${bTimeFormatted}!`;
+    // Kịch bản 1: Ứng viên ĐẶT NGUYÊN PHÒNG (Bao trọn đại sảnh)
+    if (candidateIsFullHall) {
+      const baseMaster = normCandidate.includes('201') ? 'Mây 201' : 'Mây 301';
+      const subRooms = getSubRoomsOf(baseMaster);
+
+      // Nếu b cũng đặt nguyên phòng này
+      if (bIsFullHall && normBRoom.includes(baseMaster.replace('Mây ', ''))) {
+        return `Đại sảnh ${baseMaster} đã được khách "${b.customerName}" đặt nguyên phòng lúc ${bTimeFormatted}!`;
       }
-      // Kiểm tra bất kỳ bàn con nào của phòng này đã có khách chưa
+
+      // Nếu bất kỳ bàn con nào của phòng này đã có khách
       const conflictedSub = subRooms.find(sub => bTokens.some(t => isSameRoom(sub, t)));
       if (conflictedSub) {
-        return `Không thể nhận đặt nguyên phòng ${normCandidate} vì ${conflictedSub} đã có khách ("${b.customerName}" lúc ${bTimeFormatted}). Quý khách vui lòng chuyển bàn con này trước khi nhận tiệc nguyên phòng!`;
+        return `Không thể nhận đặt nguyên phòng ${baseMaster} vì ${conflictedSub} đã có khách ("${b.customerName}" lúc ${bTimeFormatted}). Quý khách vui lòng chuyển bàn con này trước khi nhận tiệc nguyên phòng!`;
       }
     }
 
-    // Kịch bản 2: Đặt BÀN CON (vd: "Mây 201.3")
-    const masterParent = getParentMasterRoom(normCandidate);
-    if (masterParent) {
-      // 2a. Kiểm tra xem phòng cha nguyên phòng đã bị đặt chưa
-      if (bTokens.some(t => isSameRoom(masterParent, t))) {
-        return `${normCandidate} không thể nhận khách vì toàn bộ đại sảnh ${masterParent} đã được khách "${b.customerName}" bao trọn tiệc lớn lúc ${bTimeFormatted}!`;
-      }
-      // 2b. Kiểm tra chính bàn con này đã có khách chưa
-      if (bTokens.some(t => isSameRoom(normCandidate, t))) {
-        return `${normCandidate} đã có khách đặt ("${b.customerName}" lúc ${bTimeFormatted})!`;
+    // Kịch bản 2: Booking b là ĐẶT NGUYÊN PHÒNG
+    if (bIsFullHall) {
+      const baseMaster = normBRoom.includes('201') ? 'Mây 201' : 'Mây 301';
+      const subRooms = getSubRoomsOf(baseMaster);
+      if (subRooms.some(sub => isSameRoom(normCandidate, sub))) {
+        return `${normCandidate} không thể nhận khách vì toàn bộ đại sảnh ${baseMaster} đã được khách "${b.customerName}" bao trọn tiệc lớn lúc ${bTimeFormatted}!`;
       }
     }
 
-    // Kịch bản 3: Phòng thường hoặc Bàn sảnh
-    if (!isMasterRoom(normCandidate) && !masterParent) {
+    // Kịch bản 3: Đặt trùng bàn cụ thể (vd: 301.1 trùng 301.1, hoặc Bàn 4 trùng Bàn 4)
+    if (!candidateIsFullHall && !bIsFullHall) {
+      const isGenericMaster = (r: string) => r === 'Mây 201' || r === 'Mây 301';
+      // Nếu cả hai đều ghi chung là "Mây 301" hoặc "Mây 201" (chưa chỉ định bàn con):
+      // Không chặn vì phòng có 6 bàn con (sẽ tự động phân vào 301.1, 301.2...)
+      if (isGenericMaster(normCandidate) && isGenericMaster(normBRoom)) {
+        continue;
+      }
       if (bTokens.some(t => isSameRoom(normCandidate, t))) {
         return `${normCandidate} đã có khách đặt ("${b.customerName}" lúc ${bTimeFormatted})!`;
       }
