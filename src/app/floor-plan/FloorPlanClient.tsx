@@ -50,6 +50,7 @@ import {
   SUB_ROOMS_MAP,
   MASTER_ROOMS,
   isMasterRoom,
+  isSubRoom,
   getSubRoomsOf,
   getParentMasterRoom,
   isFullHallBanquet
