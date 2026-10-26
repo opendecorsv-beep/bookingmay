@@ -527,15 +527,14 @@ function EditBookingInnerForm({
           <div className="space-y-1.5 sm:col-span-1">
             <Label htmlFor="phone" className="text-xs font-bold text-slate-700 flex items-center gap-1">
               <Phone className="w-3.5 h-3.5 text-slate-500" />
-              <span>Số điện thoại *</span>
+              <span>Số điện thoại (tùy chọn)</span>
             </Label>
             <Input
               id="phone"
               name="phone"
               type="tel"
               defaultValue={booking.phone}
-              placeholder="0905..."
-              required
+              placeholder="0905... (nếu có)"
               className="text-base sm:text-xs h-9 font-semibold"
             />
           </div>

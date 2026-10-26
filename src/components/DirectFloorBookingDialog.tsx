@@ -120,8 +120,7 @@ export default function DirectFloorBookingDialog({
 
       let custName = (formData.get("customerName") as string || "").trim();
       if (!custName) {
-        alert("Vui lòng nhập tên khách hàng!");
-        return;
+        custName = "Khách vãng lai";
       }
 
       if (priority === "VIP" || priority === "SVIP") {
@@ -336,24 +335,22 @@ export default function DirectFloorBookingDialog({
           {/* Customer Name, Phone & Guests */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="space-y-1.5 sm:col-span-1">
-              <Label htmlFor="customerName" className="text-xs font-bold text-slate-700">Tên khách hàng *</Label>
+              <Label htmlFor="customerName" className="text-xs font-bold text-slate-700">Tên khách hàng</Label>
               <Input
                 id="customerName"
                 name="customerName"
-                placeholder="VD: Chị Lan, Anh Nam..."
-                required
+                placeholder="VD: Chị Lan, hoặc để trống = Khách vãng lai"
                 className="text-xs h-9 font-semibold"
               />
             </div>
 
             <div className="space-y-1.5 sm:col-span-1">
-              <Label htmlFor="phone" className="text-xs font-bold text-slate-700">Số điện thoại *</Label>
+              <Label htmlFor="phone" className="text-xs font-bold text-slate-700">Số điện thoại (tùy chọn)</Label>
               <Input
                 id="phone"
                 name="phone"
                 type="tel"
-                placeholder="0905..."
-                required
+                placeholder="0905... (nếu có)"
                 className="text-xs h-9 font-semibold"
               />
             </div>

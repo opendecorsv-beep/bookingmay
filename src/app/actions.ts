@@ -60,25 +60,35 @@ export async function fetchBookings() {
 }
 
 export async function createNewBooking(data: Omit<Booking, 'id'>) {
-  await verifyAuthPermission();
-  const bookings = await getBookings();
-  const decorError = checkDecorConflict(bookings, data.dateTime, data.decorRequest || "", undefined, data.room);
-  if (decorError) return { error: decorError };
+  try {
+    await verifyAuthPermission();
+    const bookings = await getBookings();
+    const decorError = checkDecorConflict(bookings, data.dateTime, data.decorRequest || "", undefined, data.room);
+    if (decorError) return { error: decorError };
 
-  const roomError = checkRoomBookingConflict(bookings, data.dateTime, data.room);
-  if (roomError) return { error: roomError };
+    const roomError = checkRoomBookingConflict(bookings, data.dateTime, data.room);
+    if (roomError) return { error: roomError };
 
-  const normalizedRoom = normalizeRoomName(data.room || 'Chưa chọn');
-  const newBooking = await addBooking({
-    ...data,
-    room: normalizedRoom
-  });
-  revalidatePath('/');
-  revalidatePath('/bookings');
-  revalidatePath('/kitchen');
-  revalidatePath('/floor');
-  revalidatePath('/floor-plan');
-  return { success: true, booking: newBooking };
+    const normalizedRoom = normalizeRoomName(data.room || 'Chưa chọn');
+    const newBooking = await addBooking({
+      ...data,
+      phone: (data.phone || '').trim(),
+      room: normalizedRoom
+    });
+    try {
+      revalidatePath('/');
+      revalidatePath('/bookings');
+      revalidatePath('/kitchen');
+      revalidatePath('/floor');
+      revalidatePath('/floor-plan');
+    } catch (e) {
+      console.warn("revalidatePath warning in createNewBooking:", e);
+    }
+    return { success: true, booking: newBooking };
+  } catch (err: any) {
+    console.error("Error in createNewBooking:", err);
+    return { error: err?.message || "Lỗi khi lưu đặt bàn" };
+  }
 }
 
 export async function updateExistingBooking(id: string, data: Partial<Omit<Booking, 'id'>>) {

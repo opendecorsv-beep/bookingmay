@@ -114,8 +114,8 @@ export default function AddBookingDialog() {
               <Input id="customerName" name="customerName" required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone">Số điện thoại</Label>
-              <Input id="phone" name="phone" required />
+              <Label htmlFor="phone">Số điện thoại (tùy chọn)</Label>
+              <Input id="phone" name="phone" placeholder="0905... (nếu có)" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="dateTime">Thời gian (Ngày & Giờ)</Label>
