@@ -71,8 +71,10 @@ interface ReceptionClientProps {
 
 const ALL_TRANSFER_ROOMS = [
   "Mây 101", "Mây 102", "Mây 103", "Mây 104", "Mây 105", "Mây 106",
-  "Mây 201", "Mây 202", "Mây 203", "Mây 204",
-  "Mây 301", "Mây 302", "Mây 303", "Mây 304",
+  "Mây 201", "Mây 201.1", "Mây 201.2", "Mây 201.3", "Mây 201.4", "Mây 201.5", "Mây 201.6",
+  "Mây 202", "Mây 203", "Mây 204",
+  "Mây 301", "Mây 301.1", "Mây 301.2", "Mây 301.3", "Mây 301.4", "Mây 301.5", "Mây 301.6",
+  "Mây 302", "Mây 303", "Mây 304",
   ...Array.from({ length: 25 }, (_, i) => `Bàn ${i + 1}`)
 ];
 
@@ -1423,11 +1425,27 @@ export default function ReceptionClient({ initialLogs, allBookings }: ReceptionC
                   className="w-full mt-1.5 h-10 text-sm font-semibold bg-white border border-slate-300 rounded-lg px-3 text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
                 >
                   <option value="">-- Chọn bàn hoặc phòng --</option>
-                  <optgroup label="Phòng VIP / Tầng">
-                    {["Mây 101", "Mây 102", "Mây 103", "Mây 104", "Mây 105", "Mây 106",
-                      "Mây 201", "Mây 202", "Mây 203", "Mây 204",
-                      "Mây 301", "Mây 302", "Mây 303", "Mây 304"].map((r) => (
+                  <optgroup label="Tầng 1 (VIP)">
+                    {["Mây 101", "Mây 102", "Mây 103", "Mây 104", "Mây 105", "Mây 106"].map((r) => (
                       <option key={r} value={r}>{r}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Tầng 2 (VIP & Đại sảnh 201)">
+                    {[
+                      "Mây 201 (Nguyên phòng)",
+                      "Mây 201.1", "Mây 201.2", "Mây 201.3", "Mây 201.4", "Mây 201.5", "Mây 201.6",
+                      "Mây 202", "Mây 203", "Mây 204"
+                    ].map((r) => (
+                      <option key={r} value={r.startsWith("Mây 201 (") ? "Mây 201" : r}>{r}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Tầng 3 (VIP & Đại sảnh 301)">
+                    {[
+                      "Mây 301 (Nguyên phòng)",
+                      "Mây 301.1", "Mây 301.2", "Mây 301.3", "Mây 301.4", "Mây 301.5", "Mây 301.6",
+                      "Mây 302", "Mây 303", "Mây 304"
+                    ].map((r) => (
+                      <option key={r} value={r.startsWith("Mây 301 (") ? "Mây 301" : r}>{r}</option>
                     ))}
                   </optgroup>
                   <optgroup label="Bàn Sảnh">

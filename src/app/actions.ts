@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { getBookings, addBooking, updateBookingData, deleteBookingData, updateKitchenStatus, updateFloorStatus, updateBookingStatus, updateReceptionStatus, getReceptionLogs, saveReceptionLogs, getPartyMenuSets, savePartyMenuSets, getStaffCommissions, saveStaffCommissions, getChatMessages, saveChatMessages, getSystemGeminiApiKey, saveSystemGeminiApiKey } from '@/lib/store';
 import { Booking, BookingStatus, TaskStatus, ReceptionEntry, VisitStatus, ReceptionFeedback, PartyMenuSet, CommissionEntry, AuthUser, KNOWN_ACCOUNTS, ChatMessage, ReceiptScanResult, ReceiptItem } from '@/lib/data';
-import { normalizeRoomName, isSameRoom, getBookingTableCount, DECOR_PACKAGE_NAMES, DECOR_PACKAGE_CAPACITIES, getVietnamNow, getVietnamTodayString, checkDecorConflict } from '@/lib/bookingUtils';
+import { normalizeRoomName, isSameRoom, getBookingTableCount, DECOR_PACKAGE_NAMES, DECOR_PACKAGE_CAPACITIES, getVietnamNow, getVietnamTodayString, checkDecorConflict, checkRoomBookingConflict } from '@/lib/bookingUtils';
 import { classifyReceiptItem } from '@/lib/receiptParser';
 import { supabase } from '@/lib/supabase';
 
@@ -62,8 +62,11 @@ export async function fetchBookings() {
 export async function createNewBooking(data: Omit<Booking, 'id'>) {
   await verifyAuthPermission();
   const bookings = await getBookings();
-  const error = checkDecorConflict(bookings, data.dateTime, data.decorRequest || "", undefined, data.room);
-  if (error) return { error };
+  const decorError = checkDecorConflict(bookings, data.dateTime, data.decorRequest || "", undefined, data.room);
+  if (decorError) return { error: decorError };
+
+  const roomError = checkRoomBookingConflict(bookings, data.dateTime, data.room);
+  if (roomError) return { error: roomError };
 
   const normalizedRoom = normalizeRoomName(data.room || 'Chưa chọn');
   const newBooking = await addBooking({
@@ -88,8 +91,11 @@ export async function updateExistingBooking(id: string, data: Partial<Omit<Booki
       const dateTimeToCheck = data.dateTime || existing.dateTime;
       const decorToCheck = data.decorRequest !== undefined ? data.decorRequest : existing.decorRequest;
       const roomToCheck = data.room !== undefined ? data.room : existing.room;
-      const error = checkDecorConflict(bookings, dateTimeToCheck, decorToCheck || "", id, roomToCheck);
-      if (error) return { error };
+      const decorError = checkDecorConflict(bookings, dateTimeToCheck, decorToCheck || "", id, roomToCheck);
+      if (decorError) return { error: decorError };
+
+      const roomError = checkRoomBookingConflict(bookings, dateTimeToCheck, roomToCheck, id);
+      if (roomError) return { error: roomError };
     }
   }
 

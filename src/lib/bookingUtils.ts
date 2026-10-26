@@ -109,11 +109,43 @@ export function isVisitExpired(dateStr: string, timeStr?: string): boolean {
   return false;
 }
 
+export const SUB_ROOMS_MAP: Record<string, string[]> = {
+  'Mây 201': ['Mây 201.1', 'Mây 201.2', 'Mây 201.3', 'Mây 201.4', 'Mây 201.5', 'Mây 201.6'],
+  'Mây 301': ['Mây 301.1', 'Mây 301.2', 'Mây 301.3', 'Mây 301.4', 'Mây 301.5', 'Mây 301.6'],
+};
+
+export const MASTER_ROOMS = Object.keys(SUB_ROOMS_MAP);
+
+export function getParentMasterRoom(room: string | undefined | null): string | null {
+  if (!room) return null;
+  const norm = normalizeRoomName(room);
+  for (const [master, subs] of Object.entries(SUB_ROOMS_MAP)) {
+    if (subs.includes(norm)) return master;
+  }
+  return null;
+}
+
+export function getSubRoomsOf(masterRoom: string | undefined | null): string[] {
+  if (!masterRoom) return [];
+  const norm = normalizeRoomName(masterRoom);
+  return SUB_ROOMS_MAP[norm] || [];
+}
+
+export function isMasterRoom(room: string | undefined | null): boolean {
+  if (!room) return false;
+  const norm = normalizeRoomName(room);
+  return MASTER_ROOMS.includes(norm);
+}
+
+export function isSubRoom(room: string | undefined | null): boolean {
+  return getParentMasterRoom(room) !== null;
+}
+
 /**
  * Chuẩn hóa tên phòng/bàn thông minh để toàn bộ hệ thống đồng bộ nhất quán:
  * - "3", "03", "b3", "ban 3", "bàn 03" -> "Bàn 3"
  * - "101", "m101", "may 101", "mây 101" -> "Mây 101"
- * - "203", "304" -> "Mây 203", "Mây 304"
+ * - "201", "201.1", "301.6" -> "Mây 201", "Mây 201.1", "Mây 301.6"
  */
 export function normalizeRoomName(raw: string | undefined | null): string {
   if (!raw) return '';
@@ -122,8 +154,8 @@ export function normalizeRoomName(raw: string | undefined | null): string {
 
   const lower = s.toLowerCase().replace(/\s+/g, ' ');
 
-  // 1. Khớp phòng tầng VIP: "mây 101", "may 101", "m101", "m 101", "101", "203", "304"
-  const mayMatch = lower.match(/^(?:m(?:ây|ay)?\s*)?([1-3]\d{2})$/i);
+  // 1. Khớp phòng tầng VIP và các bàn con: "mây 101", "may 101", "m101", "201.1", "301.6"
+  const mayMatch = lower.match(/^(?:m(?:ây|ay)?\s*)?([1-3]\d{2}(?:\.[1-6])?)$/i);
   if (mayMatch) {
     return `Mây ${mayMatch[1]}`;
   }
@@ -145,7 +177,7 @@ export function normalizeRoomName(raw: string | undefined | null): string {
   }
 
   // 4. Nếu bắt đầu bằng "mây " hoặc "may "
-  if (/^m(?:ây|ay)\s+\d+/i.test(lower)) {
+  if (/^m(?:ây|ay)\s+[\d.]+/i.test(lower)) {
     const num = lower.replace(/^m(?:ây|ay)\s+/i, '').trim();
     return `Mây ${num}`;
   }
@@ -438,5 +470,83 @@ export function checkDecorConflict(
 
   return null;
 }
+
+/**
+ * Kiểm tra xem phòng/bàn ứng viên có bị trùng lịch hoặc xung đột cha - con với các booking hiện có không
+ * - Nếu đặt nguyên phòng "Mây 201": kiểm tra xem Mây 201 hoặc bất kỳ bàn con (201.1 - 201.6) nào đã có khách chưa.
+ * - Nếu đặt bàn con "Mây 201.1": kiểm tra xem nguyên phòng Mây 201 đã được bao trọn chưa, hoặc chính 201.1 đã có khách chưa.
+ * - Khoảng cách tối thiểu giữa 2 lượt khách cùng phòng: 4 tiếng.
+ */
+export function checkRoomBookingConflict(
+  bookings: Booking[],
+  candidateDateTimeStr: string,
+  candidateRoom: string | undefined | null,
+  currentBookingId?: string
+): string | null {
+  if (!candidateRoom || candidateRoom === 'Chưa chọn' || candidateRoom === 'Sảnh chung') {
+    return null;
+  }
+  const normCandidate = normalizeRoomName(candidateRoom);
+  const targetTime = new Date(candidateDateTimeStr).getTime();
+  if (isNaN(targetTime)) return null;
+
+  const [candDate] = candidateDateTimeStr.split('T');
+
+  for (const b of bookings) {
+    if (b.id === currentBookingId) continue;
+    if (b.status === 'cancelled' || b.receptionStatus === 'clean') continue;
+
+    const [bDate, bTimePart] = (b.dateTime || '').split('T');
+    if (bDate !== candDate) continue;
+
+    const bTime = new Date(b.dateTime).getTime();
+    if (isNaN(bTime)) continue;
+
+    // Khoảng cách giữa 2 lượt khách tối thiểu 4 tiếng
+    const diffHours = Math.abs(bTime - targetTime) / (1000 * 60 * 60);
+    if (diffHours >= 4) continue;
+
+    const normBRoom = normalizeRoomName(b.room);
+    const bTokens = extractRoomTokens(b.room);
+    const bTimeFormatted = bTimePart ? bTimePart.substring(0, 5) : b.dateTime;
+
+    // Kịch bản 1: Đặt NGUYÊN PHÒNG (vd: "Mây 201" hoặc "Mây 301")
+    if (isMasterRoom(normCandidate)) {
+      const subRooms = getSubRoomsOf(normCandidate);
+      // Kiểm tra trùng nguyên phòng
+      if (isSameRoom(normCandidate, normBRoom)) {
+        return `Phòng ${normCandidate} đã được khách "${b.customerName}" đặt nguyên phòng lúc ${bTimeFormatted}!`;
+      }
+      // Kiểm tra bất kỳ bàn con nào của phòng này đã có khách chưa
+      const conflictedSub = subRooms.find(sub => bTokens.some(t => isSameRoom(sub, t)));
+      if (conflictedSub) {
+        return `Không thể nhận đặt nguyên phòng ${normCandidate} vì ${conflictedSub} đã có khách ("${b.customerName}" lúc ${bTimeFormatted}). Quý khách vui lòng chuyển bàn con này trước khi nhận tiệc nguyên phòng!`;
+      }
+    }
+
+    // Kịch bản 2: Đặt BÀN CON (vd: "Mây 201.3")
+    const masterParent = getParentMasterRoom(normCandidate);
+    if (masterParent) {
+      // 2a. Kiểm tra xem phòng cha nguyên phòng đã bị đặt chưa
+      if (bTokens.some(t => isSameRoom(masterParent, t))) {
+        return `${normCandidate} không thể nhận khách vì toàn bộ đại sảnh ${masterParent} đã được khách "${b.customerName}" bao trọn tiệc lớn lúc ${bTimeFormatted}!`;
+      }
+      // 2b. Kiểm tra chính bàn con này đã có khách chưa
+      if (bTokens.some(t => isSameRoom(normCandidate, t))) {
+        return `${normCandidate} đã có khách đặt ("${b.customerName}" lúc ${bTimeFormatted})!`;
+      }
+    }
+
+    // Kịch bản 3: Phòng thường hoặc Bàn sảnh
+    if (!isMasterRoom(normCandidate) && !masterParent) {
+      if (bTokens.some(t => isSameRoom(normCandidate, t))) {
+        return `${normCandidate} đã có khách đặt ("${b.customerName}" lúc ${bTimeFormatted})!`;
+      }
+    }
+  }
+
+  return null;
+}
+
 
 

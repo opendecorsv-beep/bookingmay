@@ -13,10 +13,51 @@ import MenuSelector from "./MenuSelector";
 import { useAuth } from "@/context/AuthContext";
 
 const FLOORS = [
-  { name: "Tầng 1", rooms: ["Mây 101", "Mây 102", "Mây 103", "Mây 104", "Mây 105", "Mây 106"] },
-  { name: "Tầng 2", rooms: ["Mây 201", "Mây 202", "Mây 203", "Mây 204"] },
-  { name: "Tầng 3", rooms: ["Mây 301", "Mây 302", "Mây 303", "Mây 304"] },
-  { name: "Tầng 4 (Sân thượng)", rooms: Array.from({ length: 25 }, (_, i) => `Bàn ${i + 1}`) },
+  { 
+    name: "Tầng 1 (VIP)", 
+    rooms: [
+      { id: "Mây 101", label: "Mây 101" },
+      { id: "Mây 102", label: "Mây 102" },
+      { id: "Mây 103", label: "Mây 103" },
+      { id: "Mây 104", label: "Mây 104" },
+      { id: "Mây 105", label: "Mây 105" },
+      { id: "Mây 106", label: "Mây 106" }
+    ] 
+  },
+  { 
+    name: "Tầng 2 (VIP & Đại sảnh 201)", 
+    rooms: [
+      { id: "Mây 201", label: "👑 Mây 201 (Nguyên phòng lớn)" },
+      { id: "Mây 201.1", label: "↳ Mây 201.1" },
+      { id: "Mây 201.2", label: "↳ Mây 201.2" },
+      { id: "Mây 201.3", label: "↳ Mây 201.3" },
+      { id: "Mây 201.4", label: "↳ Mây 201.4" },
+      { id: "Mây 201.5", label: "↳ Mây 201.5" },
+      { id: "Mây 201.6", label: "↳ Mây 201.6" },
+      { id: "Mây 202", label: "Mây 202" },
+      { id: "Mây 203", label: "Mây 203" },
+      { id: "Mây 204", label: "Mây 204" }
+    ] 
+  },
+  { 
+    name: "Tầng 3 (VIP & Đại sảnh 301)", 
+    rooms: [
+      { id: "Mây 301", label: "👑 Mây 301 (Nguyên phòng lớn)" },
+      { id: "Mây 301.1", label: "↳ Mây 301.1" },
+      { id: "Mây 301.2", label: "↳ Mây 301.2" },
+      { id: "Mây 301.3", label: "↳ Mây 301.3" },
+      { id: "Mây 301.4", label: "↳ Mây 301.4" },
+      { id: "Mây 301.5", label: "↳ Mây 301.5" },
+      { id: "Mây 301.6", label: "↳ Mây 301.6" },
+      { id: "Mây 302", label: "Mây 302" },
+      { id: "Mây 303", label: "Mây 303" },
+      { id: "Mây 304", label: "Mây 304" }
+    ] 
+  },
+  { 
+    name: "Tầng 4 (Sân thượng)", 
+    rooms: Array.from({ length: 25 }, (_, i) => ({ id: `Bàn ${i + 1}`, label: `Bàn ${i + 1}` })) 
+  },
 ];
 
 const QUICK_TIMES = ["11:30", "12:00", "12:30", "13:00", "17:30", "18:00", "18:30", "19:00", "19:30", "20:00"];
@@ -261,8 +302,8 @@ export default function DirectFloorBookingDialog({
                 {FLOORS.map((floor) => (
                   <optgroup key={floor.name} label={floor.name}>
                     {floor.rooms.map((r) => (
-                      <option key={r} value={r}>
-                        {r}
+                      <option key={r.id} value={r.id}>
+                        {r.label}
                       </option>
                     ))}
                   </optgroup>

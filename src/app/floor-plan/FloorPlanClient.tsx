@@ -32,7 +32,8 @@ import {
   RefreshCw,
   RotateCcw,
   Plus,
-  PenLine
+  PenLine,
+  Crown
 } from "lucide-react";
 import DirectFloorBookingDialog from "@/components/DirectFloorBookingDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
@@ -45,7 +46,12 @@ import {
   parseSpecialRequest,
   parseDecorRequest,
   isSameRoom,
-  normalizeRoomName
+  normalizeRoomName,
+  SUB_ROOMS_MAP,
+  MASTER_ROOMS,
+  isMasterRoom,
+  getSubRoomsOf,
+  getParentMasterRoom
 } from "@/lib/bookingUtils";
 import { transferReceptionRoomAction, cleanRoomTableAction, resetCleanRoomAction, checkInBookingFromFloorAction } from "@/app/actions";
 
@@ -192,7 +198,14 @@ export default function FloorPlanClient({
   };
 
   const ALL_ROOM_OPTIONS = useMemo(() => {
-    return FLOORS.flatMap(f => f.rooms);
+    return [
+      "Mây 101", "Mây 102", "Mây 103", "Mây 104", "Mây 105", "Mây 106",
+      "Mây 201", "Mây 201.1", "Mây 201.2", "Mây 201.3", "Mây 201.4", "Mây 201.5", "Mây 201.6",
+      "Mây 202", "Mây 203", "Mây 204",
+      "Mây 301", "Mây 301.1", "Mây 301.2", "Mây 301.3", "Mây 301.4", "Mây 301.5", "Mây 301.6",
+      "Mây 302", "Mây 303", "Mây 304",
+      ...Array.from({ length: 25 }, (_, i) => `Bàn ${i + 1}`)
+    ];
   }, []);
 
   const handleTransfer = async (receptionId: string, currentRoom: string) => {
@@ -488,7 +501,7 @@ export default function FloorPlanClient({
       totalDayTables = leftTables + totalBookingsCount;
     }
 
-    const totalRestaurantRooms = 39;
+    const totalRestaurantRooms = 49;
     const availableRoomsCount = Math.max(0, totalRestaurantRooms - uniqueBookedRooms);
 
     return {
@@ -543,6 +556,341 @@ export default function FloorPlanClient({
     const dining = list.find((l) => l.status === "dining" && !isVisitExpired(l.date, l.time));
     if (dining) return dining;
     return [...list].sort((a, b) => (b.time || '').localeCompare(a.time || ''))[0];
+  };
+
+  // Helper to render a room or sub-room card with live status
+  const renderSingleRoomCard = (
+    room: string,
+    isSubTable: boolean = false,
+    parentMasterBooking?: Booking
+  ) => {
+    // If room is a sub-table and parentMasterBooking is provided (entire master room booked)
+    if (parentMasterBooking) {
+      const masterTime = format(new Date(parentMasterBooking.dateTime), "HH:mm");
+      const cleanMasterName = parentMasterBooking.customerName.replace(/\[(VIP|SVIP)\]/g, '').trim();
+      const isDining = isSelectedToday && (parentMasterBooking.receptionStatus === 'in_progress');
+
+      return (
+        <div
+          key={room}
+          onClick={() => {
+            setSelectedRoomDetail({
+              roomName: getParentMasterRoom(room) || room,
+              booking: parentMasterBooking,
+              bookings: [parentMasterBooking],
+            });
+          }}
+          className={`p-2 sm:p-2.5 rounded-xl border-2 flex flex-col items-center justify-start text-center min-h-[95px] sm:min-h-[105px] transition-all cursor-pointer hover:scale-[1.02] shadow-2xs ${
+            isDining
+              ? "bg-amber-200/90 border-amber-500 text-amber-950 ring-2 ring-amber-400"
+              : "bg-amber-50 border-amber-300 text-amber-900"
+          }`}
+        >
+          <div className="flex items-center justify-between w-full mb-1">
+            <span className="font-extrabold text-[11px] sm:text-xs text-amber-900">{room}</span>
+            <span className="text-[10px]">👑</span>
+          </div>
+          <div className="mt-auto mb-auto flex flex-col items-center gap-0.5">
+            <span className="bg-amber-500/20 text-amber-900 border border-yellow-400/60 text-[9px] px-1.5 py-0.5 rounded font-bold">
+              {isDining ? "🟢 Tiệc đang ăn" : "Tiệc lớn bao phòng"}
+            </span>
+            <span className="font-bold text-xs truncate max-w-[95px] text-slate-800">
+              {cleanMasterName}
+            </span>
+            <span className="text-[10px] opacity-80 font-medium">
+              {masterTime}
+            </span>
+          </div>
+        </div>
+      );
+    }
+
+    const allRoomBookings = getAllRoomBookings(room);
+    const activeRoomBookings = getActiveUpcomingRoomBookings(room);
+    const diningReception = isSelectedToday ? getRoomDiningReception(room) : undefined;
+    const latestReception = getRoomLatestReception(room);
+
+    // An in-progress booking means guests are actively dining in the room!
+    const inProgressBooking = isSelectedToday ? activeRoomBookings.find(b => b.receptionStatus === 'in_progress') : undefined;
+
+    // LIVE dining: strictly only when viewing today AND (status is dining in reception OR a booking is currently in_progress)
+    const isDiningNow = Boolean(isSelectedToday && (diningReception || inProgressBooking));
+
+    // Detect SVIP / VIP for currently dining guests:
+    const linkedBookingForDining = diningReception?.bookingId
+      ? allRoomBookings.find(b => b.id === diningReception.bookingId)
+      : (inProgressBooking || allRoomBookings.find(b => (b.dateTime || '').startsWith(selectedDate) && (b.receptionStatus === 'in_progress' || b.receptionStatus === 'done')));
+
+    const diningCustomerRaw = (diningReception?.customerName || inProgressBooking?.customerName || linkedBookingForDining?.customerName || '');
+    const diningNotesRaw = (diningReception?.notes || inProgressBooking?.specialRequest || linkedBookingForDining?.specialRequest || '');
+
+    const diningIsSVIP = Boolean(
+      diningCustomerRaw.includes("[SVIP]") ||
+      diningNotesRaw.includes("[SVIP]") ||
+      (linkedBookingForDining && linkedBookingForDining.customerName.includes("[SVIP]"))
+    );
+
+    const diningIsVIP = Boolean(
+      !diningIsSVIP && (
+        diningCustomerRaw.includes("[VIP]") ||
+        diningNotesRaw.includes("[VIP]") ||
+        (linkedBookingForDining && linkedBookingForDining.customerName.includes("[VIP]"))
+      )
+    );
+
+    // Active dining data source
+    const activeDiningSource = diningReception ? {
+      customerName: diningReception.customerName.replace(/\[(VIP|SVIP)\]/g, '').trim(),
+      guestsCount: diningReception.guestsCount,
+      time: diningReception.time,
+      type: diningReception.type,
+      isVIP: diningIsVIP,
+      isSVIP: diningIsSVIP
+    } : (inProgressBooking ? {
+      customerName: inProgressBooking.customerName.replace(/\[(VIP|SVIP)\]/g, '').trim(),
+      guestsCount: inProgressBooking.guestsCount,
+      time: format(new Date(inProgressBooking.dateTime), "HH:mm"),
+      type: 'booking' as const,
+      isVIP: diningIsVIP,
+      isSVIP: diningIsSVIP
+    } : undefined);
+
+    // Upcoming active bookings (excluding the one actively dining)
+    const pendingUpcomingBookings = activeRoomBookings.filter(b => b.receptionStatus !== 'in_progress');
+    const hasActiveBooking = !isDiningNow && pendingUpcomingBookings.length > 0;
+
+    const bookingIsSVIP = pendingUpcomingBookings.some((b) => b.customerName.includes("[SVIP]"));
+    const bookingIsVIP = pendingUpcomingBookings.some((b) => b.customerName.includes("[VIP]"));
+
+    // Bàn cần dọn: Khách đã ăn xong và ra về hôm nay nhưng CHƯA bấm dọn (isCleaned !== true) HOẶC booking có receptionStatus === 'done' (Chờ dọn)
+    const isTableDirtyToday = Boolean(
+      isSelectedToday &&
+      !isDiningNow &&
+      !hasActiveBooking &&
+      (
+        (latestReception && latestReception.status === "left" && !latestReception.isCleaned) ||
+        allRoomBookings.some(b => (b.dateTime || '').startsWith(selectedDate) && b.receptionStatus === 'done')
+      )
+    );
+
+    // Bàn đã dọn xong hôm nay:
+    const cleanedBooking = allRoomBookings.find(
+      (b) => (b.dateTime || '').startsWith(selectedDate) && b.receptionStatus === "clean"
+    );
+    const isCleanedToday = Boolean(
+      !isDiningNow &&
+      !hasActiveBooking &&
+      !isTableDirtyToday &&
+      (
+        (latestReception && latestReception.status === "left" && Boolean(latestReception.isCleaned)) ||
+        Boolean(cleanedBooking)
+      )
+    );
+
+    const isEmptyRoom = !isDiningNow && !hasActiveBooking && !isTableDirtyToday && !isCleanedToday;
+
+    // Styling logic
+    let bgClass = "bg-white border-green-200 text-slate-700 hover:border-orange-400";
+    let borderRing = "";
+
+    if (isDiningNow) {
+      if (diningIsSVIP) {
+        bgClass = "bg-gradient-to-br from-amber-100 via-yellow-200 to-amber-300 border-yellow-500 text-yellow-950 ring-2 ring-yellow-400 shadow-yellow-300/80 shadow-lg";
+      } else if (diningIsVIP) {
+        bgClass = "bg-gradient-to-br from-purple-100 via-fuchsia-100 to-purple-200 border-fuchsia-400 text-fuchsia-950 ring-2 ring-fuchsia-300 shadow-fuchsia-200 shadow-md";
+      } else {
+        bgClass = "bg-emerald-50/90 border-emerald-500 text-emerald-950 shadow-md ring-2 ring-emerald-400";
+      }
+    } else if (hasActiveBooking) {
+      if (bookingIsSVIP) {
+        bgClass = "bg-gradient-to-br from-amber-100 to-yellow-300 border-yellow-500 text-yellow-950 ring-2 ring-yellow-400 shadow-yellow-200 shadow-lg";
+      } else if (bookingIsVIP) {
+        bgClass = "bg-gradient-to-br from-purple-100 to-fuchsia-200 border-fuchsia-400 text-fuchsia-950 ring-1 ring-fuchsia-300 shadow-md";
+      } else {
+        bgClass = "bg-red-50 border-red-200 text-red-900";
+      }
+    } else if (isTableDirtyToday) {
+      bgClass = "bg-amber-50/90 border-amber-400 text-amber-950 ring-2 ring-amber-300/70 shadow-sm";
+    } else if (isCleanedToday) {
+      bgClass = "bg-slate-50 border-slate-300 text-slate-600 hover:border-slate-400";
+    }
+
+    const handleCardClick = () => {
+      if (isEmptyRoom) {
+        handleOpenDirectBooking(room);
+      } else {
+        setSelectedRoomDetail({
+          roomName: room,
+          booking: activeRoomBookings[0] || allRoomBookings[0],
+          bookings: allRoomBookings,
+          reception: diningReception || latestReception,
+        });
+      }
+    };
+
+    const minHeightClass = isSubTable ? "min-h-[95px] sm:min-h-[105px]" : "min-h-[115px]";
+    const paddingClass = isSubTable ? "p-2 sm:p-2.5" : "p-3.5";
+
+    return (
+      <div
+        key={room}
+        onClick={handleCardClick}
+        className={`${paddingClass} rounded-xl border-2 flex flex-col items-center justify-start text-center ${minHeightClass} transition-all cursor-pointer hover:scale-[1.02] ${bgClass} ${borderRing}`}
+      >
+        {/* Top Header: Room Name + Badges */}
+        <div className="flex items-center justify-between w-full mb-1">
+          <span className="font-bold text-xs sm:text-sm">{room}</span>
+          <div className="flex items-center gap-1">
+            {isDiningNow && (
+              <span className="relative flex h-2.5 w-2.5" title={diningIsSVIP ? "SVIP đang dùng bữa" : diningIsVIP ? "VIP đang dùng bữa" : "Đang dùng bữa"}>
+                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                  diningIsSVIP ? 'bg-amber-400' : diningIsVIP ? 'bg-fuchsia-400' : 'bg-emerald-400'
+                }`}></span>
+                <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
+                  diningIsSVIP ? 'bg-amber-500' : diningIsVIP ? 'bg-fuchsia-500' : 'bg-emerald-500'
+                }`}></span>
+              </span>
+            )}
+            {!isDiningNow && hasActiveBooking && bookingIsSVIP && (
+              <span className="bg-yellow-500 text-white text-[9px] px-1.5 py-0.5 rounded font-black tracking-wider shadow-sm leading-none">
+                👑 SVIP
+              </span>
+            )}
+            {!isDiningNow && hasActiveBooking && bookingIsVIP && !bookingIsSVIP && (
+              <span className="bg-fuchsia-600 text-white text-[9px] px-1.5 py-0.5 rounded font-bold shadow-sm leading-none">
+                ⭐ VIP
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Display content */}
+        {isDiningNow && activeDiningSource ? (
+          <div className="flex flex-col gap-1 w-full mt-1">
+            <div className="flex items-center justify-center gap-1 self-center flex-wrap">
+              <span className="bg-emerald-600 text-white text-[10px] px-1.5 py-0.5 rounded font-black tracking-wider leading-none shadow-xs">
+                🟢 ĐANG CÓ KHÁCH
+              </span>
+              {diningIsSVIP && (
+                <span className="bg-yellow-500 text-white text-[10px] px-1.5 py-0.5 rounded font-black tracking-wider shadow-sm leading-none">
+                  👑 SVIP
+                </span>
+              )}
+              {diningIsVIP && !diningIsSVIP && (
+                <span className="bg-fuchsia-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold shadow-sm leading-none">
+                  ⭐ VIP
+                </span>
+              )}
+            </div>
+            <span className="font-bold text-xs truncate max-w-[130px] self-center" title={activeDiningSource.customerName}>
+              {activeDiningSource.customerName}
+            </span>
+            <div className="flex items-center justify-center gap-1.5 text-[11px] opacity-90 font-medium">
+              <span>👥 {activeDiningSource.guestsCount} khách</span>
+              {activeDiningSource.time && <span>• {activeDiningSource.time}</span>}
+            </div>
+            {activeDiningSource.type === "walkin" && (
+              <span className="text-[10px] text-emerald-800 italic font-semibold">
+                (Khách vãng lai)
+              </span>
+            )}
+
+            {/* Hiển thị thêm tiệc tiếp theo trong ngày */}
+            {pendingUpcomingBookings.length > 0 && (
+              <div className="mt-1 pt-1 border-t border-black/10 text-[10px] text-amber-950 font-bold truncate flex items-center justify-center gap-1 bg-amber-500/10 rounded px-1 py-0.5">
+                <span>🕒 Tiếp:</span>
+                <span className="text-orange-700">{format(new Date(pendingUpcomingBookings[0].dateTime), "HH:mm")}</span>
+                <span className="truncate">{pendingUpcomingBookings[0].customerName.replace(/\[(VIP|SVIP)\]/g, '').trim()}</span>
+                <span>({pendingUpcomingBookings[0].guestsCount}k)</span>
+              </div>
+            )}
+          </div>
+        ) : hasActiveBooking ? (
+          <div className="flex flex-col gap-2 w-full mt-1">
+            {pendingUpcomingBookings.map((booking, bIdx) => {
+              const isVIP = booking.customerName.includes("[VIP]");
+              const isSVIP = booking.customerName.includes("[SVIP]");
+              let displayName = booking.customerName
+                .replace(/\[(VIP|SVIP)\]/g, "")
+                .trim();
+
+              const bookingNotes = parseSpecialRequest(booking.specialRequest).cleanNotes;
+
+              return (
+                <div
+                  key={booking.id}
+                  className={`text-xs flex flex-col items-center gap-0.5 w-full ${
+                    bIdx > 0 ? "border-t border-black/10 pt-1.5 mt-1" : ""
+                  }`}
+                >
+                  <div className="flex gap-1 items-center flex-wrap justify-center">
+                    {isSVIP && (
+                      <span className="bg-yellow-500 text-white text-[10px] px-1.5 py-0.5 rounded font-black tracking-wider shadow-sm leading-none">
+                        SVIP
+                      </span>
+                    )}
+                    {isVIP && (
+                      <span className="bg-fuchsia-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold shadow-sm leading-none">
+                        VIP
+                      </span>
+                    )}
+                    <span className="bg-blue-600 text-white text-[9px] px-1.5 py-0.5 rounded font-medium leading-none">
+                      Chờ đón
+                    </span>
+                  </div>
+                  <span className="font-semibold text-xs truncate max-w-[130px]">
+                    {displayName}
+                  </span>
+                  <div className="flex items-center gap-1 opacity-80 text-[11px]">
+                    <span>{booking.guestsCount} khách</span>
+                    <span className="font-bold">
+                      • {format(new Date(booking.dateTime), "HH:mm")}
+                    </span>
+                  </div>
+                  {bookingNotes && (
+                    <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-amber-800 bg-amber-100/90 px-1.5 py-0.5 rounded-sm border border-amber-300/80 mt-0.5 max-w-full truncate shadow-2xs">
+                      📝 Có dặn dò
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : isTableDirtyToday ? (
+          <div className="mt-auto mb-auto flex flex-col items-center gap-1">
+            <span className="bg-amber-500 text-white text-[10px] px-2 py-0.5 rounded font-black tracking-wider leading-none shadow-xs flex items-center gap-1">
+              🧹 CẦN DỌN BÀN
+            </span>
+            {latestReception?.time ? (
+              <span className="text-[10px] text-amber-900/90 font-medium">
+                Khách về lúc {latestReception.time}
+              </span>
+            ) : null}
+            <span className="text-[9px] text-amber-800 bg-amber-100/90 px-1.5 py-0.5 rounded border border-amber-200 font-semibold">
+              Bấm để Clean bàn
+            </span>
+          </div>
+        ) : isCleanedToday ? (
+          <div className="mt-auto mb-auto flex flex-col items-center gap-1">
+            <span className="text-[11px] text-slate-600 font-bold flex items-center gap-1">
+              ⚪ Trống sạch
+            </span>
+            <span className="text-[9px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 font-semibold">
+              Sẵn sàng đón khách mới
+            </span>
+          </div>
+        ) : (
+          <div className="mt-auto mb-auto flex flex-col items-center gap-1">
+            <span className="text-xs text-green-600 font-bold">
+              Trống
+            </span>
+            <span className="text-[10px] text-slate-400 group-hover:text-orange-600 transition-colors">
+              + Bấm để đặt bàn
+            </span>
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -843,291 +1191,155 @@ export default function FloorPlanClient({
             <CardContent className="p-4 bg-[#f8efe6]">
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {floor.rooms.map((room) => {
-                  const allRoomBookings = getAllRoomBookings(room);
-                  const activeRoomBookings = getActiveUpcomingRoomBookings(room);
-                  const diningReception = isSelectedToday ? getRoomDiningReception(room) : undefined;
-                  const latestReception = getRoomLatestReception(room);
+                  if (isMasterRoom(room)) {
+                    const subRooms = getSubRoomsOf(room);
+                    const masterAllBookings = getAllRoomBookings(room);
+                    const masterActiveBookings = getActiveUpcomingRoomBookings(room);
+                    const masterDiningReception = isSelectedToday ? getRoomDiningReception(room) : undefined;
+                    const masterInProgress = isSelectedToday ? masterActiveBookings.find(b => b.receptionStatus === 'in_progress') : undefined;
+                    const isMasterDiningNow = Boolean(isSelectedToday && (masterDiningReception || masterInProgress));
+                    const masterPendingBookings = masterActiveBookings.filter(b => b.receptionStatus !== 'in_progress');
+                    const hasMasterBooking = !isMasterDiningNow && masterPendingBookings.length > 0;
+                    const masterActiveBooking = isMasterDiningNow ? (masterInProgress || masterAllBookings[0]) : masterPendingBookings[0];
 
-                  // An in-progress booking means guests are actively dining in the room!
-                  const inProgressBooking = isSelectedToday ? activeRoomBookings.find(b => b.receptionStatus === 'in_progress') : undefined;
+                    // Đếm số bàn con trống
+                    let emptySubCount = 0;
+                    subRooms.forEach(sub => {
+                      const subActive = getActiveUpcomingRoomBookings(sub);
+                      const subDining = isSelectedToday ? getRoomDiningReception(sub) : undefined;
+                      if (!subDining && subActive.length === 0) emptySubCount++;
+                    });
 
-                  // LIVE dining: strictly only when viewing today AND (status is dining in reception OR a booking is currently in_progress)
-                  const isDiningNow = Boolean(isSelectedToday && (diningReception || inProgressBooking));
+                    const isFullHallOccupied = isMasterDiningNow || hasMasterBooking;
 
-                  // Detect SVIP / VIP for currently dining guests:
-                  const linkedBookingForDining = diningReception?.bookingId
-                    ? allRoomBookings.find(b => b.id === diningReception.bookingId)
-                    : (inProgressBooking || allRoomBookings.find(b => (b.dateTime || '').startsWith(selectedDate) && (b.receptionStatus === 'in_progress' || b.receptionStatus === 'done')));
-
-                  const diningCustomerRaw = (diningReception?.customerName || inProgressBooking?.customerName || linkedBookingForDining?.customerName || '');
-                  const diningNotesRaw = (diningReception?.notes || inProgressBooking?.specialRequest || linkedBookingForDining?.specialRequest || '');
-
-                  const diningIsSVIP = Boolean(
-                    diningCustomerRaw.includes("[SVIP]") ||
-                    diningNotesRaw.includes("[SVIP]") ||
-                    (linkedBookingForDining && linkedBookingForDining.customerName.includes("[SVIP]"))
-                  );
-
-                  const diningIsVIP = Boolean(
-                    !diningIsSVIP && (
-                      diningCustomerRaw.includes("[VIP]") ||
-                      diningNotesRaw.includes("[VIP]") ||
-                      (linkedBookingForDining && linkedBookingForDining.customerName.includes("[VIP]"))
-                    )
-                  );
-
-                  // Active dining data source
-                  const activeDiningSource = diningReception ? {
-                    customerName: diningReception.customerName.replace(/\[(VIP|SVIP)\]/g, '').trim(),
-                    guestsCount: diningReception.guestsCount,
-                    time: diningReception.time,
-                    type: diningReception.type,
-                    isVIP: diningIsVIP,
-                    isSVIP: diningIsSVIP
-                  } : (inProgressBooking ? {
-                    customerName: inProgressBooking.customerName.replace(/\[(VIP|SVIP)\]/g, '').trim(),
-                    guestsCount: inProgressBooking.guestsCount,
-                    time: format(new Date(inProgressBooking.dateTime), "HH:mm"),
-                    type: 'booking' as const,
-                    isVIP: diningIsVIP,
-                    isSVIP: diningIsSVIP
-                  } : undefined);
-
-                  // Upcoming active bookings (excluding the one actively dining)
-                  const pendingUpcomingBookings = activeRoomBookings.filter(b => b.receptionStatus !== 'in_progress');
-                  const hasActiveBooking = !isDiningNow && pendingUpcomingBookings.length > 0;
-
-                  const bookingIsSVIP = pendingUpcomingBookings.some((b) => b.customerName.includes("[SVIP]"));
-                  const bookingIsVIP = pendingUpcomingBookings.some((b) => b.customerName.includes("[VIP]"));
-
-                  // Bàn cần dọn: Khách đã ăn xong và ra về hôm nay nhưng CHƯA bấm dọn (isCleaned !== true) HOẶC booking có receptionStatus === 'done' (Chờ dọn)
-                  const isTableDirtyToday = Boolean(
-                    isSelectedToday &&
-                    !isDiningNow &&
-                    !hasActiveBooking &&
-                    (
-                      (latestReception && latestReception.status === "left" && !latestReception.isCleaned) ||
-                      allRoomBookings.some(b => (b.dateTime || '').startsWith(selectedDate) && b.receptionStatus === 'done')
-                    )
-                  );
-
-                  // Bàn đã dọn xong hôm nay:
-                  const cleanedBooking = allRoomBookings.find(
-                    (b) => (b.dateTime || '').startsWith(selectedDate) && b.receptionStatus === "clean"
-                  );
-                  const isCleanedToday = Boolean(
-                    !isDiningNow &&
-                    !hasActiveBooking &&
-                    !isTableDirtyToday &&
-                    (
-                      (latestReception && latestReception.status === "left" && Boolean(latestReception.isCleaned)) ||
-                      Boolean(cleanedBooking)
-                    )
-                  );
-
-                  const isEmptyRoom = !isDiningNow && !hasActiveBooking && !isTableDirtyToday && !isCleanedToday;
-
-                  // Styling logic (Khôi phục chuẩn 100% UI ban đầu)
-                  let bgClass = "bg-white border-green-200 text-slate-700 hover:border-orange-400";
-                  let borderRing = "";
-
-                  if (isDiningNow) {
-                    if (diningIsSVIP) {
-                      bgClass = "bg-gradient-to-br from-amber-100 via-yellow-200 to-amber-300 border-yellow-500 text-yellow-950 ring-2 ring-yellow-400 shadow-yellow-300/80 shadow-lg";
-                    } else if (diningIsVIP) {
-                      bgClass = "bg-gradient-to-br from-purple-100 via-fuchsia-100 to-purple-200 border-fuchsia-400 text-fuchsia-950 ring-2 ring-fuchsia-300 shadow-fuchsia-200 shadow-md";
-                    } else {
-                      bgClass = "bg-emerald-50/90 border-emerald-500 text-emerald-950 shadow-md ring-2 ring-emerald-400";
-                    }
-                  } else if (hasActiveBooking) {
-                    if (bookingIsSVIP) {
-                      bgClass = "bg-gradient-to-br from-amber-100 to-yellow-300 border-yellow-500 text-yellow-950 ring-2 ring-yellow-400 shadow-yellow-200 shadow-lg";
-                    } else if (bookingIsVIP) {
-                      bgClass = "bg-gradient-to-br from-purple-100 to-fuchsia-200 border-fuchsia-400 text-fuchsia-950 ring-1 ring-fuchsia-300 shadow-md";
-                    } else {
-                      bgClass = "bg-red-50 border-red-200 text-red-900";
-                    }
-                  } else if (isTableDirtyToday) {
-                    bgClass = "bg-amber-50/90 border-amber-400 text-amber-950 ring-2 ring-amber-300/70 shadow-sm";
-                  } else if (isCleanedToday) {
-                    bgClass = "bg-slate-50 border-slate-300 text-slate-600 hover:border-slate-400";
-                  }
-
-                  // Nếu bàn trống: Click trực tiếp vào để mở modal đặt tiệc cho bàn này!
-                  // Nếu bàn có khách/tiệc: Click vào để mở xem chi tiết phòng
-                  const handleCardClick = () => {
-                    if (isEmptyRoom) {
-                      handleOpenDirectBooking(room);
-                    } else {
-                      setSelectedRoomDetail({
-                        roomName: room,
-                        booking: activeRoomBookings[0] || allRoomBookings[0],
-                        bookings: allRoomBookings,
-                        reception: diningReception || latestReception,
-                      });
-                    }
-                  };
-
-                  return (
-                    <div
-                      key={room}
-                      onClick={handleCardClick}
-                      className={`p-3.5 rounded-xl border-2 flex flex-col items-center justify-start text-center min-h-[115px] transition-all cursor-pointer hover:scale-[1.02] ${bgClass} ${borderRing}`}
-                    >
-                      {/* Top Header: Room Name + Badges */}
-                      <div className="flex items-center justify-between w-full mb-1">
-                        <span className="font-bold text-xs sm:text-sm">{room}</span>
-                        <div className="flex items-center gap-1">
-                          {isDiningNow && (
-                            <span className="relative flex h-2.5 w-2.5" title={diningIsSVIP ? "SVIP đang dùng bữa" : diningIsVIP ? "VIP đang dùng bữa" : "Đang dùng bữa"}>
-                              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
-                                diningIsSVIP ? 'bg-amber-400' : diningIsVIP ? 'bg-fuchsia-400' : 'bg-emerald-400'
-                              }`}></span>
-                              <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
-                                diningIsSVIP ? 'bg-amber-500' : diningIsVIP ? 'bg-fuchsia-500' : 'bg-emerald-500'
-                              }`}></span>
-                            </span>
-                          )}
-                          {!isDiningNow && hasActiveBooking && bookingIsSVIP && (
-                            <span className="bg-yellow-500 text-white text-[9px] px-1.5 py-0.5 rounded font-black tracking-wider shadow-sm leading-none">
-                              👑 SVIP
-                            </span>
-                          )}
-                          {!isDiningNow && hasActiveBooking && bookingIsVIP && !bookingIsSVIP && (
-                            <span className="bg-fuchsia-600 text-white text-[9px] px-1.5 py-0.5 rounded font-bold shadow-sm leading-none">
-                              ⭐ VIP
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Display content */}
-                      {isDiningNow && activeDiningSource ? (
-                        <div className="flex flex-col gap-1 w-full mt-1">
-                          <div className="flex items-center justify-center gap-1 self-center flex-wrap">
-                            <span className="bg-emerald-600 text-white text-[10px] px-1.5 py-0.5 rounded font-black tracking-wider leading-none shadow-xs">
-                              🟢 ĐANG CÓ KHÁCH
-                            </span>
-                            {diningIsSVIP && (
-                              <span className="bg-yellow-500 text-white text-[10px] px-1.5 py-0.5 rounded font-black tracking-wider shadow-sm leading-none">
-                                👑 SVIP
-                              </span>
-                            )}
-                            {diningIsVIP && !diningIsSVIP && (
-                              <span className="bg-fuchsia-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold shadow-sm leading-none">
-                                ⭐ VIP
-                              </span>
-                            )}
-                          </div>
-                          <span className="font-bold text-xs truncate max-w-[130px] self-center" title={activeDiningSource.customerName}>
-                            {activeDiningSource.customerName}
-                          </span>
-                          <div className="flex items-center justify-center gap-1.5 text-[11px] opacity-90 font-medium">
-                            <span>👥 {activeDiningSource.guestsCount} khách</span>
-                            {activeDiningSource.time && <span>• {activeDiningSource.time}</span>}
-                          </div>
-                          {activeDiningSource.type === "walkin" && (
-                            <span className="text-[10px] text-emerald-800 italic font-semibold">
-                              (Khách vãng lai)
-                            </span>
-                          )}
-
-                          {/* Hiển thị thêm tiệc tiếp theo trong ngày (nếu có khách đặt tối) */}
-                          {pendingUpcomingBookings.length > 0 && (
-                            <div className="mt-1 pt-1 border-t border-black/10 text-[10px] text-amber-950 font-bold truncate flex items-center justify-center gap-1 bg-amber-500/10 rounded px-1 py-0.5">
-                              <span>🕒 Tiếp:</span>
-                              <span className="text-orange-700">{format(new Date(pendingUpcomingBookings[0].dateTime), "HH:mm")}</span>
-                              <span className="truncate">{pendingUpcomingBookings[0].customerName.replace(/\[(VIP|SVIP)\]/g, '').trim()}</span>
-                              <span>({pendingUpcomingBookings[0].guestsCount}k)</span>
+                    return (
+                      <div
+                        key={room}
+                        className="col-span-2 sm:col-span-3 rounded-2xl border-2 border-amber-300/80 bg-gradient-to-b from-amber-50/70 via-white to-orange-50/30 p-3 sm:p-4 shadow-sm"
+                      >
+                        {/* Master Card Header */}
+                        <div className="flex items-center justify-between flex-wrap gap-2 pb-2.5 border-b border-amber-200/80">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center font-black shadow-xs text-sm shrink-0">
+                              👑
                             </div>
-                          )}
-                        </div>
-                      ) : hasActiveBooking ? (
-                        <div className="flex flex-col gap-2 w-full mt-1">
-                          {pendingUpcomingBookings.map((booking, bIdx) => {
-                            const isVIP = booking.customerName.includes("[VIP]");
-                            const isSVIP = booking.customerName.includes("[SVIP]");
-                            let displayName = booking.customerName
-                              .replace(/\[(VIP|SVIP)\]/g, "")
-                              .trim();
-
-                            const bookingNotes = parseSpecialRequest(booking.specialRequest).cleanNotes;
-
-                            return (
-                              <div
-                                key={booking.id}
-                                className={`text-xs flex flex-col items-center gap-0.5 w-full ${
-                                  bIdx > 0 ? "border-t border-black/10 pt-1.5 mt-1" : ""
-                                }`}
-                              >
-                                <div className="flex gap-1 items-center flex-wrap justify-center">
-                                  {isSVIP && (
-                                    <span className="bg-yellow-500 text-white text-[10px] px-1.5 py-0.5 rounded font-black tracking-wider shadow-sm leading-none">
-                                      SVIP
-                                    </span>
-                                  )}
-                                  {isVIP && (
-                                    <span className="bg-fuchsia-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold shadow-sm leading-none">
-                                      VIP
-                                    </span>
-                                  )}
-                                  <span className="bg-blue-600 text-white text-[9px] px-1.5 py-0.5 rounded font-medium leading-none">
-                                    Chờ đón
-                                  </span>
-                                </div>
-                                <span className="font-semibold text-xs truncate max-w-[130px]">
-                                  {displayName}
+                            <div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-extrabold text-sm sm:text-base text-slate-800 tracking-tight">
+                                  {room === "Mây 201" ? "MÂY 201 - ĐẠI SẢNH VIP" : "MÂY 301 - ĐẠI SẢNH VIP"}
                                 </span>
-                                <div className="flex items-center gap-1 opacity-80 text-[11px]">
-                                  <span>{booking.guestsCount} khách</span>
-                                  <span className="font-bold">
-                                    • {format(new Date(booking.dateTime), "HH:mm")}
+                                {isMasterDiningNow ? (
+                                  <span className="bg-emerald-600 text-white text-[10px] px-2 py-0.5 rounded font-black tracking-wider leading-none shadow-xs">
+                                    🟢 ĐANG TIỆC NGUYÊN PHÒNG
                                   </span>
-                                </div>
-                                {bookingNotes && (
-                                  <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-amber-800 bg-amber-100/90 px-1.5 py-0.5 rounded-sm border border-amber-300/80 mt-0.5 max-w-full truncate shadow-2xs">
-                                    📝 Có dặn dò
+                                ) : hasMasterBooking ? (
+                                  <span className="bg-yellow-500 text-yellow-950 text-[10px] px-2 py-0.5 rounded font-black tracking-wider leading-none shadow-xs">
+                                    👑 ĐÃ ĐẶT NGUYÊN PHÒNG
+                                  </span>
+                                ) : (
+                                  <span className="bg-amber-100 text-amber-900 border border-amber-300 text-[10px] px-2 py-0.5 rounded-full font-bold">
+                                    Trống {emptySubCount}/6 bàn con
                                   </span>
                                 )}
                               </div>
-                            );
-                          })}
+                              <p className="text-[11px] text-slate-500 font-medium">
+                                {isFullHallOccupied
+                                  ? "Đang có tiệc lớn bao trọn đại sảnh này"
+                                  : "Phòng lớn đa năng: có thể nhận tiệc nguyên phòng hoặc chia 6 bàn con độc lập"}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Action Button */}
+                          <div className="flex items-center gap-2">
+                            {isFullHallOccupied && masterActiveBooking ? (
+                              <Button
+                                type="button"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedRoomDetail({
+                                    roomName: room,
+                                    booking: masterActiveBooking,
+                                    bookings: masterAllBookings,
+                                    reception: masterDiningReception || getRoomLatestReception(room),
+                                  });
+                                }}
+                                className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs h-7 px-2.5 rounded-lg shadow-xs cursor-pointer"
+                              >
+                                Xem tiệc nguyên phòng
+                              </Button>
+                            ) : (
+                              <Button
+                                type="button"
+                                size="sm"
+                                onClick={() => handleOpenDirectBooking(room)}
+                                className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-bold text-xs h-7 px-2.5 rounded-lg shadow-xs cursor-pointer flex items-center gap-1"
+                              >
+                                <Crown className="w-3.5 h-3.5" />
+                                <span>+ Đặt nguyên phòng</span>
+                              </Button>
+                            )}
+                          </div>
                         </div>
-                      ) : isTableDirtyToday ? (
-                        <div className="mt-auto mb-auto flex flex-col items-center gap-1">
-                          <span className="bg-amber-500 text-white text-[10px] px-2 py-0.5 rounded font-black tracking-wider leading-none shadow-xs flex items-center gap-1">
-                            🧹 CẦN DỌN BÀN
-                          </span>
-                          {latestReception?.time ? (
-                            <span className="text-[10px] text-amber-900/90 font-medium">
-                              Khách về lúc {latestReception.time}
+
+                        {/* If Master banquet active: Show Highlight Banner */}
+                        {isFullHallOccupied && masterActiveBooking && (
+                          <div
+                            onClick={() => {
+                              setSelectedRoomDetail({
+                                roomName: room,
+                                booking: masterActiveBooking,
+                                bookings: masterAllBookings,
+                                reception: masterDiningReception || getRoomLatestReception(room),
+                              });
+                            }}
+                            className="mt-2.5 p-3 rounded-xl border-2 border-yellow-500 bg-gradient-to-r from-amber-100 via-yellow-100 to-amber-200 text-yellow-950 cursor-pointer shadow-xs hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <span className="text-xl">🎉</span>
+                              <div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-black text-sm text-yellow-950">
+                                    {masterActiveBooking.customerName}
+                                  </span>
+                                  <span className="bg-yellow-500 text-white text-[9px] px-1.5 py-0.5 rounded font-black">
+                                    TIỆC LỚN BAO PHÒNG
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs font-semibold text-yellow-900 mt-0.5">
+                                  <span>👥 {masterActiveBooking.guestsCount} khách</span>
+                                  <span>•</span>
+                                  <span>🕒 {format(new Date(masterActiveBooking.dateTime), "HH:mm")}</span>
+                                  <span>•</span>
+                                  <span className="italic">Toàn bộ 6 bàn con phục vụ cho đoàn này</span>
+                                </div>
+                              </div>
+                            </div>
+                            <span className="text-xs font-bold text-amber-800 underline self-end sm:self-center">
+                              Chi tiết & Menu tiệc →
                             </span>
-                          ) : null}
-                          <span className="text-[9px] text-amber-800 bg-amber-100/90 px-1.5 py-0.5 rounded border border-amber-200 font-semibold">
-                            Bấm để Clean bàn
-                          </span>
+                          </div>
+                        )}
+
+                        {/* 6 Sub-Rooms Grid */}
+                        <div className="mt-2.5">
+                          <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                            <span>Danh sách 6 bàn con bên trong {room}:</span>
+                            <span className="text-[10px] text-slate-400 normal-case font-normal">
+                              (Bấm vào từng bàn để đặt hoặc xem chi tiết)
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
+                            {subRooms.map((subRoom) =>
+                              renderSingleRoomCard(subRoom, true, isFullHallOccupied ? masterActiveBooking : undefined)
+                            )}
+                          </div>
                         </div>
-                      ) : isCleanedToday ? (
-                        <div className="mt-auto mb-auto flex flex-col items-center gap-1">
-                          <span className="text-[11px] text-slate-600 font-bold flex items-center gap-1">
-                            ⚪ Trống sạch
-                          </span>
-                          <span className="text-[9px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 font-semibold">
-                            Sẵn sàng đón khách mới
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="mt-auto mb-auto flex flex-col items-center gap-1">
-                          <span className="text-xs text-green-600 font-bold">
-                            Trống
-                          </span>
-                          <span className="text-[10px] text-slate-400 group-hover:text-orange-600 transition-colors">
-                            + Bấm để đặt bàn
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  );
+                      </div>
+                    );
+                  }
+
+                  return renderSingleRoomCard(room, false);
                 })}
               </div>
             </CardContent>
