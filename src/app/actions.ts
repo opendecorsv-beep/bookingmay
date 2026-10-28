@@ -376,6 +376,80 @@ export async function checkInBookingFromFloorAction(bookingId: string) {
   return { success: true };
 }
 
+export async function revertCheckInBookingAction(bookingId: string) {
+  try {
+    await verifyAuthPermission();
+    const allBookings = await getBookings();
+    const b = allBookings.find(item => item.id === bookingId);
+    if (!b) return { error: "Không tìm thấy thông tin tiệc" };
+
+    // 1. Chuyển trạng thái booking trở lại 'pending'
+    await updateBookingData(b.id, {
+      receptionStatus: 'pending',
+      floorStatus: 'pending'
+    });
+
+    // 2. Xóa lượt đón khách tương ứng trong receptionLogs
+    const currentLogs = await getReceptionLogs();
+    const [bDate] = (b.dateTime || '').split('T');
+    const cleanName = b.customerName.replace(/\[(VIP|SVIP)\]/g, '').trim();
+    const updatedLogs = currentLogs.filter(item => {
+      if (item.bookingId === b.id) return false;
+      if (item.status === 'dining' && item.date === bDate && item.customerName === cleanName && isSameRoom(item.room, b.room)) {
+        return false;
+      }
+      return true;
+    });
+
+    if (updatedLogs.length !== currentLogs.length) {
+      await saveReceptionLogs(updatedLogs);
+    }
+
+    revalidatePath('/');
+    revalidatePath('/bookings');
+    revalidatePath('/floor-plan');
+    revalidatePath('/floor');
+    revalidatePath('/kitchen');
+
+    return { success: true };
+  } catch (err: any) {
+    console.error("Error in revertCheckInBookingAction:", err);
+    return { error: err?.message || "Lỗi khi hoàn tác nhận khách" };
+  }
+}
+
+export async function revertCheckInReceptionAction(receptionId: string) {
+  try {
+    await verifyAuthPermission();
+    const currentLogs = await getReceptionLogs();
+    const target = currentLogs.find(l => l.id === receptionId);
+    if (!target) return { error: "Không tìm thấy lượt đón khách" };
+
+    // Nếu có linked bookingId, revert booking luôn
+    if (target.bookingId) {
+      await updateBookingData(target.bookingId, {
+        receptionStatus: 'pending',
+        floorStatus: 'pending'
+      });
+    }
+
+    // Xóa log này khỏi reception
+    const updatedLogs = currentLogs.filter(l => l.id !== receptionId);
+    await saveReceptionLogs(updatedLogs);
+
+    revalidatePath('/');
+    revalidatePath('/bookings');
+    revalidatePath('/floor-plan');
+    revalidatePath('/floor');
+    revalidatePath('/kitchen');
+
+    return { success: true };
+  } catch (err: any) {
+    console.error("Error in revertCheckInReceptionAction:", err);
+    return { error: err?.message || "Lỗi khi hoàn tác nhận khách" };
+  }
+}
+
 export async function resetCleanRoomAction(params: {
   bookingId?: string;
   roomName?: string;
@@ -610,6 +684,13 @@ export async function updateReceptionFeedbackAction(id: string, feedback: Recept
 
 export async function deleteReceptionEntryAction(id: string) {
   const currentLogs = await getReceptionLogs();
+  const target = currentLogs.find(item => item.id === id);
+  if (target?.bookingId) {
+    await updateBookingData(target.bookingId, {
+      receptionStatus: 'pending',
+      floorStatus: 'pending'
+    });
+  }
   const updatedLogs = currentLogs.filter(item => item.id !== id);
   await saveReceptionLogs(updatedLogs);
   revalidatePath('/');

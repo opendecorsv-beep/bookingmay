@@ -31,6 +31,7 @@ import {
   Phone,
   RefreshCw,
   RotateCcw,
+  Undo2,
   Plus,
   PenLine,
   Crown
@@ -55,7 +56,7 @@ import {
   getParentMasterRoom,
   isFullHallBanquet
 } from "@/lib/bookingUtils";
-import { transferReceptionRoomAction, cleanRoomTableAction, resetCleanRoomAction, checkInBookingFromFloorAction } from "@/app/actions";
+import { transferReceptionRoomAction, cleanRoomTableAction, resetCleanRoomAction, checkInBookingFromFloorAction, revertCheckInBookingAction, revertCheckInReceptionAction } from "@/app/actions";
 
 const FLOORS = [
   { name: "Tầng 1", rooms: ["Mây 101", "Mây 102", "Mây 103", "Mây 104", "Mây 105", "Mây 106"] },
@@ -173,7 +174,11 @@ export default function FloorPlanClient({
   const [isCleaning, setIsCleaning] = useState<boolean>(false);
   const [isCheckingIn, setIsCheckingIn] = useState<boolean>(false);
 
-  const handleCheckInBooking = async (bookingId: string) => {
+  const handleCheckInBooking = async (bookingId: string, customerName?: string) => {
+    const nameDisplay = customerName ? `cho khách "${customerName}"` : "cho tiệc này";
+    if (!confirm(`Xác nhận đón ${nameDisplay} vào bàn ngay bây giờ?`)) {
+      return;
+    }
     setIsCheckingIn(true);
     try {
       const res = await checkInBookingFromFloorAction(bookingId);
@@ -194,6 +199,40 @@ export default function FloorPlanClient({
     } catch (err) {
       console.error("Lỗi khi đón khách:", err);
       alert("Có lỗi khi đón khách vào bàn!");
+    } finally {
+      setIsCheckingIn(false);
+    }
+  };
+
+  const handleRevertCheckIn = async (bookingId?: string, receptionId?: string, customerName?: string) => {
+    const nameDisplay = customerName ? `cho khách "${customerName}"` : "";
+    if (!confirm(`Bạn có chắc chắn muốn hủy nhận khách ${nameDisplay} và trả tiệc về trạng thái CHỜ ĐÓN TIẾP không?`)) {
+      return;
+    }
+    setIsCheckingIn(true);
+    try {
+      let res;
+      if (bookingId) {
+        res = await revertCheckInBookingAction(bookingId);
+      } else if (receptionId) {
+        res = await revertCheckInReceptionAction(receptionId);
+      }
+      if (res && 'error' in res && res.error) {
+        alert(res.error);
+        return;
+      }
+      if (bookingId) {
+        setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, receptionStatus: 'pending' as const } : b));
+      }
+      if (receptionId) {
+        setReceptionLogs(prev => prev.filter(l => l.id !== receptionId));
+      } else if (bookingId) {
+        setReceptionLogs(prev => prev.filter(l => l.bookingId !== bookingId));
+      }
+      setSelectedRoomDetail(null);
+    } catch (err) {
+      console.error("Lỗi khi hoàn tác nhận khách:", err);
+      alert("Có lỗi khi hoàn tác nhận khách!");
     } finally {
       setIsCheckingIn(false);
     }
@@ -1529,15 +1568,29 @@ export default function FloorPlanClient({
                         Khách đang dùng bữa tại bàn. Khi khách thanh toán ra về, bấm nút bên phải để chuyển sang trạng thái dọn phòng.
                       </p>
                     </div>
-                    <Button
-                      type="button"
-                      disabled={isCleaning}
-                      onClick={() => handleCleanRoom(selectedRoomDetail.roomName, selectedRoomDetail.reception?.id, inProgressBooking?.id, false)}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs h-9 px-3.5 flex items-center gap-1.5 shadow-sm shrink-0 w-full sm:w-auto"
-                    >
-                      <Sparkles className="w-4 h-4 text-emerald-200" />
-                      {isCleaning ? "Đang xử lý..." : "Khách Ra Về & Dọn Bàn"}
-                    </Button>
+                    <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-end">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={isCheckingIn}
+                        onClick={() => handleRevertCheckIn(inProgressBooking?.id, selectedRoomDetail.reception?.id, inProgressBooking?.customerName || selectedRoomDetail.reception?.customerName)}
+                        className="bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs h-9 px-3 flex items-center gap-1.5 border border-slate-300 shadow-2xs cursor-pointer"
+                        title="Bấm nhầm khách vào bàn? Bấm vào đây để hủy và đưa tiệc về trạng thái chưa nhận khách"
+                      >
+                        <Undo2 className="w-3.5 h-3.5 text-amber-600" />
+                        <span>Chưa nhận khách (Hủy vào bàn)</span>
+                      </Button>
+                      <Button
+                        type="button"
+                        disabled={isCleaning}
+                        onClick={() => handleCleanRoom(selectedRoomDetail.roomName, selectedRoomDetail.reception?.id, inProgressBooking?.id, false)}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs h-9 px-3.5 flex items-center gap-1.5 shadow-sm shrink-0"
+                      >
+                        <Sparkles className="w-4 h-4 text-emerald-200" />
+                        {isCleaning ? "Đang xử lý..." : "Khách Ra Về & Dọn Bàn"}
+                      </Button>
+                    </div>
                   </div>
                 ) : isDirtyNow ? (
                   <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300 p-3.5 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-2xs">
@@ -1575,7 +1628,7 @@ export default function FloorPlanClient({
                       <Button
                         type="button"
                         disabled={isCheckingIn}
-                        onClick={() => handleCheckInBooking(pendingBookings[0].id)}
+                        onClick={() => handleCheckInBooking(pendingBookings[0].id, pendingBookings[0].customerName)}
                         className="bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs h-9 px-3.5 flex items-center gap-1.5 shadow-sm shrink-0 w-full sm:w-auto"
                       >
                         <Users className="w-4 h-4 text-blue-200" />
@@ -1921,16 +1974,30 @@ export default function FloorPlanClient({
                                   Mở lại bàn
                                 </Button>
                               ) : booking.receptionStatus === 'in_progress' ? (
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  disabled={isCleaning}
-                                  onClick={() => handleCleanRoom(selectedRoomDetail.roomName, undefined, booking.id, false)}
-                                  className="h-7 text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white flex items-center gap-1 shadow-2xs"
-                                >
-                                  <Sparkles className="w-3.5 h-3.5" />
-                                  Khách về &amp; Chờ dọn
-                                </Button>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={isCheckingIn}
+                                    onClick={() => handleRevertCheckIn(booking.id, selectedRoomDetail.reception?.id, booking.customerName)}
+                                    className="h-7 text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border-amber-300 flex items-center gap-1 shadow-2xs"
+                                    title="Bấm vào đây nếu nhân viên bấm nhầm khách vào bàn sớm"
+                                  >
+                                    <Undo2 className="w-3 h-3 text-amber-600" />
+                                    Chưa nhận khách
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    disabled={isCleaning}
+                                    onClick={() => handleCleanRoom(selectedRoomDetail.roomName, undefined, booking.id, false)}
+                                    className="h-7 text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white flex items-center gap-1 shadow-2xs"
+                                  >
+                                    <Sparkles className="w-3.5 h-3.5" />
+                                    Khách về &amp; Chờ dọn
+                                  </Button>
+                                </div>
                               ) : booking.receptionStatus === 'done' ? (
                                 <Button
                                   type="button"
@@ -1947,7 +2014,7 @@ export default function FloorPlanClient({
                                   type="button"
                                   size="sm"
                                   disabled={isCheckingIn}
-                                  onClick={() => handleCheckInBooking(booking.id)}
+                                  onClick={() => handleCheckInBooking(booking.id, booking.customerName)}
                                   className="h-7 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1 shadow-2xs"
                                 >
                                   <Users className="w-3.5 h-3.5" />

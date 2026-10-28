@@ -30,7 +30,8 @@ import {
   ChevronRight,
   LayoutGrid,
   AlertCircle,
-  RefreshCw
+  RefreshCw,
+  Undo2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -60,7 +61,9 @@ import {
   updateReceptionStatusAction,
   updateReceptionFeedbackAction,
   deleteReceptionEntryAction,
-  transferReceptionRoomAction
+  transferReceptionRoomAction,
+  revertCheckInBookingAction,
+  revertCheckInReceptionAction
 } from '@/app/actions';
 import * as XLSX from 'xlsx';
 
@@ -391,6 +394,31 @@ export default function ReceptionClient({ initialLogs, allBookings }: ReceptionC
     } catch (err) {
       console.error(err);
       alert('Có lỗi khi xóa!');
+    }
+  };
+
+  const handleRevertCheckIn = async (entry: ReceptionEntry) => {
+    if (!confirm(`Bạn có chắc chắn muốn hủy nhận khách "${entry.customerName}" và trả tiệc về trạng thái CHỜ ĐÓN TIẾP không?`)) {
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      let res;
+      if (entry.bookingId) {
+        res = await revertCheckInBookingAction(entry.bookingId);
+      } else {
+        res = await revertCheckInReceptionAction(entry.id);
+      }
+      if (res && 'error' in res && res.error) {
+        alert(res.error);
+        return;
+      }
+      setLogs(prev => prev.filter(item => item.id !== entry.id));
+    } catch (err: any) {
+      console.error(err);
+      alert('Có lỗi khi hoàn tác đón khách: ' + (err?.message || err));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -903,13 +931,27 @@ export default function ReceptionClient({ initialLogs, allBookings }: ReceptionC
                   {/* Action or Feedback Section */}
                   <div className="mt-3">
                     {isDining ? (
-                      <Button
-                        onClick={() => handleOpenFeedback(entry)}
-                        className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold h-9 text-xs sm:text-sm shadow-xs"
-                      >
-                        <MessageSquare className="w-4 h-4 mr-1.5" />
-                        Khách Ra Về & Xin Feedback
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={isSubmitting}
+                          onClick={() => handleRevertCheckIn(entry)}
+                          className="h-9 px-3 text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-300 flex items-center gap-1 shrink-0"
+                          title="Hoàn tác nếu nhân viên bấm nhầm khách vào bàn sớm"
+                        >
+                          <Undo2 className="w-3.5 h-3.5 text-amber-600" />
+                          <span>Chưa nhận khách</span>
+                        </Button>
+                        <Button
+                          onClick={() => handleOpenFeedback(entry)}
+                          className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-bold h-9 text-xs sm:text-sm shadow-xs"
+                        >
+                          <MessageSquare className="w-4 h-4 mr-1.5" />
+                          Khách Ra Về &amp; Xin Feedback
+                        </Button>
+                      </div>
                     ) : (
                       <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200/80">
                         <div className="flex items-center justify-between">
