@@ -65,6 +65,7 @@ import {
   revertCheckInBookingAction,
   revertCheckInReceptionAction
 } from '@/app/actions';
+import { useAuth } from '@/context/AuthContext';
 import * as XLSX from 'xlsx';
 
 interface ReceptionClientProps {
@@ -94,6 +95,7 @@ const QUICK_TAGS = [
 ];
 
 export default function ReceptionClient({ initialLogs, allBookings }: ReceptionClientProps) {
+  const { isLoggedIn, openLoginModal } = useAuth();
   const [logs, setLogs] = useState<ReceptionEntry[]>(initialLogs);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -277,6 +279,10 @@ export default function ReceptionClient({ initialLogs, allBookings }: ReceptionC
 
   // Handle open Add Modal
   const handleOpenAdd = () => {
+    if (!isLoggedIn) {
+      openLoginModal();
+      return;
+    }
     setNewType('walkin');
     setSelectedBookingId('');
     setNewCustomerName('');
@@ -342,6 +348,10 @@ export default function ReceptionClient({ initialLogs, allBookings }: ReceptionC
 
   // Open feedback modal
   const handleOpenFeedback = (entry: ReceptionEntry) => {
+    if (!isLoggedIn) {
+      openLoginModal();
+      return;
+    }
     setSelectedEntryForFeedback(entry);
     setFeedbackRating(entry.feedback?.rating || 'very_satisfied');
     setFeedbackComment(entry.feedback?.comment || '');
@@ -387,6 +397,10 @@ export default function ReceptionClient({ initialLogs, allBookings }: ReceptionC
 
   // Delete entry
   const handleDeleteEntry = async (id: string, name: string) => {
+    if (!isLoggedIn) {
+      openLoginModal();
+      return;
+    }
     if (!confirm(`Bạn có chắc muốn xóa lượt đón khách của "${name}"?`)) return;
     try {
       await deleteReceptionEntryAction(id);
@@ -398,6 +412,10 @@ export default function ReceptionClient({ initialLogs, allBookings }: ReceptionC
   };
 
   const handleRevertCheckIn = async (entry: ReceptionEntry) => {
+    if (!isLoggedIn) {
+      openLoginModal();
+      return;
+    }
     if (!confirm(`Bạn có chắc chắn muốn hủy nhận khách "${entry.customerName}" và trả tiệc về trạng thái CHỜ ĐÓN TIẾP không?`)) {
       return;
     }
@@ -817,6 +835,10 @@ export default function ReceptionClient({ initialLogs, allBookings }: ReceptionC
                         <button
                           type="button"
                           onClick={() => {
+                            if (!isLoggedIn) {
+                              openLoginModal();
+                              return;
+                            }
                             setTransferTargetEntry(entry);
                             setTransferTargetRoom(entry.room || '');
                           }}

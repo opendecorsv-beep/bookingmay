@@ -9,7 +9,7 @@ import { Sparkles, BarChart3, MessageSquare, BellRing } from 'lucide-react';
 
 export default function AppNavbar() {
   const pathname = usePathname();
-  const { isStaffOnly } = useAuth();
+  const { isStaffOnly, isReceptionist } = useAuth();
 
   const navLinks = [
     { href: '/', label: 'Lễ Tân', icon: BellRing },
@@ -42,6 +42,37 @@ export default function AppNavbar() {
           <span>Chat VIP</span>
         </Link>
         <div className="ml-auto shrink-0">
+          <NavbarAuth />
+        </div>
+      </nav>
+    );
+  }
+
+  if (isReceptionist) {
+    return (
+      <nav className="flex gap-2 text-sm font-medium text-slate-600 overflow-x-auto whitespace-nowrap scrollbar-hide flex-1 justify-start py-2 items-center">
+        <Link 
+          href="/" 
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
+            pathname === '/'
+              ? 'bg-orange-600 text-white shadow-sm ring-1 ring-orange-500'
+              : 'text-slate-600 hover:text-orange-600 hover:bg-orange-50'
+          }`}
+        >
+          <BellRing className="w-3.5 h-3.5" />
+          <span>Lễ Tân</span>
+        </Link>
+        <Link 
+          href="/floor-plan" 
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
+            pathname === '/floor-plan'
+              ? 'bg-orange-600 text-white shadow-sm ring-1 ring-orange-500'
+              : 'text-slate-600 hover:text-orange-600 hover:bg-orange-50'
+          }`}
+        >
+          <span>Sơ đồ bàn</span>
+        </Link>
+        <div className="ml-auto shrink-0 pl-1">
           <NavbarAuth />
         </div>
       </nav>

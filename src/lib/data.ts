@@ -336,7 +336,7 @@ export const RESTAURANT_STAFF_LIST: RestaurantStaff[] = [
 
 export const defaultStaffCommissions: CommissionEntry[] = [];
 
-export type UserRole = 'admin' | 'supervisor' | 'staff';
+export type UserRole = 'admin' | 'supervisor' | 'staff' | 'receptionist';
 
 export interface AuthUser {
   id: string;
@@ -350,6 +350,9 @@ export const KNOWN_ACCOUNTS: Record<string, { pass: string; name: string; role: 
   gsmai: { pass: 'mai123', name: 'Giám Sát Mai (Nguyễn Thị Thanh Mai)', role: 'supervisor' },
   gstien: { pass: 'tien246', name: 'Giám Sát Tiến (Đồng Văn Tiến)', role: 'supervisor' },
   nhanvien: { pass: 'may2026', name: 'Nhân Viên Mây', role: 'staff' },
+  thuyletan: { pass: 'maybmt2026', name: 'Lễ Tân Thúy', role: 'receptionist' },
+  nhiletan: { pass: 'maybmt2026', name: 'Lễ Tân Nhi', role: 'receptionist' },
+  nhuletan: { pass: 'maybmt2026', name: 'Lễ Tân Như', role: 'receptionist' },
 };
 
 // ---------------------------------------------------------------------------

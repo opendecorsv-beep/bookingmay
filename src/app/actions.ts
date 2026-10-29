@@ -46,10 +46,25 @@ export async function getAuthStatus(): Promise<boolean> {
   return !!user && (user.role === 'admin' || user.role === 'supervisor');
 }
 
-async function verifyAuthPermission() {
+export async function getCanAddGuestStatus(): Promise<boolean> {
+  const user = await getAuthUserAction();
+  return !!user && (user.role === 'admin' || user.role === 'supervisor' || user.role === 'receptionist');
+}
+
+async function verifySupervisorOrAdmin() {
+  const user = await getAuthUserAction();
+  if (!user || user.role === 'staff' || user.role === 'receptionist') {
+    throw new Error('Chỉ tài khoản Quản Lý hoặc Giám Sát mới có quyền thực hiện thao tác này!');
+  }
+  return user;
+}
+
+const verifyAuthPermission = verifySupervisorOrAdmin;
+
+async function verifyCanAddOrReception() {
   const user = await getAuthUserAction();
   if (!user || user.role === 'staff') {
-    throw new Error('Chỉ tài khoản quản lý hoặc giám sát mới có quyền thay đổi thông tin!');
+    throw new Error('Vui lòng đăng nhập tài khoản Lễ Tân, Giám Sát hoặc Quản Lý để thực hiện thao tác này!');
   }
   return user;
 }
@@ -61,7 +76,7 @@ export async function fetchBookings() {
 
 export async function createNewBooking(data: Omit<Booking, 'id'>) {
   try {
-    await verifyAuthPermission();
+    await verifyCanAddOrReception();
     const bookings = await getBookings();
     const decorError = checkDecorConflict(bookings, data.dateTime, data.decorRequest || "", undefined, data.room);
     if (decorError) return { error: decorError };
@@ -182,6 +197,7 @@ export async function deleteBookingAction(id: string) {
 }
 
 export async function transferReceptionRoomAction(id: string, newRoom: string) {
+  await verifyCanAddOrReception();
   const currentLogs = await getReceptionLogs();
   let linkedBookingId: string | undefined;
   const normalizedNewRoom = normalizeRoomName(newRoom);
@@ -260,6 +276,7 @@ export async function cleanRoomTableAction(params: {
   receptionId?: string;
   markCleaned?: boolean;
 }) {
+  await verifyCanAddOrReception();
   const { roomName, date, bookingId, receptionId, markCleaned = true } = params;
   const targetDate = date ? date.split('T')[0] : undefined;
 
@@ -340,6 +357,7 @@ export async function cleanRoomTableAction(params: {
 }
 
 export async function checkInBookingFromFloorAction(bookingId: string) {
+  await verifyCanAddOrReception();
   const allBookings = await getBookings();
   const b = allBookings.find(item => item.id === bookingId);
   if (!b) return { error: "Không tìm thấy thông tin tiệc" };
@@ -378,7 +396,7 @@ export async function checkInBookingFromFloorAction(bookingId: string) {
 
 export async function revertCheckInBookingAction(bookingId: string) {
   try {
-    await verifyAuthPermission();
+    await verifyCanAddOrReception();
     const allBookings = await getBookings();
     const b = allBookings.find(item => item.id === bookingId);
     if (!b) return { error: "Không tìm thấy thông tin tiệc" };
@@ -420,7 +438,7 @@ export async function revertCheckInBookingAction(bookingId: string) {
 
 export async function revertCheckInReceptionAction(receptionId: string) {
   try {
-    await verifyAuthPermission();
+    await verifyCanAddOrReception();
     const currentLogs = await getReceptionLogs();
     const target = currentLogs.find(l => l.id === receptionId);
     if (!target) return { error: "Không tìm thấy lượt đón khách" };
@@ -456,6 +474,7 @@ export async function resetCleanRoomAction(params: {
   date?: string;
   receptionId?: string;
 }) {
+  await verifyCanAddOrReception();
   const { bookingId, roomName, date, receptionId } = params;
   const targetDate = date ? date.split('T')[0] : undefined;
 
@@ -576,6 +595,7 @@ export async function fetchReceptionLogs(): Promise<ReceptionEntry[]> {
 }
 
 export async function addReceptionEntryAction(data: Omit<ReceptionEntry, 'id' | 'createdAt' | 'updatedAt'>) {
+  await verifyCanAddOrReception();
   const currentLogs = await getReceptionLogs();
   const now = new Date();
   const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
@@ -611,6 +631,7 @@ export async function addReceptionEntryAction(data: Omit<ReceptionEntry, 'id' | 
 }
 
 export async function updateReceptionStatusAction(id: string, status: VisitStatus, feedback?: ReceptionFeedback) {
+  await verifyCanAddOrReception();
   const currentLogs = await getReceptionLogs();
   let linkedBookingId: string | undefined;
 
@@ -647,6 +668,7 @@ export async function updateReceptionStatusAction(id: string, status: VisitStatu
 }
 
 export async function updateReceptionFeedbackAction(id: string, feedback: ReceptionFeedback) {
+  await verifyCanAddOrReception();
   const currentLogs = await getReceptionLogs();
   let linkedBookingId: string | undefined;
 
@@ -683,6 +705,7 @@ export async function updateReceptionFeedbackAction(id: string, feedback: Recept
 }
 
 export async function deleteReceptionEntryAction(id: string) {
+  await verifyCanAddOrReception();
   const currentLogs = await getReceptionLogs();
   const target = currentLogs.find(item => item.id === id);
   if (target?.bookingId) {

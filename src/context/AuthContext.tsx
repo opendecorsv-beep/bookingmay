@@ -13,7 +13,10 @@ interface AuthContextType {
   isLoggedIn: boolean;
   user: AuthUser | null;
   isStaffOnly: boolean;
+  isReceptionist: boolean;
   isSupervisorOrAdmin: boolean;
+  canManageBookings: boolean;
+  canAddGuests: boolean;
   openLoginModal: () => void;
   closeLoginModal: () => void;
   logout: () => Promise<void>;
@@ -23,7 +26,10 @@ const AuthContext = createContext<AuthContextType>({
   isLoggedIn: false,
   user: null,
   isStaffOnly: false,
+  isReceptionist: false,
   isSupervisorOrAdmin: false,
+  canManageBookings: false,
+  canAddGuests: false,
   openLoginModal: () => {},
   closeLoginModal: () => {},
   logout: async () => {},
@@ -49,7 +55,10 @@ export function AuthProvider({
 
   const isLoggedIn = !!user;
   const isStaffOnly = user?.role === 'staff';
+  const isReceptionist = user?.role === 'receptionist';
   const isSupervisorOrAdmin = user?.role === 'admin' || user?.role === 'supervisor';
+  const canManageBookings = isSupervisorOrAdmin;
+  const canAddGuests = isSupervisorOrAdmin || isReceptionist;
 
   const openLoginModal = () => {
     setErrorMessage('');
@@ -78,6 +87,12 @@ export function AuthProvider({
         // If staff logs in, direct to /nv
         if (res.user.role === 'staff') {
           window.location.href = '/nv';
+        } else if (res.user.role === 'receptionist') {
+          if (window.location.pathname !== '/' && window.location.pathname !== '/floor-plan') {
+            window.location.href = '/';
+          } else {
+            window.location.reload();
+          }
         } else {
           window.location.reload();
         }
@@ -103,7 +118,10 @@ export function AuthProvider({
         isLoggedIn,
         user,
         isStaffOnly,
+        isReceptionist,
         isSupervisorOrAdmin,
+        canManageBookings,
+        canAddGuests,
         openLoginModal,
         closeLoginModal,
         logout: handleLogout,
@@ -121,7 +139,7 @@ export function AuthProvider({
               <DialogTitle className="text-xl">Đăng Nhập Hệ Thống</DialogTitle>
             </div>
             <DialogDescription className="text-slate-500 text-sm pt-1">
-              Đăng nhập với vai trò Quản Lý, Giám Sát hoặc Nhân Viên để truy cập các tính năng tương ứng.
+              Đăng nhập với vai trò Quản Lý, Giám Sát, Lễ Tân hoặc Nhân Viên để truy cập các tính năng tương ứng.
             </DialogDescription>
           </DialogHeader>
 
@@ -140,7 +158,7 @@ export function AuthProvider({
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="maybmt, gshuy, gsmai, gstien hoặc nhanvien"
+                placeholder="maybmt, gshuy, thuyletan, nhiletan, nhuletan..."
                 required
                 autoFocus
               />
@@ -163,7 +181,8 @@ export function AuthProvider({
                 <UserCheck className="w-3.5 h-3.5 text-blue-600" />
                 <span>Phân quyền tài khoản:</span>
               </div>
-              <p>• <strong>Giám Sát (gshuy / gsmai / gstien):</strong> Cập nhật & ghi nhận CMS nhân viên.</p>
+              <p>• <strong>Lễ Tân (thuyletan / nhiletan / nhuletan):</strong> Chỉ đón tiếp & thêm khách tại Lễ Tân, Sơ đồ bàn.</p>
+              <p>• <strong>Giám Sát (gshuy / gsmai / gstien):</strong> Quản lý tiệc, duyệt sơ đồ & CMS nhân viên.</p>
               <p>• <strong>Nhân Viên (nhanvien):</strong> Theo dõi bảng xếp hạng & thưởng CMS cá nhân.</p>
               <p>• <strong>Quản Lý (maybmt):</strong> Toàn quyền quản trị hệ thống.</p>
             </div>

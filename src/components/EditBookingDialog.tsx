@@ -172,7 +172,7 @@ export default function EditBookingDialog({
   onBookingUpdated,
   onBookingDeleted,
 }: EditBookingDialogProps) {
-  const { isLoggedIn, openLoginModal } = useAuth();
+  const { isLoggedIn, isSupervisorOrAdmin, openLoginModal } = useAuth();
   const [internalOpen, setInternalOpen] = useState(false);
 
   const isControlled = controlledOpen !== undefined;
@@ -181,6 +181,10 @@ export default function EditBookingDialog({
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen && !isLoggedIn) {
       openLoginModal();
+      return;
+    }
+    if (nextOpen && !isSupervisorOrAdmin) {
+      alert("Tài khoản Lễ Tân chỉ có quyền đón tiếp & thêm khách tại Lễ Tân và Sơ đồ bàn. Vui lòng liên hệ Quản Lý hoặc Giám Sát để chỉnh sửa thông tin tiệc!");
       return;
     }
     if (isControlled) {
