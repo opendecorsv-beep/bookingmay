@@ -41,8 +41,15 @@ import {
   Phone,
   RotateCcw,
   Camera,
-  Eye
+  Eye,
+  ClipboardList,
+  FileSpreadsheet,
+  ChevronDown,
+  ChevronUp,
+  CalendarSearch,
+  Award
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -62,8 +69,8 @@ export default function CmsClient({ initialCommissions, initialUser }: CmsClient
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStaffDetail, setSelectedStaffDetail] = useState<string | null>(null);
 
-  // View Tab State
-  const [activeTab, setActiveTab] = useState<'bxh' | 'staff'>('bxh');
+  // View Tab State ('bxh': Bảng vinh danh, 'staff': Nhân sự, 'audit': Đối soát theo ngày cho Thu Ngân)
+  const [activeTab, setActiveTab] = useState<'bxh' | 'staff' | 'audit'>('bxh');
   const [selectedRoleFilter, setSelectedRoleFilter] = useState<string | null>(null);
   const [staffSearchQuery, setStaffSearchQuery] = useState('');
 
@@ -77,6 +84,7 @@ export default function CmsClient({ initialCommissions, initialUser }: CmsClient
       "CSKH",
       "Nhân viên bếp",
       "Giám sát",
+      "CTV",
       "Nhân viên"
     ];
     return roleOrder.map(role => ({
@@ -157,7 +165,165 @@ export default function CmsClient({ initialCommissions, initialUser }: CmsClient
     d.setDate(d.getDate() - 7);
     return d.toISOString().split('T')[0];
   }, []);
+  const yesterdayStr = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return d.toISOString().split('T')[0];
+  }, []);
   const currentMonthPrefix = useMemo(() => todayStr.substring(0, 7), [todayStr]);
+
+  // Daily Audit States for Cashier & Supervisor Reconciliation
+  const [auditSelectedDate, setAuditSelectedDate] = useState<string>(todayStr);
+  const [auditSupervisorFilter, setAuditSupervisorFilter] = useState<string>('all');
+  const [auditSearchQuery, setAuditSearchQuery] = useState<string>('');
+  const [historyShowAll, setHistoryShowAll] = useState(false);
+
+  // Unique Dates with Commission records (Sorted newest first)
+  const uniqueCommissionDates = useMemo(() => {
+    const map: Record<string, { count: number; total: number }> = {};
+    commissions.forEach(c => {
+      const d = c.date || todayStr;
+      if (!map[d]) map[d] = { count: 0, total: 0 };
+      map[d].count += 1;
+      map[d].total += c.totalReward;
+    });
+    return Object.entries(map)
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([date, stat]) => ({ date, ...stat }));
+  }, [commissions, todayStr]);
+
+  // Unique Supervisors who created records
+  const uniqueSupervisors = useMemo(() => {
+    const set = new Set<string>();
+    commissions.forEach(c => {
+      if (c.createdByName) set.add(c.createdByName);
+    });
+    return Array.from(set);
+  }, [commissions]);
+
+  // Count of commissions added today
+  const todayAuditCount = useMemo(() => {
+    return commissions.filter(c => c.date === todayStr).length;
+  }, [commissions, todayStr]);
+
+  // Filtered commissions for Audit View
+  const auditFilteredCommissions = useMemo(() => {
+    let list = [...commissions];
+    if (auditSelectedDate !== 'all') {
+      list = list.filter(c => c.date === auditSelectedDate);
+    }
+    if (auditSupervisorFilter !== 'all') {
+      list = list.filter(c => c.createdByName === auditSupervisorFilter || c.createdById === auditSupervisorFilter);
+    }
+    if (auditSearchQuery.trim()) {
+      const q = auditSearchQuery.toLowerCase();
+      list = list.filter(c => 
+        c.staffName.toLowerCase().includes(q) ||
+        (c.productName && c.productName.toLowerCase().includes(q)) ||
+        (c.tableOrRoom && c.tableOrRoom.toLowerCase().includes(q)) ||
+        (c.note && c.note.toLowerCase().includes(q)) ||
+        (c.createdByName && c.createdByName.toLowerCase().includes(q))
+      );
+    }
+    return list.sort((a, b) => {
+      const dtA = `${a.date} ${a.time || '00:00'}`;
+      const dtB = `${b.date} ${b.time || '00:00'}`;
+      return dtB.localeCompare(dtA);
+    });
+  }, [commissions, auditSelectedDate, auditSupervisorFilter, auditSearchQuery]);
+
+  // Aggregated stats for the selected audit date
+  const auditStats = useMemo(() => {
+    const totalReward = auditFilteredCommissions.reduce((sum, c) => sum + c.totalReward, 0);
+    const totalFoodAmount = auditFilteredCommissions.reduce((sum, c) => sum + (c.billFoodAmount || 0), 0);
+    
+    // Group by staff
+    const staffMap: Record<string, { staffName: string; role: string; count: number; total: number; items: string[] }> = {};
+    // Group by supervisor
+    const supervisorMap: Record<string, { count: number; total: number }> = {};
+
+    auditFilteredCommissions.forEach(c => {
+      // Staff
+      const sName = c.staffName.trim();
+      if (!staffMap[sName]) {
+        const staffObj = RESTAURANT_STAFF_LIST.find(s => s.name === sName);
+        staffMap[sName] = {
+          staffName: sName,
+          role: staffObj?.role || 'Nhân viên',
+          count: 0,
+          total: 0,
+          items: []
+        };
+      }
+      staffMap[sName].count += 1;
+      staffMap[sName].total += c.totalReward;
+      const itemName = c.productName || (c.category === 'booking_bill' ? `Bill % (${c.billPercent}%)` : 'CMS');
+      if (!staffMap[sName].items.includes(itemName)) {
+        staffMap[sName].items.push(itemName);
+      }
+
+      // Supervisor
+      const sup = c.createdByName || 'Khác';
+      if (!supervisorMap[sup]) supervisorMap[sup] = { count: 0, total: 0 };
+      supervisorMap[sup].count += 1;
+      supervisorMap[sup].total += c.totalReward;
+    });
+
+    return {
+      totalReward,
+      totalCount: auditFilteredCommissions.length,
+      totalFoodAmount,
+      staffList: Object.values(staffMap).sort((a, b) => b.total - a.total),
+      supervisorList: Object.entries(supervisorMap).map(([name, stat]) => ({ name, ...stat }))
+    };
+  }, [auditFilteredCommissions]);
+
+  // Export Audit to Excel
+  const handleExportAuditExcel = () => {
+    if (auditFilteredCommissions.length === 0) {
+      alert("Không có dữ liệu nào để xuất file Excel!");
+      return;
+    }
+
+    const detailRows = auditFilteredCommissions.map((c, idx) => {
+      const staffObj = RESTAURANT_STAFF_LIST.find(s => s.name === c.staffName);
+      return {
+        'STT': idx + 1,
+        'Ngày': c.date,
+        'Giờ': c.time,
+        'Giám Sát Ghi Nhận': c.createdByName,
+        'Nhân Viên Thụ Hưởng': c.staffName,
+        'Bộ Phận / Vị Trí': staffObj?.role || 'Nhân viên',
+        'Bàn / Phòng': c.tableOrRoom || 'Chung',
+        'Món / Hạng Mục': c.productName || 'CMS',
+        'Số Lượng': c.quantity || 1,
+        'Tiền CMS (VNĐ)': c.totalReward,
+        'Doanh Số Đồ Ăn (VNĐ)': c.billFoodAmount || '',
+        'Tỷ Lệ % Bill': c.billPercent ? `${c.billPercent}%` : '',
+        'Ghi Chú': c.note || '',
+        'Mã Phiếu': c.id
+      };
+    });
+
+    const summaryRows = auditStats.staffList.map((s, idx) => ({
+      'STT': idx + 1,
+      'Họ Và Tên': s.staffName,
+      'Vị Trí / Bộ Phận': s.role,
+      'Số Lượt Thưởng': s.count,
+      'Chi Tiết Món / Hạng Mục': s.items.join(', '),
+      'Tổng Tiền Nhận (VNĐ)': s.total
+    }));
+
+    const wb = XLSX.utils.book_new();
+    const wsDetail = XLSX.utils.json_to_sheet(detailRows);
+    XLSX.utils.book_append_sheet(wb, wsDetail, "Chi_Tiet_CMS");
+
+    const wsSummary = XLSX.utils.json_to_sheet(summaryRows);
+    XLSX.utils.book_append_sheet(wb, wsSummary, "Tong_Hop_Nhan_Vien");
+
+    const dateLabel = auditSelectedDate === 'all' ? 'Toan_Bo' : auditSelectedDate;
+    XLSX.writeFile(wb, `Doi_Soat_CMS_May_${dateLabel}.xlsx`);
+  };
 
   // Auto set % bill based on date day-of-week
   const updateDayOfWeekPercent = (dateStr: string) => {
@@ -467,13 +633,13 @@ export default function CmsClient({ initialCommissions, initialUser }: CmsClient
         </div>
       </div>
 
-      {/* Navigation Tabs between Leaderboard & Staff Directory */}
+      {/* Navigation Tabs between Leaderboard & Staff Directory & Daily Audit */}
       <div className="flex items-center justify-between gap-3 flex-wrap border-b border-slate-200 pb-3">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             type="button"
             onClick={() => setActiveTab('bxh')}
-            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all ${
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer ${
               activeTab === 'bxh'
                 ? 'bg-amber-600 text-white shadow-md'
                 : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
@@ -492,8 +658,34 @@ export default function CmsClient({ initialCommissions, initialUser }: CmsClient
 
           <button
             type="button"
+            onClick={() => setActiveTab('audit')}
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer ${
+              activeTab === 'audit'
+                ? 'bg-indigo-600 text-white shadow-md'
+                : 'bg-white text-slate-700 border border-slate-200 hover:bg-indigo-50/50 hover:text-indigo-700 hover:border-indigo-200'
+            }`}
+          >
+            <ClipboardList className="w-4 h-4 text-indigo-300" />
+            <span>Đối Soát Theo Ngày (Thu Ngân)</span>
+            {todayAuditCount > 0 ? (
+              <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                activeTab === 'audit' ? 'bg-indigo-800 text-indigo-100' : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+              }`}>
+                Hôm nay: {todayAuditCount}
+              </span>
+            ) : commissions.length > 0 ? (
+              <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                activeTab === 'audit' ? 'bg-indigo-800 text-indigo-100' : 'bg-slate-100 text-slate-600'
+              }`}>
+                {commissions.length}
+              </span>
+            ) : null}
+          </button>
+
+          <button
+            type="button"
             onClick={() => setActiveTab('staff')}
-            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all ${
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer ${
               activeTab === 'staff'
                 ? 'bg-amber-600 text-white shadow-md'
                 : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
@@ -665,6 +857,476 @@ export default function CmsClient({ initialCommissions, initialUser }: CmsClient
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      ) : activeTab === 'audit' ? (
+        <div className="space-y-5">
+          {/* Audit Header Banner & Toolbar */}
+          <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-5 sm:p-6 rounded-3xl shadow-lg border border-indigo-800/40">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 text-xs font-bold mb-2">
+                  <ClipboardList className="w-3.5 h-3.5" />
+                  <span>Khu Vực Đối Soát & Kiểm Tra CMS (Thu Ngân / Giám Sát)</span>
+                </div>
+                <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                  Đối Soát Toàn Bộ Dữ Liệu CMS Theo Ngày
+                </h2>
+                <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-2xl">
+                  Hiển thị 100% dữ liệu từng lượt thêm CMS của các giám sát, phân loại theo ngày để thu ngân đối soát hóa đơn, chi trả hoa hồng và xuất file Excel chốt ca.
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <Button
+                  type="button"
+                  onClick={handleExportAuditExcel}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm shadow-md px-4 py-2.5 rounded-xl flex items-center gap-2 cursor-pointer border border-emerald-400/30"
+                >
+                  <FileSpreadsheet className="w-4 h-4" />
+                  <span>Xuất Excel Đối Soát (.xlsx)</span>
+                </Button>
+                {canEdit && (
+                  <Button
+                    type="button"
+                    onClick={handleOpenModal}
+                    className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs sm:text-sm shadow-md px-4 py-2.5 rounded-xl flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>+ Thêm CMS Mới</span>
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Filter Toolbar Inside Card */}
+            <div className="mt-5 pt-5 border-t border-indigo-800/50 grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+              {/* Date Quick Pick */}
+              <div className="md:col-span-6 flex items-center gap-1.5 flex-wrap">
+                <span className="text-xs text-indigo-200 font-semibold mr-1">Chọn ngày:</span>
+                <button
+                  type="button"
+                  onClick={() => setAuditSelectedDate(todayStr)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    auditSelectedDate === todayStr
+                      ? 'bg-amber-500 text-slate-900 shadow-sm font-black'
+                      : 'bg-white/10 text-white hover:bg-white/20'
+                  }`}
+                >
+                  Hôm nay ({todayStr})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAuditSelectedDate(yesterdayStr)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    auditSelectedDate === yesterdayStr
+                      ? 'bg-amber-500 text-slate-900 shadow-sm font-black'
+                      : 'bg-white/10 text-white hover:bg-white/20'
+                  }`}
+                >
+                  Hôm qua ({yesterdayStr})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAuditSelectedDate('all')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    auditSelectedDate === 'all'
+                      ? 'bg-amber-500 text-slate-900 shadow-sm font-black'
+                      : 'bg-white/10 text-white hover:bg-white/20'
+                  }`}
+                >
+                  Toàn bộ ngày ({commissions.length})
+                </button>
+                <input
+                  type="date"
+                  value={auditSelectedDate === 'all' ? '' : auditSelectedDate}
+                  onChange={(e) => setAuditSelectedDate(e.target.value || todayStr)}
+                  className="px-2.5 py-1 bg-white/15 border border-white/25 rounded-lg text-xs text-white focus:outline-none focus:ring-1 focus:ring-amber-400 cursor-pointer"
+                  title="Chọn ngày tùy chỉnh"
+                />
+              </div>
+
+              {/* Supervisor Filter */}
+              <div className="md:col-span-3 flex items-center gap-1.5">
+                <label className="text-xs text-indigo-200 whitespace-nowrap font-medium">Giám sát:</label>
+                <select
+                  value={auditSupervisorFilter}
+                  onChange={(e) => setAuditSupervisorFilter(e.target.value)}
+                  className="w-full px-2.5 py-1.5 bg-slate-800 text-white border border-slate-700 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-amber-400"
+                >
+                  <option value="all">Tất cả giám sát ({uniqueSupervisors.length})</option>
+                  {uniqueSupervisors.map(sup => (
+                    <option key={sup} value={sup}>{sup}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Keyword Search */}
+              <div className="md:col-span-3 relative">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                <input
+                  type="text"
+                  value={auditSearchQuery}
+                  onChange={(e) => setAuditSearchQuery(e.target.value)}
+                  placeholder="Tìm nhân viên, bàn, món..."
+                  className="w-full pl-8 pr-3 py-1.5 bg-slate-800 text-white placeholder-slate-400 border border-slate-700 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-amber-400"
+                />
+              </div>
+            </div>
+
+            {/* Quick chips of dates with data */}
+            {uniqueCommissionDates.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-indigo-900/60 flex items-center gap-1.5 flex-wrap">
+                <span className="text-[11px] text-slate-400">Các ngày có dữ liệu CMS:</span>
+                {uniqueCommissionDates.slice(0, 8).map(d => (
+                  <button
+                    key={d.date}
+                    type="button"
+                    onClick={() => setAuditSelectedDate(d.date)}
+                    className={`text-[11px] px-2 py-0.5 rounded-md transition-all cursor-pointer ${
+                      auditSelectedDate === d.date
+                        ? 'bg-amber-400 text-slate-900 font-bold'
+                        : 'bg-white/5 hover:bg-white/15 text-slate-300'
+                    }`}
+                  >
+                    {d.date} ({d.count})
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 4 KPI Cards for the selected Audit Filter */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                Tổng Tiền Thưởng (CMS)
+              </span>
+              <div className="text-xl sm:text-2xl font-black text-amber-700 mt-1">
+                +{auditStats.totalReward.toLocaleString('vi-VN')} đ
+              </div>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                {auditSelectedDate === 'all' ? 'Toàn bộ thời gian' : `Ngày: ${auditSelectedDate}`}
+              </p>
+            </div>
+
+            <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                Tổng Lượt Ghi Nhận
+              </span>
+              <div className="text-xl sm:text-2xl font-black text-slate-800 mt-1">
+                {auditStats.totalCount} lượt
+              </div>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                {auditStats.supervisorList.length} giám sát tham gia nhập
+              </p>
+            </div>
+
+            <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                Nhân Sự Thụ Hưởng
+              </span>
+              <div className="text-xl sm:text-2xl font-black text-indigo-700 mt-1">
+                {auditStats.staffList.length} người
+              </div>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Nhận thưởng trong ngày này
+              </p>
+            </div>
+
+            <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                Doanh Số Đồ Ăn (Bóc Tách)
+              </span>
+              <div className="text-xl sm:text-2xl font-black text-emerald-700 mt-1">
+                {auditStats.totalFoodAmount > 0 ? `${auditStats.totalFoodAmount.toLocaleString('vi-VN')} đ` : '0 đ'}
+              </div>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Từ các bill tính % hoa hồng
+              </p>
+            </div>
+          </div>
+
+          {/* Breakdown Section: Staff Payout Summary + Supervisor Attribution */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            {/* Staff Payout Summary Table - Essential for Cashier */}
+            <div className="lg:col-span-8 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-amber-50 text-amber-700 rounded-lg">
+                    <Award className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-800 text-sm sm:text-base">
+                      Bảng Tổng Hợp Chi Thưởng Theo Nhân Viên ({auditSelectedDate === 'all' ? 'Toàn bộ' : auditSelectedDate})
+                    </h3>
+                    <p className="text-[11px] text-slate-400">Thu ngân dựa vào danh sách này để phát thưởng hoặc đối soát</p>
+                  </div>
+                </div>
+                <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
+                  Tổng: +{auditStats.totalReward.toLocaleString('vi-VN')} đ
+                </span>
+              </div>
+
+              <div className="mt-3 overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-slate-400 font-semibold uppercase text-[10px]">
+                      <th className="py-2.5 px-3">STT</th>
+                      <th className="py-2.5 px-3">Nhân Viên</th>
+                      <th className="py-2.5 px-3">Vị Trí</th>
+                      <th className="py-2.5 px-3 text-center">Số Lượt</th>
+                      <th className="py-2.5 px-3">Món / Hạng Mục</th>
+                      <th className="py-2.5 px-3 text-right">Tổng Thưởng Nhận</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {auditStats.staffList.map((st, idx) => (
+                      <tr key={st.staffName} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-2.5 px-3 text-slate-400 font-semibold">{idx + 1}</td>
+                        <td className="py-2.5 px-3 font-bold text-slate-800">{st.staffName}</td>
+                        <td className="py-2.5 px-3">
+                          <span className="text-[10px] px-2 py-0.5 rounded font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                            {st.role}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 text-center font-bold text-slate-700">
+                          {st.count}
+                        </td>
+                        <td className="py-2.5 px-3 text-slate-600 max-w-xs truncate text-[11px]" title={st.items.join(', ')}>
+                          {st.items.join(', ')}
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-black text-amber-700 text-xs sm:text-sm">
+                          +{st.total.toLocaleString('vi-VN')} đ
+                        </td>
+                      </tr>
+                    ))}
+                    {auditStats.staffList.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="text-center py-6 text-slate-400 italic">
+                          Không có dữ liệu nhân viên nào trong ngày này
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                  {auditStats.staffList.length > 0 && (
+                    <tfoot>
+                      <tr className="border-t-2 border-slate-200 bg-slate-50 font-bold text-slate-800">
+                        <td colSpan={3} className="py-2.5 px-3">Tổng cộng ({auditStats.staffList.length} nhân sự):</td>
+                        <td className="py-2.5 px-3 text-center text-slate-900">{auditStats.totalCount}</td>
+                        <td className="py-2.5 px-3"></td>
+                        <td className="py-2.5 px-3 text-right text-amber-800 font-black text-sm">
+                          +{auditStats.totalReward.toLocaleString('vi-VN')} đ
+                        </td>
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+              </div>
+            </div>
+
+            {/* Supervisor Attribution Card */}
+            <div className="lg:col-span-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+              <div>
+                <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
+                  <div className="p-1.5 bg-blue-50 text-blue-700 rounded-lg">
+                    <ShieldCheck className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-800 text-sm">Giám Sát Chịu Trách Nhiệm</h3>
+                    <p className="text-[11px] text-slate-400">Kiểm soát người tạo lệnh thêm CMS</p>
+                  </div>
+                </div>
+
+                <div className="mt-3 space-y-2.5">
+                  {auditStats.supervisorList.map(sup => (
+                    <div
+                      key={sup.name}
+                      onClick={() => setAuditSupervisorFilter(auditSupervisorFilter === sup.name ? 'all' : sup.name)}
+                      className={`p-3 rounded-xl border text-xs transition-all cursor-pointer flex items-center justify-between ${
+                        auditSupervisorFilter === sup.name
+                          ? 'bg-blue-50/80 border-blue-300 ring-1 ring-blue-300'
+                          : 'bg-slate-50 border-slate-200 hover:bg-slate-100/70'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs">
+                          {sup.name.charAt(0)}
+                        </div>
+                        <div>
+                          <div className="font-bold text-slate-800">{sup.name}</div>
+                          <div className="text-[10px] text-slate-400">{sup.count} phiếu thưởng</div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-black text-slate-800">+{sup.total.toLocaleString('vi-VN')} đ</div>
+                        <div className="text-[10px] text-blue-600 font-medium">Bấm để lọc</div>
+                      </div>
+                    </div>
+                  ))}
+                  {auditStats.supervisorList.length === 0 && (
+                    <div className="text-center py-6 text-slate-400 italic text-xs">
+                      Chưa có ghi nhận từ giám sát
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-4 pt-3 border-t border-slate-100 text-[11px] text-slate-400">
+                Thu ngân đối soát trực tiếp với Giám sát chịu trách nhiệm ca trực nếu có sai lệch số liệu.
+              </div>
+            </div>
+          </div>
+
+          {/* Full Audit Detailed Table - 100% Raw Records */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-indigo-50 text-indigo-700 rounded-lg">
+                  <ClipboardList className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-800 text-sm sm:text-base">
+                    Chi Tiết Từng Phiếu Thưởng CMS ({auditFilteredCommissions.length} phiếu)
+                  </h3>
+                  <p className="text-[11px] text-slate-400">Dữ liệu thô đầy đủ 100%, không rút gọn, phục vụ kiểm tra đối chiếu</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 text-xs">
+                {auditSupervisorFilter !== 'all' && (
+                  <button
+                    type="button"
+                    onClick={() => setAuditSupervisorFilter('all')}
+                    className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 text-[11px] font-bold hover:bg-blue-200 cursor-pointer"
+                  >
+                    Đang lọc: {auditSupervisorFilter} ✕
+                  </button>
+                )}
+                <span className="text-slate-500">
+                  Hiển thị: <strong>{auditFilteredCommissions.length}</strong> kết quả
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 text-slate-400 font-semibold uppercase text-[10px]">
+                    <th className="py-2.5 px-2">Thời Gian</th>
+                    <th className="py-2.5 px-2">Giám Sát Nhập</th>
+                    <th className="py-2.5 px-2">Nhân Sự Hưởng</th>
+                    <th className="py-2.5 px-2">Bàn / Phòng</th>
+                    <th className="py-2.5 px-2">Món / Hạng Mục</th>
+                    <th className="py-2.5 px-2 text-center">Số Lượng</th>
+                    <th className="py-2.5 px-2 text-right">Tiền CMS</th>
+                    <th className="py-2.5 px-2">Bóc Tách Bill / Ghi Chú</th>
+                    {canEdit && <th className="py-2.5 px-2 text-center">Thao Tác</th>}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {auditFilteredCommissions.map((c) => {
+                    const staffObj = RESTAURANT_STAFF_LIST.find(s => s.name === c.staffName);
+                    return (
+                      <tr key={c.id} className="hover:bg-indigo-50/20 transition-colors">
+                        <td className="py-2.5 px-2 whitespace-nowrap">
+                          <div className="font-bold text-slate-800">{c.time || 'Ca trực'}</div>
+                          <div className="text-[10px] text-slate-400">{c.date}</div>
+                        </td>
+                        <td className="py-2.5 px-2 whitespace-nowrap">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-bold text-[11px] border border-blue-200/60">
+                            <ShieldCheck className="w-3 h-3 text-blue-600" />
+                            {c.createdByName}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-2 whitespace-nowrap">
+                          <div className="font-bold text-slate-900">{c.staffName}</div>
+                          <div className="text-[10px] text-slate-500">{staffObj?.role || 'Nhân viên'}</div>
+                        </td>
+                        <td className="py-2.5 px-2 whitespace-nowrap font-medium text-slate-700">
+                          {c.tableOrRoom ? (
+                            <span className="bg-slate-100 px-2 py-0.5 rounded text-[11px] font-semibold text-slate-700 border border-slate-200">
+                              {c.tableOrRoom}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 italic">Chung</span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-2">
+                          <div className="font-bold text-slate-800">{c.productName}</div>
+                          {c.category === 'booking_bill' && (
+                            <span className="text-[10px] text-emerald-700 font-medium">Hoa hồng bill {c.billPercent}%</span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-2 text-center font-bold text-slate-700">
+                          {c.quantity > 1 ? `x${c.quantity}` : '1'}
+                        </td>
+                        <td className="py-2.5 px-2 text-right whitespace-nowrap">
+                          <span className="font-black text-amber-700 text-xs sm:text-sm">
+                            +{c.totalReward.toLocaleString('vi-VN')} đ
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-2 max-w-xs">
+                          {c.billFoodAmount ? (
+                            <div className="space-y-1">
+                              <button
+                                type="button"
+                                onClick={() => setViewingReceiptEntry(c)}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-semibold hover:bg-emerald-100 transition-colors cursor-pointer"
+                              >
+                                <Eye className="w-3 h-3 text-emerald-600" />
+                                <span>Bill đồ ăn: {c.billFoodAmount.toLocaleString('vi-VN')} đ</span>
+                              </button>
+                              {c.note && <div className="text-[10px] text-slate-500 italic truncate">{c.note}</div>}
+                            </div>
+                          ) : (
+                            <span className="text-[11px] text-slate-600 italic">
+                              {c.note || '-'}
+                            </span>
+                          )}
+                        </td>
+                        {canEdit && (
+                          <td className="py-2.5 px-2 text-center whitespace-nowrap">
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(c.id, c.staffName)}
+                              className="text-slate-400 hover:text-rose-600 p-1 rounded transition-colors cursor-pointer"
+                              title="Xóa lượt thưởng này"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                  {auditFilteredCommissions.length === 0 && (
+                    <tr>
+                      <td colSpan={canEdit ? 9 : 8} className="text-center py-10 text-slate-400 italic">
+                        Không có phiếu thưởng nào phù hợp với điều kiện tìm kiếm và ngày đã chọn.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Bottom table stats & excel button */}
+            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between flex-wrap gap-2 text-xs">
+              <span className="text-slate-500">
+                Tổng cộng: <strong className="text-slate-800">{auditFilteredCommissions.length} phiếu</strong> | Tổng tiền thưởng: <strong className="text-amber-700 font-black">+{auditStats.totalReward.toLocaleString('vi-VN')} đ</strong>
+              </span>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleExportAuditExcel}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg flex items-center gap-1.5 cursor-pointer shadow-2xs"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <span>Xuất file Excel này</span>
+              </Button>
+            </div>
           </div>
         </div>
       ) : (
@@ -939,7 +1601,7 @@ export default function CmsClient({ initialCommissions, initialUser }: CmsClient
         {/* Live Feed: Source Attribution Log */}
         <div className="lg:col-span-5 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 flex-wrap gap-2">
               <div className="flex items-center gap-2">
                 <span className="p-1.5 bg-blue-50 text-blue-600 rounded-lg">
                   <UserCheck className="w-4 h-4" />
@@ -949,13 +1611,24 @@ export default function CmsClient({ initialCommissions, initialUser }: CmsClient
                   <p className="text-[11px] text-slate-400">Hiển thị chính xác Giám sát ghi nhận theo thời gian thực</p>
                 </div>
               </div>
-              <span className="text-xs bg-slate-100 px-2 py-0.5 rounded-full text-slate-600 font-semibold">
-                {filteredCommissions.length} mục
-              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('audit')}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold border border-indigo-200 transition-colors cursor-pointer"
+                  title="Mở bảng kiểm tra & đối soát toàn bộ theo ngày cho thu ngân"
+                >
+                  <CalendarSearch className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Đối Soát Ngày</span>
+                </button>
+                <span className="text-xs bg-slate-100 px-2 py-0.5 rounded-full text-slate-600 font-semibold">
+                  {filteredCommissions.length} mục
+                </span>
+              </div>
             </div>
 
             <div className="mt-4 space-y-3 max-h-[460px] overflow-y-auto pr-1">
-              {filteredCommissions.slice(0, 15).map(c => (
+              {(historyShowAll ? filteredCommissions : filteredCommissions.slice(0, 15)).map(c => (
                 <div 
                   key={c.id} 
                   className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 text-xs hover:border-amber-300 transition-all space-y-1.5"
@@ -1017,6 +1690,26 @@ export default function CmsClient({ initialCommissions, initialUser }: CmsClient
                 </div>
               ))}
 
+              {filteredCommissions.length > 15 && (
+                <button
+                  type="button"
+                  onClick={() => setHistoryShowAll(!historyShowAll)}
+                  className="w-full mt-2 py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  {historyShowAll ? (
+                    <>
+                      <ChevronUp className="w-3.5 h-3.5" />
+                      <span>Thu gọn (Hiện 15 mục gần nhất)</span>
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown className="w-3.5 h-3.5" />
+                      <span>Xem toàn bộ {filteredCommissions.length} lượt ghi nhận</span>
+                    </>
+                  )}
+                </button>
+              )}
+
               {filteredCommissions.length === 0 && (
                 <div className="text-center py-10 text-slate-400 italic">
                   Chưa có lượt ghi nhận CMS nào trong kỳ này
@@ -1025,8 +1718,15 @@ export default function CmsClient({ initialCommissions, initialUser }: CmsClient
             </div>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-slate-100 text-[11px] text-slate-400 flex items-center justify-between">
+          <div className="mt-4 pt-3 border-t border-slate-100 text-[11px] text-slate-500 flex items-center justify-between flex-wrap gap-2">
             <span>Giám sát chịu trách nhiệm tính chính xác của dữ liệu ghi nhận</span>
+            <button
+              type="button"
+              onClick={() => setActiveTab('audit')}
+              className="text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <span>Đối soát full theo ngày cho Thu Ngân →</span>
+            </button>
           </div>
         </div>
 
@@ -1059,8 +1759,9 @@ export default function CmsClient({ initialCommissions, initialUser }: CmsClient
               <span>Hải Sản & Thịt Bò Cao Cấp</span>
             </div>
             <div className="space-y-1 text-slate-600">
-              <div className="flex justify-between"><span>• Cá bơn / Mú đỏ:</span><strong className="text-amber-700">100.000 đ/con</strong></div>
-              <div className="flex justify-between"><span>• Mú ni:</span><strong className="text-amber-700">30.000 đ/con</strong></div>
+              <div className="flex justify-between"><span>• Cá bơn:</span><strong className="text-amber-700">100.000 đ/con</strong></div>
+              <div className="flex justify-between"><span>• Cá Mú đỏ:</span><strong className="text-amber-700">50.000 đ/con</strong></div>
+              <div className="flex justify-between"><span>• Mú ni / Bọ biển:</span><strong className="text-amber-700">30.000 đ/con</strong></div>
               <div className="flex justify-between"><span>• Hùm Úc / Alaska / Cua hoàng đế:</span><strong className="text-amber-700">100.000 đ/con</strong></div>
               <div className="flex justify-between"><span>• Hùm bông:</span><strong className="text-amber-700">50.000 đ/con</strong></div>
               <div className="flex justify-between"><span>• Tomahawk / Wagyu:</span><strong className="text-amber-700">50.000 đ/phần</strong></div>
@@ -1222,7 +1923,7 @@ export default function CmsClient({ initialCommissions, initialUser }: CmsClient
                 {/* Role Filter Chips */}
                 <div className="flex items-center gap-1 flex-wrap pt-1">
                   <span className="text-[10px] text-slate-500 font-medium">Chọn nhanh theo bộ phận:</span>
-                  {["Phục vụ", "Thu ngân", "Lễ tân", "Captain", "CSKH", "Nhân viên bếp", "Giám sát"].map(role => (
+                  {["Phục vụ", "Thu ngân", "Lễ tân", "Captain", "CSKH", "Nhân viên bếp", "Giám sát", "CTV"].map(role => (
                     <button
                       key={role}
                       type="button"

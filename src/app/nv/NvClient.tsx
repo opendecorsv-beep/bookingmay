@@ -659,8 +659,9 @@ export default function NvClient({ initialCommissions, initialUser }: NvClientPr
               <span>Hải Sản & Thịt Bò Cao Cấp</span>
             </div>
             <div className="space-y-1 text-slate-600">
-              <div className="flex justify-between"><span>• Cá bơn / Mú đỏ:</span><strong className="text-amber-700">100.000 đ/con</strong></div>
-              <div className="flex justify-between"><span>• Mú ni:</span><strong className="text-amber-700">30.000 đ/con</strong></div>
+              <div className="flex justify-between"><span>• Cá bơn:</span><strong className="text-amber-700">100.000 đ/con</strong></div>
+              <div className="flex justify-between"><span>• Cá Mú đỏ:</span><strong className="text-amber-700">50.000 đ/con</strong></div>
+              <div className="flex justify-between"><span>• Mú ni / Bọ biển:</span><strong className="text-amber-700">30.000 đ/con</strong></div>
               <div className="flex justify-between"><span>• Hùm Úc / Alaska / Cua hoàng đế:</span><strong className="text-amber-700">100.000 đ/con</strong></div>
               <div className="flex justify-between"><span>• Hùm bông:</span><strong className="text-amber-700">50.000 đ/con</strong></div>
               <div className="flex justify-between"><span>• Tomahawk / Wagyu:</span><strong className="text-amber-700">50.000 đ/phần</strong></div>

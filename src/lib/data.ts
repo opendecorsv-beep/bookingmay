@@ -277,8 +277,9 @@ export interface CommissionProductReward {
 
 export const CMS_STANDARD_PRODUCTS: CommissionProductReward[] = [
   { id: 'ca-bon', name: 'Cá bơn', category: 'seafood', reward: 100000, unit: 'con/phần' },
-  { id: 'mu-do', name: 'Mú đỏ', category: 'seafood', reward: 100000, unit: 'con/phần' },
+  { id: 'mu-do', name: 'Cá mú đỏ', category: 'seafood', reward: 50000, unit: 'con/phần' },
   { id: 'mu-ni', name: 'Mú ni', category: 'seafood', reward: 30000, unit: 'con/phần' },
+  { id: 'bo-bien', name: 'Bọ biển', category: 'seafood', reward: 30000, unit: 'con/phần' },
   { id: 'hum-uc', name: 'Hùm Úc', category: 'seafood', reward: 100000, unit: 'con/phần' },
   { id: 'hum-bong', name: 'Hùm bông', category: 'seafood', reward: 50000, unit: 'con/phần' },
   { id: 'alaska', name: 'Alaska', category: 'seafood', reward: 100000, unit: 'con/phần' },
@@ -332,6 +333,7 @@ export const RESTAURANT_STAFF_LIST: RestaurantStaff[] = [
   { stt: 42, name: "Lê Thị Thùy Trang", phone: "0926688188", role: "CSKH" },
   { stt: 43, name: "Lê Nguyễn Anh Huy", phone: "", role: "Giám sát" },
   { stt: 44, name: "Đồng Văn Tiến", phone: "", role: "Giám sát" },
+  { stt: 45, name: "Diễm Phố Núi", phone: "", role: "CTV" },
 ];
 
 export const defaultStaffCommissions: CommissionEntry[] = [];
