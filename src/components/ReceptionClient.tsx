@@ -1494,7 +1494,7 @@ export default function ReceptionClient({ initialLogs, allBookings }: ReceptionC
                       <option key={r} value={r}>{r}</option>
                     ))}
                   </optgroup>
-                  <optgroup label="Tầng 2 (VIP & Đại sảnh 201)">
+                  <optgroup label="Tầng 2 (Phòng VIP & Phòng lớn 201)">
                     {[
                       "Mây 201 (Nguyên phòng)",
                       "Mây 201.1", "Mây 201.2", "Mây 201.3", "Mây 201.4", "Mây 201.5", "Mây 201.6",
@@ -1503,7 +1503,7 @@ export default function ReceptionClient({ initialLogs, allBookings }: ReceptionC
                       <option key={r} value={r.startsWith("Mây 201 (") ? "Mây 201" : r}>{r}</option>
                     ))}
                   </optgroup>
-                  <optgroup label="Tầng 3 (VIP & Đại sảnh 301)">
+                  <optgroup label="Tầng 3 (Phòng VIP & Phòng lớn 301)">
                     {[
                       "Mây 301 (Nguyên phòng)",
                       "Mây 301.1", "Mây 301.2", "Mây 301.3", "Mây 301.4", "Mây 301.5", "Mây 301.6",
@@ -1512,7 +1512,7 @@ export default function ReceptionClient({ initialLogs, allBookings }: ReceptionC
                       <option key={r} value={r.startsWith("Mây 301 (") ? "Mây 301" : r}>{r}</option>
                     ))}
                   </optgroup>
-                  <optgroup label="Bàn Sảnh">
+                  <optgroup label="Tầng 4 (Bàn Sảnh Tiệc)">
                     {Array.from({ length: 25 }, (_, i) => `Bàn ${i + 1}`).map((b) => (
                       <option key={b} value={b}>{b}</option>
                     ))}

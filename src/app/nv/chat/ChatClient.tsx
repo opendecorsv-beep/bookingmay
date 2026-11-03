@@ -927,7 +927,7 @@ export default function ChatClient({ initialMessages, initialUser }: ChatClientP
                 }}
                 className="w-full text-xs sm:text-sm font-semibold rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-2xs"
               >
-                <option value="">-- Chọn tên bạn từ danh sách 31 nhân sự --</option>
+                <option value="">-- Chọn tên bạn từ danh sách {RESTAURANT_STAFF_LIST.length} nhân sự --</option>
                 {RESTAURANT_STAFF_LIST.map((s) => (
                   <option key={s.stt} value={s.name}>
                     {s.name} ({s.role}{s.phone ? ` - ${s.phone}` : ''})
@@ -966,13 +966,13 @@ export default function ChatClient({ initialMessages, initialUser }: ChatClientP
                 </div>
               </div>
 
-              {/* VIP Tầng 2 */}
+              {/* VIP Tầng 2 (Không có sảnh) */}
               <div className="pt-1">
                 <span className="text-[10px] uppercase font-bold text-amber-700 tracking-wider block mb-1">
-                  👑 Phòng VIP Tầng 2 & Sảnh
+                  👑 Phòng VIP Tầng 2
                 </span>
                 <div className="grid grid-cols-3 gap-1.5">
-                  {CHAT_STATIONS.filter(s => s.id.startsWith('vip_2') || s.id === 'sanh').map((station) => (
+                  {CHAT_STATIONS.filter(s => s.id.startsWith('vip_2')).map((station) => (
                     <button
                       key={station.id}
                       type="button"
@@ -983,8 +983,56 @@ export default function ChatClient({ initialMessages, initialUser }: ChatClientP
                           : 'bg-white text-slate-700 border-slate-200 hover:bg-amber-50'
                       }`}
                     >
-                      {station.id === 'sanh' ? <DoorOpen className="w-3.5 h-3.5 text-slate-500" /> : <Crown className="w-3.5 h-3.5 text-amber-400" />}
+                      <Crown className="w-3.5 h-3.5 text-amber-400" />
                       <span>{station.shortName}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* VIP Tầng 3 */}
+              <div className="pt-1">
+                <span className="text-[10px] uppercase font-bold text-amber-700 tracking-wider block mb-1">
+                  👑 Phòng VIP Tầng 3
+                </span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                  {CHAT_STATIONS.filter(s => s.id.startsWith('vip_3')).map((station) => (
+                    <button
+                      key={station.id}
+                      type="button"
+                      onClick={() => handleSelectStation(station.id)}
+                      className={`p-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1 ${
+                        activeStationId === station.id
+                          ? 'bg-amber-600 text-white border-amber-700 shadow-xs'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-amber-50'
+                      }`}
+                    >
+                      <Crown className="w-3.5 h-3.5 text-amber-400" />
+                      <span>{station.shortName}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Sảnh Tầng 4 (Toàn bộ sảnh ở tầng 4) */}
+              <div className="pt-1">
+                <span className="text-[10px] uppercase font-bold text-sky-700 tracking-wider block mb-1">
+                  🏛️ Sảnh Tầng 4
+                </span>
+                <div className="grid grid-cols-1 gap-1.5">
+                  {CHAT_STATIONS.filter(s => s.id === 'sanh' || s.id.startsWith('sanh_')).map((station) => (
+                    <button
+                      key={station.id}
+                      type="button"
+                      onClick={() => handleSelectStation(station.id)}
+                      className={`p-2.5 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-2 ${
+                        activeStationId === station.id
+                          ? 'bg-sky-700 text-white border-sky-800 shadow-xs'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-sky-50'
+                      }`}
+                    >
+                      <DoorOpen className="w-4 h-4 text-sky-500" />
+                      <span>{station.name}</span>
                     </button>
                   ))}
                 </div>

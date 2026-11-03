@@ -63,7 +63,7 @@ const FLOORS = [
   { name: "Tầng 1", rooms: ["Mây 101", "Mây 102", "Mây 103", "Mây 104", "Mây 105", "Mây 106"] },
   { name: "Tầng 2", rooms: ["Mây 201", "Mây 202", "Mây 203", "Mây 204"] },
   { name: "Tầng 3", rooms: ["Mây 301", "Mây 302", "Mây 303", "Mây 304"] },
-  { name: "Tầng 4", rooms: Array.from({ length: 25 }, (_, i) => `Bàn ${i + 1}`) },
+  { name: "Tầng 4 (Sảnh)", rooms: Array.from({ length: 25 }, (_, i) => `Bàn ${i + 1}`) },
 ];
 
 interface FloorPlanClientProps {

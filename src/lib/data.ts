@@ -334,6 +334,9 @@ export const RESTAURANT_STAFF_LIST: RestaurantStaff[] = [
   { stt: 43, name: "Lê Nguyễn Anh Huy", phone: "", role: "Giám sát" },
   { stt: 44, name: "Đồng Văn Tiến", phone: "", role: "Giám sát" },
   { stt: 45, name: "Diễm Phố Núi", phone: "", role: "CTV" },
+  { stt: 46, name: "Nguyễn Thị Lan Anh", phone: "", role: "Giám sát" },
+  { stt: 47, name: "Khổng Văn Danh", phone: "", role: "Phục vụ" },
+  { stt: 48, name: "Nguyễn Minh Đạt", phone: "", role: "Phục vụ" },
 ];
 
 export const defaultStaffCommissions: CommissionEntry[] = [];
@@ -351,6 +354,7 @@ export const KNOWN_ACCOUNTS: Record<string, { pass: string; name: string; role: 
   gshuy: { pass: 'huy135', name: 'Giám Sát Huy (Lê Nguyễn Anh Huy)', role: 'supervisor' },
   gsmai: { pass: 'mai123', name: 'Giám Sát Mai (Nguyễn Thị Thanh Mai)', role: 'supervisor' },
   gstien: { pass: 'tien246', name: 'Giám Sát Tiến (Đồng Văn Tiến)', role: 'supervisor' },
+  gslananh: { pass: 'maybmt2026', name: 'Giám Sát Lan Anh (Nguyễn Thị Lan Anh)', role: 'supervisor' },
   nhanvien: { pass: 'may2026', name: 'Nhân Viên Mây', role: 'staff' },
   thuyletan: { pass: 'maybmt2026', name: 'Lễ Tân Thúy', role: 'receptionist' },
   nhiletan: { pass: 'maybmt2026', name: 'Lễ Tân Nhi', role: 'receptionist' },
@@ -378,6 +382,10 @@ export type ChatStationId =
   | 'vip_203'
   | 'vip_204'
   | 'vip_205'
+  | 'vip_301'
+  | 'vip_302'
+  | 'vip_303'
+  | 'vip_304'
   | 'sanh';
 
 export type ChatChannel = 'general' | 'cashier' | 'kitchen' | 'supervisor' | 'vip';
@@ -431,13 +439,21 @@ export const CHAT_STATIONS: ChatStationConfig[] = [
   { id: 'vip_105', name: 'Phòng VIP 105', shortName: 'VIP 105', category: 'vip', color: 'text-amber-800', badgeBg: 'bg-amber-50', badgeBorder: 'border-amber-300', iconName: 'Crown' },
   { id: 'vip_106', name: 'Phòng VIP 106', shortName: 'VIP 106', category: 'vip', color: 'text-amber-800', badgeBg: 'bg-amber-50', badgeBorder: 'border-amber-300', iconName: 'Crown' },
 
-  // Tầng 2 VIP
+  // Tầng 2 VIP (Không có sảnh)
   { id: 'vip_201', name: 'Phòng VIP 201', shortName: 'VIP 201', category: 'vip', color: 'text-amber-800', badgeBg: 'bg-amber-50', badgeBorder: 'border-amber-300', iconName: 'Crown' },
   { id: 'vip_202', name: 'Phòng VIP 202', shortName: 'VIP 202', category: 'vip', color: 'text-amber-800', badgeBg: 'bg-amber-50', badgeBorder: 'border-amber-300', iconName: 'Crown' },
   { id: 'vip_203', name: 'Phòng VIP 203', shortName: 'VIP 203', category: 'vip', color: 'text-amber-800', badgeBg: 'bg-amber-50', badgeBorder: 'border-amber-300', iconName: 'Crown' },
   { id: 'vip_204', name: 'Phòng VIP 204', shortName: 'VIP 204', category: 'vip', color: 'text-amber-800', badgeBg: 'bg-amber-50', badgeBorder: 'border-amber-300', iconName: 'Crown' },
   { id: 'vip_205', name: 'Phòng VIP 205', shortName: 'VIP 205', category: 'vip', color: 'text-amber-800', badgeBg: 'bg-amber-50', badgeBorder: 'border-amber-300', iconName: 'Crown' },
-  { id: 'sanh', name: 'Bàn Sảnh / Ngoài Trời', shortName: 'Sảnh', category: 'vip', color: 'text-slate-800', badgeBg: 'bg-slate-50', badgeBorder: 'border-slate-300', iconName: 'DoorOpen' },
+
+  // Tầng 3 VIP
+  { id: 'vip_301', name: 'Phòng VIP 301', shortName: 'VIP 301', category: 'vip', color: 'text-amber-800', badgeBg: 'bg-amber-50', badgeBorder: 'border-amber-300', iconName: 'Crown' },
+  { id: 'vip_302', name: 'Phòng VIP 302', shortName: 'VIP 302', category: 'vip', color: 'text-amber-800', badgeBg: 'bg-amber-50', badgeBorder: 'border-amber-300', iconName: 'Crown' },
+  { id: 'vip_303', name: 'Phòng VIP 303', shortName: 'VIP 303', category: 'vip', color: 'text-amber-800', badgeBg: 'bg-amber-50', badgeBorder: 'border-amber-300', iconName: 'Crown' },
+  { id: 'vip_304', name: 'Phòng VIP 304', shortName: 'VIP 304', category: 'vip', color: 'text-amber-800', badgeBg: 'bg-amber-50', badgeBorder: 'border-amber-300', iconName: 'Crown' },
+
+  // Tầng 4 Sảnh (Toàn bộ sảnh ở tầng 4)
+  { id: 'sanh', name: 'Sảnh Tầng 4 (Bàn 1 - 25)', shortName: 'Sảnh Tầng 4', category: 'vip', color: 'text-sky-800', badgeBg: 'bg-sky-50', badgeBorder: 'border-sky-300', iconName: 'DoorOpen' },
 ];
 
 export interface ChatPreset {
