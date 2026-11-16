@@ -12,11 +12,17 @@ import { Lock, LogIn, AlertCircle, Sparkles, UserCheck } from 'lucide-react';
 interface AuthContextType {
   isLoggedIn: boolean;
   user: AuthUser | null;
-  isStaffOnly: boolean;
+  isAdmin: boolean;
+  isSupervisor: boolean;
   isReceptionist: boolean;
+  isStaffOnly: boolean;
   isSupervisorOrAdmin: boolean;
   canManageBookings: boolean;
   canAddGuests: boolean;
+  canAccessDashboard: boolean;
+  canAccessArchive: boolean;
+  canAccessCms: boolean;
+  canAccessChat: boolean;
   openLoginModal: () => void;
   closeLoginModal: () => void;
   logout: () => Promise<void>;
@@ -25,11 +31,17 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
   isLoggedIn: false,
   user: null,
-  isStaffOnly: false,
+  isAdmin: false,
+  isSupervisor: false,
   isReceptionist: false,
+  isStaffOnly: false,
   isSupervisorOrAdmin: false,
   canManageBookings: false,
   canAddGuests: false,
+  canAccessDashboard: false,
+  canAccessArchive: false,
+  canAccessCms: false,
+  canAccessChat: false,
   openLoginModal: () => {},
   closeLoginModal: () => {},
   logout: async () => {},
@@ -54,11 +66,17 @@ export function AuthProvider({
   }, [initialUser]);
 
   const isLoggedIn = !!user;
-  const isStaffOnly = user?.role === 'staff';
+  const isAdmin = user?.role === 'admin';
+  const isSupervisor = user?.role === 'supervisor';
   const isReceptionist = user?.role === 'receptionist';
-  const isSupervisorOrAdmin = user?.role === 'admin' || user?.role === 'supervisor';
+  const isStaffOnly = user?.role === 'staff';
+  const isSupervisorOrAdmin = isAdmin || isSupervisor;
   const canManageBookings = isSupervisorOrAdmin;
   const canAddGuests = isSupervisorOrAdmin || isReceptionist;
+  const canAccessDashboard = isAdmin;
+  const canAccessArchive = isAdmin;
+  const canAccessCms = isSupervisorOrAdmin;
+  const canAccessChat = !!user;
 
   const openLoginModal = () => {
     setErrorMessage('');
@@ -84,11 +102,25 @@ export function AuthProvider({
       } else if (res?.user) {
         setUser(res.user);
         setIsModalOpen(false);
-        // If staff logs in, direct to /nv
+        // If staff logs in, direct to /nv/chat
         if (res.user.role === 'staff') {
-          window.location.href = '/nv';
+          window.location.href = '/nv/chat';
         } else if (res.user.role === 'receptionist') {
-          if (window.location.pathname !== '/' && window.location.pathname !== '/floor-plan') {
+          if (
+            window.location.pathname.startsWith('/dashboard') ||
+            window.location.pathname.startsWith('/archive') ||
+            window.location.pathname.startsWith('/cms') ||
+            window.location.pathname.startsWith('/nv')
+          ) {
+            window.location.href = '/';
+          } else {
+            window.location.reload();
+          }
+        } else if (res.user.role === 'supervisor') {
+          if (
+            window.location.pathname.startsWith('/dashboard') ||
+            window.location.pathname.startsWith('/archive')
+          ) {
             window.location.href = '/';
           } else {
             window.location.reload();
@@ -117,11 +149,17 @@ export function AuthProvider({
       value={{
         isLoggedIn,
         user,
-        isStaffOnly,
+        isAdmin,
+        isSupervisor,
         isReceptionist,
+        isStaffOnly,
         isSupervisorOrAdmin,
         canManageBookings,
         canAddGuests,
+        canAccessDashboard,
+        canAccessArchive,
+        canAccessCms,
+        canAccessChat,
         openLoginModal,
         closeLoginModal,
         logout: handleLogout,

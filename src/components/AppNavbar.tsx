@@ -9,9 +9,9 @@ import { Sparkles, BarChart3, MessageSquare, BellRing } from 'lucide-react';
 
 export default function AppNavbar() {
   const pathname = usePathname();
-  const { isStaffOnly, isReceptionist } = useAuth();
+  const { user } = useAuth();
 
-  const navLinks = [
+  const allNavLinks = [
     { href: '/', label: 'Lễ Tân', icon: BellRing },
     { href: '/bookings', label: 'Danh sách Đặt bàn' },
     { href: '/floor-plan', label: 'Sơ đồ bàn' },
@@ -24,59 +24,24 @@ export default function AppNavbar() {
     { href: '/archive', label: 'Lưu Trữ' },
   ];
 
-  if (isStaffOnly) {
-    return (
-      <nav className="flex gap-2 text-sm font-medium text-slate-600 overflow-x-auto whitespace-nowrap scrollbar-hide flex-1 justify-start py-2 items-center">
-        <Link 
-          href="/nv" 
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 text-white font-semibold shadow-sm hover:bg-amber-600 transition-all shrink-0 text-xs"
-        >
-          <Sparkles className="w-3.5 h-3.5 text-amber-200" />
-          <span>CMS Thưởng</span>
-        </Link>
-        <Link 
-          href="/nv/chat" 
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-semibold shadow-sm hover:bg-indigo-700 transition-all shrink-0 text-xs"
-        >
-          <MessageSquare className="w-3.5 h-3.5 text-indigo-200" />
-          <span>Chat VIP</span>
-        </Link>
-        <div className="ml-auto shrink-0">
-          <NavbarAuth />
-        </div>
-      </nav>
-    );
-  }
+  let navLinks: typeof allNavLinks = [];
 
-  if (isReceptionist) {
-    return (
-      <nav className="flex gap-2 text-sm font-medium text-slate-600 overflow-x-auto whitespace-nowrap scrollbar-hide flex-1 justify-start py-2 items-center">
-        <Link 
-          href="/" 
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
-            pathname === '/'
-              ? 'bg-orange-600 text-white shadow-sm ring-1 ring-orange-500'
-              : 'text-slate-600 hover:text-orange-600 hover:bg-orange-50'
-          }`}
-        >
-          <BellRing className="w-3.5 h-3.5" />
-          <span>Lễ Tân</span>
-        </Link>
-        <Link 
-          href="/floor-plan" 
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
-            pathname === '/floor-plan'
-              ? 'bg-orange-600 text-white shadow-sm ring-1 ring-orange-500'
-              : 'text-slate-600 hover:text-orange-600 hover:bg-orange-50'
-          }`}
-        >
-          <span>Sơ đồ bàn</span>
-        </Link>
-        <div className="ml-auto shrink-0 pl-1">
-          <NavbarAuth />
-        </div>
-      </nav>
+  if (user?.role === 'admin') {
+    // 1. Admin: Xem full toàn bộ 10 module, full tính năng
+    navLinks = allNavLinks;
+  } else if (user?.role === 'supervisor') {
+    // 2. Giám sát: Không xem được Dashboard báo cáo, Lịch sử lưu trữ tiệc
+    navLinks = allNavLinks.filter(
+      (link) => link.href !== '/dashboard' && link.href !== '/archive'
     );
+  } else if (user?.role === 'receptionist') {
+    // 3. Lễ tân: Không xem được Dashboard báo cáo, Lịch sử lưu trữ tiệc, CMS thưởng và đối soát
+    navLinks = allNavLinks.filter(
+      (link) => link.href !== '/dashboard' && link.href !== '/archive' && link.href !== '/cms'
+    );
+  } else if (user?.role === 'staff') {
+    // 4. Nhân viên: Chỉ truy cập duy nhất module Chat VIP
+    navLinks = allNavLinks.filter((link) => link.href === '/nv/chat');
   }
 
   return (

@@ -1,10 +1,16 @@
-import { fetchBookings } from "@/app/actions";
+import { redirect } from "next/navigation";
+import { fetchBookings, getAuthUserAction } from "@/app/actions";
 import { isBookingArchived, getVietnamNow } from "@/lib/bookingUtils";
 import ArchiveClient from "./ArchiveClient";
 
 export const dynamic = 'force-dynamic';
 
 export default async function ArchivePage() {
+  const user = await getAuthUserAction();
+  if (!user || user.role !== 'admin') {
+    redirect('/');
+  }
+
   const allBookings = await fetchBookings();
   const now = getVietnamNow();
   // Lọc toàn bộ các tiệc đã dọn xong (clean) hoặc đã qua thời gian 8 tiếng
