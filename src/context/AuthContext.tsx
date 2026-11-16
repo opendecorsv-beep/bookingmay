@@ -205,7 +205,7 @@ export function AuthProvider({
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="maybmt, gshuy, thuyletan, nhiletan, nhuletan..."
+                placeholder="maybmt, gshuy, salemay, nhiletan, nhuletan..."
                 required
                 autoFocus
               />
@@ -228,9 +228,10 @@ export function AuthProvider({
                 <UserCheck className="w-3.5 h-3.5 text-blue-600" />
                 <span>Phân quyền tài khoản:</span>
               </div>
-              <p>• <strong>Lễ Tân (thuyletan / nhiletan / nhuletan):</strong> Chỉ đón tiếp & thêm khách tại Lễ Tân, Sơ đồ bàn.</p>
-              <p>• <strong>Giám Sát (gshuy / gsmai / gstien):</strong> Quản lý tiệc, duyệt sơ đồ & CMS nhân viên.</p>
-              <p>• <strong>Nhân Viên (nhanvien):</strong> Theo dõi bảng xếp hạng & thưởng CMS cá nhân.</p>
+              <p>• <strong>Lễ Tân (nhiletan / nhuletan):</strong> Đón tiếp & thêm khách tại Lễ Tân, Sơ đồ bàn.</p>
+              <p>• <strong>Sale Mây (salemay):</strong> Thêm tiệc, điều chỉnh tiệc các thứ bình thường (chặn xem Dashboard).</p>
+              <p>• <strong>Giám Sát (gshuy / gsmai / gstien / gslananh):</strong> Điều hành ca trực & CMS thưởng.</p>
+              <p>• <strong>Nhân Viên (nhanvien):</strong> Tham gia Chat VIP trực ca.</p>
               <p>• <strong>Quản Lý (maybmt):</strong> Toàn quyền quản trị hệ thống.</p>
             </div>
 

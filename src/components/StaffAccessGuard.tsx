@@ -127,7 +127,7 @@ export default function StaffAccessGuard({ children }: { children: React.ReactNo
                 <Input
                   id="guard-username"
                   type="text"
-                  placeholder="maybmt / gshuy / thuyletan / nhanvien..."
+                  placeholder="maybmt / gshuy / salemay / nhiletan / nhanvien..."
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="h-10 text-sm focus:border-amber-500 focus:ring-amber-500"
@@ -224,14 +224,14 @@ export default function StaffAccessGuard({ children }: { children: React.ReactNo
 
                 <button
                   type="button"
-                  onClick={() => handleSelectSampleAccount('thuyletan', 'maybmt2026')}
+                  onClick={() => handleSelectSampleAccount('nhiletan', 'maybmt2026')}
                   className="p-2 rounded-lg border border-orange-200 bg-orange-50/60 hover:bg-orange-100 text-left transition-all"
                 >
                   <div className="font-bold text-orange-900 flex items-center gap-1">
                     <BellRing className="w-3.5 h-3.5 text-orange-600" />
                     <span>Lễ Tân Đón Bàn</span>
                   </div>
-                  <div className="text-[10px] text-orange-700 font-mono mt-0.5">thuyletan / nhiletan</div>
+                  <div className="text-[10px] text-orange-700 font-mono mt-0.5">nhiletan / nhuletan</div>
                 </button>
 
                 <button
