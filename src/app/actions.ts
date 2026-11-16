@@ -778,8 +778,8 @@ export async function addStaffCommissionAction(data: {
   note?: string;
 }) {
   const user = await getAuthUserAction();
-  if (!user || (user.role !== 'admin' && user.role !== 'supervisor')) {
-    return { error: 'Chỉ tài khoản Giám Sát hoặc Quản Lý mới có quyền ghi nhận CMS thưởng!' };
+  if (!user || (user.role !== 'admin' && user.role !== 'supervisor' && user.role !== 'sale')) {
+    return { error: 'Chỉ tài khoản Giám Sát, Quản Lý hoặc Sale mới có quyền ghi nhận CMS thưởng!' };
   }
 
   const currentCommissions = await getStaffCommissions();
@@ -788,6 +788,17 @@ export async function addStaffCommissionAction(data: {
   const cleanData = { ...data };
   if (cleanData.billImageUrl && cleanData.billImageUrl.startsWith('data:')) {
     delete cleanData.billImageUrl;
+  }
+
+  // Quy định: Từ ngày 07/11/2026, cố định tỉ lệ 1% cho tất cả các ngày trong tuần
+  if (cleanData.category === 'booking_bill') {
+    if (cleanData.date >= '2026-11-07') {
+      cleanData.billPercent = 1;
+      const baseAmount = cleanData.billFoodAmount || cleanData.billAmount || 0;
+      cleanData.totalReward = Math.round(baseAmount * 0.01);
+      cleanData.unitPriceOrReward = cleanData.totalReward;
+      cleanData.productName = 'Thưởng Bill Booking (1%)';
+    }
   }
 
   const newEntry: CommissionEntry = {

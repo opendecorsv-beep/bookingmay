@@ -325,9 +325,23 @@ export default function CmsClient({ initialCommissions, initialUser }: CmsClient
     XLSX.writeFile(wb, `Doi_Soat_CMS_May_${dateLabel}.xlsx`);
   };
 
-  // Auto set % bill: Cố định 1% cho tất cả các ngày trong tuần
-  const updateDayOfWeekPercent = (_dateStr: string) => {
-    setFormBillPercent(1);
+  // Auto set % bill: Từ 07/11/2026 là 1% cho tất cả các ngày, trước 07/11 thì T2-T5: 2%, T6-CN: 1%
+  const updateDayOfWeekPercent = (dateStr: string) => {
+    try {
+      if (dateStr >= '2026-11-07') {
+        setFormBillPercent(1);
+        return;
+      }
+      const d = new Date(dateStr);
+      const day = d.getDay();
+      if (day >= 1 && day <= 4) {
+        setFormBillPercent(2);
+      } else {
+        setFormBillPercent(1);
+      }
+    } catch (e) {
+      setFormBillPercent(1);
+    }
   };
 
   // Filter commissions by time
@@ -446,13 +460,15 @@ export default function CmsClient({ initialCommissions, initialUser }: CmsClient
   const calculateModalReward = () => {
     if (formCategory === 'booking_bill') {
       const bill = typeof formBillAmount === 'number' ? formBillAmount : 0;
-      return Math.round((bill * 1) / 100); // 1% cố định cho tất cả các ngày
+      const pct = formDate >= '2026-11-07' ? 1 : formBillPercent;
+      return Math.round((bill * pct) / 100);
     }
     if (formCategory === 'custom') {
       return typeof formCustomReward === 'number' ? formCustomReward : 0;
     }
     const bill = typeof formBillAmount === 'number' ? formBillAmount : 0;
-    return Math.round((bill * 1) / 100);
+    const pct = formDate >= '2026-11-07' ? 1 : formBillPercent;
+    return Math.round((bill * pct) / 100);
   };
 
   const handleSaveCommission = async (e: React.FormEvent) => {
@@ -469,9 +485,10 @@ export default function CmsClient({ initialCommissions, initialUser }: CmsClient
       let prodName = '';
       let unitReward = 0;
       const totalReward = calculateModalReward();
+      const effectivePercent = formDate >= '2026-11-07' ? 1 : formBillPercent;
 
       if (formCategory === 'booking_bill') {
-        prodName = 'Thưởng Bill Booking (1%)';
+        prodName = `Thưởng Bill Booking (${effectivePercent}%)`;
         unitReward = totalReward;
       } else {
         prodName = formCustomName.trim() || 'Thưởng nóng / Khác';
@@ -487,7 +504,7 @@ export default function CmsClient({ initialCommissions, initialUser }: CmsClient
         unitPriceOrReward: unitReward,
         quantity: formQuantity,
         billAmount: formCategory === 'booking_bill' ? (typeof formBillAmount === 'number' ? formBillAmount : undefined) : undefined,
-        billPercent: 1, // Luôn cố định 1%
+        billPercent: formCategory === 'booking_bill' ? effectivePercent : undefined,
         billFoodAmount: formCategory === 'booking_bill' ? formBillFoodAmount : undefined,
         billExcludedAmount: formCategory === 'booking_bill' ? formBillExcludedAmount : undefined,
         billItemsSummary: formCategory === 'booking_bill' ? formBillItemsSummary : undefined,
@@ -1971,10 +1988,21 @@ export default function CmsClient({ initialCommissions, initialUser }: CmsClient
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Tỉ lệ % tính thưởng</Label>
-                  <div className="p-2 bg-white rounded-lg border border-slate-300 text-xs font-bold text-amber-700 flex items-center justify-between h-9">
-                    <span>1% Doanh số đồ ăn</span>
-                    <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">Tất cả các ngày</span>
-                  </div>
+                  {formDate >= '2026-11-07' ? (
+                    <div className="p-2 bg-white rounded-lg border border-slate-300 text-xs font-bold text-amber-700 flex items-center justify-between h-9">
+                      <span>1% Doanh số đồ ăn</span>
+                      <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-semibold">Cố định từ 07/11</span>
+                    </div>
+                  ) : (
+                    <select
+                      value={formBillPercent}
+                      onChange={(e) => setFormBillPercent(Number(e.target.value))}
+                      className="w-full text-xs p-2 rounded-lg border border-slate-300 bg-white h-9"
+                    >
+                      <option value={2}>Trước 07/11 (T2 - T5): 2%</option>
+                      <option value={1}>Trước 07/11 (T6 - CN): 1%</option>
+                    </select>
+                  )}
                 </div>
               </div>
             </div>
