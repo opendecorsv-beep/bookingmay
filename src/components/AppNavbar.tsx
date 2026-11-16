@@ -39,8 +39,11 @@ export default function AppNavbar() {
     navLinks = allNavLinks.filter(
       (link) => link.href !== '/dashboard' && link.href !== '/archive' && link.href !== '/cms'
     );
+  } else if (user?.role === 'sale') {
+    // 4. Sale Mây: Xem tất cả các module NGOẠI TRỪ Dashboard báo cáo
+    navLinks = allNavLinks.filter((link) => link.href !== '/dashboard');
   } else if (user?.role === 'staff') {
-    // 4. Nhân viên: Chỉ truy cập duy nhất module Chat VIP
+    // 5. Nhân viên: Chỉ truy cập duy nhất module Chat VIP
     navLinks = allNavLinks.filter((link) => link.href === '/nv/chat');
   }
 

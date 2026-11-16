@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Lock, LogOut, Crown, User, UserCheck, RefreshCw, BellRing } from 'lucide-react';
+import { Lock, LogOut, Crown, User, UserCheck, RefreshCw, BellRing, Briefcase } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 export default function NavbarAuth() {
@@ -33,6 +33,7 @@ export default function NavbarAuth() {
   if (isLoggedIn && user) {
     const isMaster = user.role === 'admin';
     const isSupervisor = user.role === 'supervisor';
+    const isSale = user.role === 'sale';
     const isReceptionist = user.role === 'receptionist';
 
     return (
@@ -42,6 +43,8 @@ export default function NavbarAuth() {
             ? 'bg-amber-50 text-amber-900 border-amber-300' 
             : isSupervisor
             ? 'bg-blue-50 text-blue-800 border-blue-200'
+            : isSale
+            ? 'bg-teal-50 text-teal-800 border-teal-300'
             : isReceptionist
             ? 'bg-orange-50 text-orange-900 border-orange-300'
             : 'bg-emerald-50 text-emerald-800 border-emerald-200'
@@ -50,6 +53,8 @@ export default function NavbarAuth() {
             <Crown className="w-3.5 h-3.5 text-amber-600 shrink-0" />
           ) : isSupervisor ? (
             <UserCheck className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+          ) : isSale ? (
+            <Briefcase className="w-3.5 h-3.5 text-teal-600 shrink-0" />
           ) : isReceptionist ? (
             <BellRing className="w-3.5 h-3.5 text-orange-600 shrink-0" />
           ) : (
@@ -58,7 +63,7 @@ export default function NavbarAuth() {
           <span className="truncate max-w-[120px]">{user.name}</span>
         </div>
 
-        {(isMaster || isSupervisor) && (
+        {(isMaster || isSupervisor || isSale) && (
           <Button
             variant="outline"
             size="sm"

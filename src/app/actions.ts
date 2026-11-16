@@ -43,18 +43,18 @@ export async function getAuthUserAction(): Promise<AuthUser | null> {
 
 export async function getAuthStatus(): Promise<boolean> {
   const user = await getAuthUserAction();
-  return !!user && (user.role === 'admin' || user.role === 'supervisor');
+  return !!user && (user.role === 'admin' || user.role === 'supervisor' || user.role === 'sale');
 }
 
 export async function getCanAddGuestStatus(): Promise<boolean> {
   const user = await getAuthUserAction();
-  return !!user && (user.role === 'admin' || user.role === 'supervisor' || user.role === 'receptionist');
+  return !!user && (user.role === 'admin' || user.role === 'supervisor' || user.role === 'receptionist' || user.role === 'sale');
 }
 
 async function verifySupervisorOrAdmin() {
   const user = await getAuthUserAction();
   if (!user || user.role === 'staff' || user.role === 'receptionist') {
-    throw new Error('Chỉ tài khoản Quản Lý hoặc Giám Sát mới có quyền thực hiện thao tác này!');
+    throw new Error('Chỉ tài khoản Quản Lý, Giám Sát hoặc Sale mới có quyền thực hiện thao tác này!');
   }
   return user;
 }
@@ -64,7 +64,7 @@ const verifyAuthPermission = verifySupervisorOrAdmin;
 async function verifyCanAddOrReception() {
   const user = await getAuthUserAction();
   if (!user || user.role === 'staff') {
-    throw new Error('Vui lòng đăng nhập tài khoản Lễ Tân, Giám Sát hoặc Quản Lý để thực hiện thao tác này!');
+    throw new Error('Vui lòng đăng nhập tài khoản Lễ Tân, Sale, Giám Sát hoặc Quản Lý để thực hiện thao tác này!');
   }
   return user;
 }

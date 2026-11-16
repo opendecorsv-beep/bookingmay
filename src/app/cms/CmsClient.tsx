@@ -135,12 +135,12 @@ export default function CmsClient({ initialCommissions, initialUser }: CmsClient
     return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   });
   const [formStaffName, setFormStaffName] = useState('');
-  const [formCategory, setFormCategory] = useState<CommissionEntry['category']>('product');
-  const [formProductId, setFormProductId] = useState(CMS_STANDARD_PRODUCTS[0].id);
-  const [formWineId, setFormWineId] = useState(CMS_WINE_PRODUCTS[0].id);
+  const [formCategory, setFormCategory] = useState<CommissionEntry['category']>('booking_bill');
+  const [formProductId, setFormProductId] = useState('');
+  const [formWineId, setFormWineId] = useState('');
   const [formQuantity, setFormQuantity] = useState(1);
   const [formBillAmount, setFormBillAmount] = useState<number | ''>(5000000);
-  const [formBillPercent, setFormBillPercent] = useState<number>(2);
+  const [formBillPercent, setFormBillPercent] = useState<number>(1);
   const [formCustomName, setFormCustomName] = useState('');
   const [formCustomReward, setFormCustomReward] = useState<number | ''>(100000);
   const [formTableOrRoom, setFormTableOrRoom] = useState('Mây 104');
@@ -156,8 +156,8 @@ export default function CmsClient({ initialCommissions, initialUser }: CmsClient
   // Viewing Audit Receipt Modal
   const [viewingReceiptEntry, setViewingReceiptEntry] = useState<CommissionEntry | null>(null);
 
-  // Check role permissions
-  const canEdit = initialUser?.role === 'admin' || initialUser?.role === 'supervisor';
+  // Check role permissions: Admin, Supervisor, and Sale can add/manage CMS
+  const canEdit = initialUser?.role === 'admin' || initialUser?.role === 'supervisor' || initialUser?.role === 'sale';
 
   // 7 days ago
   const sevenDaysAgoStr = useMemo(() => {
@@ -325,19 +325,9 @@ export default function CmsClient({ initialCommissions, initialUser }: CmsClient
     XLSX.writeFile(wb, `Doi_Soat_CMS_May_${dateLabel}.xlsx`);
   };
 
-  // Auto set % bill based on date day-of-week
-  const updateDayOfWeekPercent = (dateStr: string) => {
-    try {
-      const d = new Date(dateStr);
-      const day = d.getDay(); // 0 is Sun, 1 is Mon, 2 is Tue, ... 4 is Thu, 5 is Fri, 6 is Sat
-      if (day >= 1 && day <= 4) {
-        setFormBillPercent(2); // Thứ 2 -> Thứ 5: 2%
-      } else {
-        setFormBillPercent(1); // Thứ 6, 7, CN: 1%
-      }
-    } catch (e) {
-      setFormBillPercent(2);
-    }
+  // Auto set % bill: Cố định 1% cho tất cả các ngày trong tuần
+  const updateDayOfWeekPercent = (_dateStr: string) => {
+    setFormBillPercent(1);
   };
 
   // Filter commissions by time
@@ -454,22 +444,15 @@ export default function CmsClient({ initialCommissions, initialUser }: CmsClient
   };
 
   const calculateModalReward = () => {
-    if (formCategory === 'product') {
-      const p = CMS_STANDARD_PRODUCTS.find(x => x.id === formProductId);
-      return (p ? p.reward : 100000) * formQuantity;
-    }
-    if (formCategory === 'wine') {
-      const w = CMS_WINE_PRODUCTS.find(x => x.id === formWineId);
-      return (w ? w.reward : 150000) * formQuantity;
-    }
     if (formCategory === 'booking_bill') {
       const bill = typeof formBillAmount === 'number' ? formBillAmount : 0;
-      return Math.round((bill * formBillPercent) / 100);
+      return Math.round((bill * 1) / 100); // 1% cố định cho tất cả các ngày
     }
     if (formCategory === 'custom') {
       return typeof formCustomReward === 'number' ? formCustomReward : 0;
     }
-    return 0;
+    const bill = typeof formBillAmount === 'number' ? formBillAmount : 0;
+    return Math.round((bill * 1) / 100);
   };
 
   const handleSaveCommission = async (e: React.FormEvent) => {
@@ -487,16 +470,8 @@ export default function CmsClient({ initialCommissions, initialUser }: CmsClient
       let unitReward = 0;
       const totalReward = calculateModalReward();
 
-      if (formCategory === 'product') {
-        const p = CMS_STANDARD_PRODUCTS.find(x => x.id === formProductId);
-        prodName = p ? p.name : 'Sản phẩm';
-        unitReward = p ? p.reward : 100000;
-      } else if (formCategory === 'wine') {
-        const w = CMS_WINE_PRODUCTS.find(x => x.id === formWineId);
-        prodName = w ? w.name : 'Rượu vang';
-        unitReward = w ? w.reward : 150000;
-      } else if (formCategory === 'booking_bill') {
-        prodName = `Thưởng Bill Booking (${formBillPercent}%)`;
+      if (formCategory === 'booking_bill') {
+        prodName = 'Thưởng Bill Booking (1%)';
         unitReward = totalReward;
       } else {
         prodName = formCustomName.trim() || 'Thưởng nóng / Khác';
@@ -512,7 +487,7 @@ export default function CmsClient({ initialCommissions, initialUser }: CmsClient
         unitPriceOrReward: unitReward,
         quantity: formQuantity,
         billAmount: formCategory === 'booking_bill' ? (typeof formBillAmount === 'number' ? formBillAmount : undefined) : undefined,
-        billPercent: formCategory === 'booking_bill' ? formBillPercent : undefined,
+        billPercent: 1, // Luôn cố định 1%
         billFoodAmount: formCategory === 'booking_bill' ? formBillFoodAmount : undefined,
         billExcludedAmount: formCategory === 'booking_bill' ? formBillExcludedAmount : undefined,
         billItemsSummary: formCategory === 'booking_bill' ? formBillItemsSummary : undefined,
@@ -1482,9 +1457,9 @@ export default function CmsClient({ initialCommissions, initialUser }: CmsClient
             <div className="p-3 bg-amber-50/70 rounded-xl border border-amber-200/60 text-xs text-amber-900 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Info className="w-4 h-4 text-amber-600 shrink-0" />
-                <span>Thứ 2 - Thứ 5: <strong>2% Bill</strong> | Thứ 6 - CN: <strong>1% Bill</strong></span>
+                <span>Chính sách CMS: <strong>Thưởng Booking 1% Doanh số đồ ăn</strong> (Áp dụng tất cả các ngày trong tuần)</span>
               </div>
-              <span className="font-bold text-amber-700 shrink-0">Cá bơn / Hùm Úc / Alaska: 100k</span>
+              <span className="font-bold text-amber-700 shrink-0">Cố định 1% Bill</span>
             </div>
           </div>
 
@@ -1751,65 +1726,24 @@ export default function CmsClient({ initialCommissions, initialUser }: CmsClient
           </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-          {/* Box 1: Hải Sản & Thịt Bò */}
-          <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-            <div className="font-bold text-slate-800 flex items-center gap-1.5 text-sm text-blue-700">
-              <Fish className="w-4 h-4" />
-              <span>Hải Sản & Thịt Bò Cao Cấp</span>
-            </div>
-            <div className="space-y-1 text-slate-600">
-              <div className="flex justify-between"><span>• Cá bơn:</span><strong className="text-amber-700">100.000 đ/con</strong></div>
-              <div className="flex justify-between"><span>• Cá Mú đỏ:</span><strong className="text-amber-700">50.000 đ/con</strong></div>
-              <div className="flex justify-between"><span>• Mú ni / Bọ biển:</span><strong className="text-amber-700">30.000 đ/con</strong></div>
-              <div className="flex justify-between"><span>• Hùm Úc / Alaska / Cua hoàng đế:</span><strong className="text-amber-700">100.000 đ/con</strong></div>
-              <div className="flex justify-between"><span>• Hùm bông:</span><strong className="text-amber-700">50.000 đ/con</strong></div>
-              <div className="flex justify-between"><span>• Tomahawk / Wagyu:</span><strong className="text-amber-700">50.000 đ/phần</strong></div>
-              <div className="flex justify-between"><span>• Ốc nữ hoàng / Vòi voi:</span><strong className="text-amber-700">50.000 đ/con</strong></div>
-            </div>
+        {/* Policy Section: Chỉ duy nhất CMS Booking 1% */}
+        <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-3">
+          <div className="flex items-center gap-2 font-bold text-slate-800 text-sm text-emerald-700">
+            <Percent className="w-4 h-4" />
+            <span>Chính Sách Thưởng Duy Nhất: 1% Doanh Số Đồ Ăn Bill Booking</span>
           </div>
-
-          {/* Box 2: Rượu Vang */}
-          <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-            <div className="font-bold text-slate-800 flex items-center gap-1.5 text-sm text-purple-700">
-              <Wine className="w-4 h-4" />
-              <span>Rượu Vang Thượng Hạng</span>
+          <div className="p-3 bg-white rounded-lg border border-emerald-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+            <div>
+              <span className="font-semibold text-slate-700 text-sm">Áp dụng: Tất cả các ngày trong tuần (Thứ 2 đến Chủ Nhật)</span>
+              <p className="text-xs text-slate-500 mt-0.5">Tính 1% trên tổng tiền đồ ăn thực tế của bàn booking (sau khi bóc tách loại trừ bia, rượu, nước, decor và VAT).</p>
             </div>
-            <div className="space-y-2 text-slate-600">
-              <div className="p-2 bg-white rounded-lg border border-purple-100 flex justify-between items-center">
-                <span>Vang &gt; 3.000.000 đ/chai</span>
-                <strong className="text-purple-700 font-bold">+150.000 đ/chai</strong>
-              </div>
-              <div className="p-2 bg-white rounded-lg border border-purple-100 flex justify-between items-center">
-                <span>Vang ≤ 3.000.000 đ/chai</span>
-                <strong className="text-purple-700 font-bold">+100.000 đ/chai</strong>
-              </div>
-              <p className="text-[10px] text-slate-400 italic">
-                * Áp dụng cho tất cả các dòng rượu vang nhập khẩu tại nhà hàng khi nhân viên tư vấn thành công.
-              </p>
-            </div>
+            <span className="px-3 py-1 bg-emerald-100 text-emerald-800 font-extrabold rounded-full text-sm shrink-0">
+              Cố Định 1%
+            </span>
           </div>
-
-          {/* Box 3: Thưởng % Bill Tiệc */}
-          <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-            <div className="font-bold text-slate-800 flex items-center gap-1.5 text-sm text-emerald-700">
-              <Percent className="w-4 h-4" />
-              <span>Thưởng Bàn Booking Theo % Bill</span>
-            </div>
-            <div className="space-y-2 text-slate-600">
-              <div className="p-2 bg-white rounded-lg border border-emerald-100 flex justify-between items-center">
-                <span>Thứ 2, Thứ 3, Thứ 4, Thứ 5:</span>
-                <strong className="text-emerald-700 font-bold">2% Tổng Bill</strong>
-              </div>
-              <div className="p-2 bg-white rounded-lg border border-emerald-100 flex justify-between items-center">
-                <span>Thứ 6, Thứ 7, Chủ Nhật:</span>
-                <strong className="text-emerald-700 font-bold">1% Tổng Bill</strong>
-              </div>
-              <p className="text-[10px] text-slate-400 italic">
-                * Tỉ lệ % bill được quy đổi thẳng thành tiền mặt tương ứng để cộng vào thu nhập của nhân viên phục vụ tiệc.
-              </p>
-            </div>
-          </div>
+          <p className="text-[11px] text-slate-400 italic">
+            * Nhà hàng áp dụng duy nhất chính sách CMS 1% Bill đồ ăn booking cho tất cả các ngày trong tuần. Đã bỏ toàn bộ các định mức thưởng riêng cho món ăn và rượu vang.
+          </p>
         </div>
       </div>
 
@@ -1968,183 +1902,82 @@ export default function CmsClient({ initialCommissions, initialUser }: CmsClient
               </div>
             </div>
 
-            {/* Category Tabs */}
+            {/* Category: 1% Bill Booking */}
             <div className="space-y-1.5">
-              <Label className="text-xs">Hình thức thưởng</Label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setFormCategory('product')}
-                  className={`p-2 rounded-xl text-xs font-semibold border transition-all ${
-                    formCategory === 'product'
-                      ? 'bg-amber-500 text-white border-amber-600 shadow-xs'
-                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  Hải Sản / Bò
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormCategory('wine')}
-                  className={`p-2 rounded-xl text-xs font-semibold border transition-all ${
-                    formCategory === 'wine'
-                      ? 'bg-amber-500 text-white border-amber-600 shadow-xs'
-                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  Rượu Vang
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormCategory('booking_bill')}
-                  className={`p-2 rounded-xl text-xs font-semibold border transition-all ${
-                    formCategory === 'booking_bill'
-                      ? 'bg-amber-500 text-white border-amber-600 shadow-xs'
-                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  % Bill Booking
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormCategory('custom')}
-                  className={`p-2 rounded-xl text-xs font-semibold border transition-all ${
-                    formCategory === 'custom'
-                      ? 'bg-amber-500 text-white border-amber-600 shadow-xs'
-                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  Thưởng Nóng
-                </button>
+              <Label className="text-xs font-bold text-slate-700">Chính sách thưởng CMS</Label>
+              <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/80 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Percent className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span className="text-xs font-bold text-amber-900">CMS Booking 1% Doanh Số Đồ Ăn</span>
+                </div>
+                <span className="text-[11px] font-extrabold bg-amber-500 text-white px-2.5 py-0.5 rounded-full shadow-xs">
+                  Cố định 1% (Tất cả các ngày)
+                </span>
               </div>
             </div>
 
-            {/* Category-Specific Inputs */}
-            {formCategory === 'product' && (
-              <div className="grid grid-cols-3 gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
-                <div className="col-span-2 space-y-1">
-                  <Label className="text-xs">Sản phẩm bán được</Label>
-                  <select
-                    value={formProductId}
-                    onChange={(e) => setFormProductId(e.target.value)}
-                    className="w-full text-xs p-2 rounded-lg border border-slate-300 bg-white"
-                  >
-                    {CMS_STANDARD_PRODUCTS.map(p => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} (+{p.reward.toLocaleString('vi-VN')} đ/{p.unit})
-                      </option>
-                    ))}
-                  </select>
+            {/* Inputs for Booking Bill 1% */}
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+              {/* AI Receipt Scanner Trigger Button */}
+              <Button
+                type="button"
+                onClick={() => setIsReceiptScanOpen(true)}
+                className="w-full bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 text-white font-bold text-xs py-2.5 rounded-xl shadow-xs flex items-center justify-center gap-2 border border-amber-400/40"
+              >
+                <Camera className="w-4 h-4 text-amber-100" />
+                <span>Quét Ảnh Hóa Đơn AI (Chỉ tính đồ ăn)</span>
+                <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded-md font-extrabold uppercase">Tự động</span>
+              </Button>
+
+              {/* Scanned Food Summary Pill if available */}
+              {formBillFoodAmount !== undefined && (
+                <div className="p-2.5 bg-emerald-50 rounded-lg border border-emerald-200 text-xs space-y-1">
+                  <div className="flex items-center justify-between text-emerald-800 font-bold">
+                    <span className="flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      Đã bóc tách đồ ăn thành công
+                    </span>
+                    <span>+{formBillFoodAmount.toLocaleString('vi-VN')} đ</span>
+                  </div>
+                  {formBillExcludedAmount !== undefined && (
+                    <p className="text-[11px] text-slate-500">
+                      Đã loại trừ: <strong>{formBillExcludedAmount.toLocaleString('vi-VN')} đ</strong> (Bia, Rượu, Decor, Nước, VAT)
+                    </p>
+                  )}
+                  {formBillItemsSummary && (
+                    <p className="text-[10px] text-slate-400 italic truncate">
+                      Món: {formBillItemsSummary}
+                    </p>
+                  )}
                 </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label className="text-xs">Số lượng</Label>
+                  <Label className="text-xs">
+                    {formBillFoodAmount !== undefined ? 'Tiền đồ ăn tính CMS (VNĐ)' : 'Tổng tiền bill thanh toán (VNĐ)'}
+                  </Label>
                   <Input
                     type="number"
-                    min="1"
-                    value={formQuantity}
-                    onChange={(e) => setFormQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                    step="50000"
+                    value={formBillAmount}
+                    onChange={(e) => {
+                      setFormBillAmount(e.target.value === '' ? '' : parseInt(e.target.value) || 0);
+                      setFormBillFoodAmount(undefined);
+                    }}
+                    placeholder="VD: 8000000"
                     required
                   />
                 </div>
-              </div>
-            )}
-
-            {formCategory === 'wine' && (
-              <div className="grid grid-cols-3 gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
-                <div className="col-span-2 space-y-1">
-                  <Label className="text-xs">Dòng rượu vang</Label>
-                  <select
-                    value={formWineId}
-                    onChange={(e) => setFormWineId(e.target.value)}
-                    className="w-full text-xs p-2 rounded-lg border border-slate-300 bg-white"
-                  >
-                    {CMS_WINE_PRODUCTS.map(w => (
-                      <option key={w.id} value={w.id}>
-                        {w.name} (+{w.reward.toLocaleString('vi-VN')} đ/{w.unit})
-                      </option>
-                    ))}
-                  </select>
-                </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Số chai</Label>
-                  <Input
-                    type="number"
-                    min="1"
-                    value={formQuantity}
-                    onChange={(e) => setFormQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                    required
-                  />
-                </div>
-              </div>
-            )}
-
-            {formCategory === 'booking_bill' && (
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
-                {/* AI Receipt Scanner Trigger Button */}
-                <Button
-                  type="button"
-                  onClick={() => setIsReceiptScanOpen(true)}
-                  className="w-full bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 text-white font-bold text-xs py-2.5 rounded-xl shadow-xs flex items-center justify-center gap-2 border border-amber-400/40"
-                >
-                  <Camera className="w-4 h-4 text-amber-100" />
-                  <span>Quét Ảnh Hóa Đơn AI (Chỉ tính đồ ăn)</span>
-                  <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded-md font-extrabold uppercase">Tự động</span>
-                </Button>
-
-                {/* Scanned Food Summary Pill if available */}
-                {formBillFoodAmount !== undefined && (
-                  <div className="p-2.5 bg-emerald-50 rounded-lg border border-emerald-200 text-xs space-y-1">
-                    <div className="flex items-center justify-between text-emerald-800 font-bold">
-                      <span className="flex items-center gap-1">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                        Đã bóc tách đồ ăn thành công
-                      </span>
-                      <span>+{formBillFoodAmount.toLocaleString('vi-VN')} đ</span>
-                    </div>
-                    {formBillExcludedAmount !== undefined && (
-                      <p className="text-[11px] text-slate-500">
-                        Đã loại trừ: <strong>{formBillExcludedAmount.toLocaleString('vi-VN')} đ</strong> (Bia, Rượu, Decor, Nước, VAT)
-                      </p>
-                    )}
-                    {formBillItemsSummary && (
-                      <p className="text-[10px] text-slate-400 italic truncate">
-                        Món: {formBillItemsSummary}
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs">
-                      {formBillFoodAmount !== undefined ? 'Tiền đồ ăn tính CMS (VNĐ)' : 'Tổng tiền bill thanh toán (VNĐ)'}
-                    </Label>
-                    <Input
-                      type="number"
-                      step="50000"
-                      value={formBillAmount}
-                      onChange={(e) => {
-                        setFormBillAmount(e.target.value === '' ? '' : parseInt(e.target.value) || 0);
-                        setFormBillFoodAmount(undefined);
-                      }}
-                      placeholder="VD: 8000000"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Tỉ lệ % tính thưởng</Label>
-                    <select
-                      value={formBillPercent}
-                      onChange={(e) => setFormBillPercent(Number(e.target.value))}
-                      className="w-full text-xs p-2 rounded-lg border border-slate-300 bg-white"
-                    >
-                      <option value={2}>Thứ 2 - Thứ 5: 2% Đồ ăn</option>
-                      <option value={1}>Thứ 6, 7, CN: 1% Đồ ăn</option>
-                    </select>
+                  <Label className="text-xs">Tỉ lệ % tính thưởng</Label>
+                  <div className="p-2 bg-white rounded-lg border border-slate-300 text-xs font-bold text-amber-700 flex items-center justify-between h-9">
+                    <span>1% Doanh số đồ ăn</span>
+                    <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">Tất cả các ngày</span>
                   </div>
                 </div>
               </div>
-            )}
+            </div>
 
             {formCategory === 'custom' && (
               <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200">

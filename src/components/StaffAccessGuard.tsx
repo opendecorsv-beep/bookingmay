@@ -20,6 +20,7 @@ import {
   Sparkles,
   BarChart3,
   Archive,
+  Briefcase,
   Eye,
   EyeOff
 } from 'lucide-react';
@@ -211,6 +212,18 @@ export default function StaffAccessGuard({ children }: { children: React.ReactNo
 
                 <button
                   type="button"
+                  onClick={() => handleSelectSampleAccount('salemay', 'salebooking2026')}
+                  className="p-2 rounded-lg border border-teal-200 bg-teal-50/60 hover:bg-teal-100 text-left transition-all"
+                >
+                  <div className="font-bold text-teal-900 flex items-center gap-1">
+                    <Briefcase className="w-3.5 h-3.5 text-teal-600" />
+                    <span>Sale Mây</span>
+                  </div>
+                  <div className="text-[10px] text-teal-700 font-mono mt-0.5">salemay (Thêm/Sửa tiệc)</div>
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => handleSelectSampleAccount('thuyletan', 'maybmt2026')}
                   className="p-2 rounded-lg border border-orange-200 bg-orange-50/60 hover:bg-orange-100 text-left transition-all"
                 >
@@ -224,7 +237,7 @@ export default function StaffAccessGuard({ children }: { children: React.ReactNo
                 <button
                   type="button"
                   onClick={() => handleSelectSampleAccount('nhanvien', 'may2026')}
-                  className="p-2 rounded-lg border border-indigo-200 bg-indigo-50/60 hover:bg-indigo-100 text-left transition-all"
+                  className="p-2 rounded-lg border border-indigo-200 bg-indigo-50/60 hover:bg-indigo-100 text-left transition-all col-span-2 sm:col-span-1"
                 >
                   <div className="font-bold text-indigo-900 flex items-center gap-1">
                     <MessageSquare className="w-3.5 h-3.5 text-indigo-600" />
@@ -346,7 +359,41 @@ export default function StaffAccessGuard({ children }: { children: React.ReactNo
   }
 
   // --------------------------------------------------------------------------
-  // 5. QUẢN LÝ (admin) & CÁC TRANG HỢP LỆ: CHO PHÉP HIỂN THỊ
+  // 5. SALE MÂY (sale): CHỈ BỊ CHẶN XEM DASHBOARD BÁO CÁO
+  // --------------------------------------------------------------------------
+  if (user.role === 'sale' && pathname.startsWith('/dashboard')) {
+    return (
+      <div className="max-w-md mx-auto my-16 p-8 bg-white rounded-2xl border border-teal-200 shadow-xl text-center space-y-4">
+        <div className="w-16 h-16 mx-auto bg-teal-100 text-teal-700 rounded-full flex items-center justify-center">
+          <ShieldAlert className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-bold text-slate-800">Quyền Truy Cập Bị Giới Hạn</h2>
+        <p className="text-sm text-slate-600 leading-relaxed">
+          Tài khoản <strong>{user.name}</strong> (Sale Mây) không có quyền xem <strong>Dashboard báo cáo</strong>. Bạn có toàn quyền thêm tiệc, điều chỉnh tiệc và sử dụng các phân hệ vận hành khác.
+        </p>
+        <div className="pt-3 flex flex-col sm:flex-row gap-2.5 justify-center">
+          <Button 
+            onClick={() => router.push('/bookings')} 
+            className="bg-teal-600 hover:bg-teal-700 text-white font-semibold flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl shadow-md"
+          >
+            <Calendar className="w-4 h-4" />
+            <span>Về Danh Sách Đặt Bàn</span>
+          </Button>
+          <Button 
+            onClick={() => router.push('/')} 
+            variant="outline"
+            className="border-slate-300 text-slate-700 hover:bg-slate-50 font-semibold flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl"
+          >
+            <BellRing className="w-4 h-4 text-teal-600" />
+            <span>Về Module Lễ Tân</span>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // --------------------------------------------------------------------------
+  // 6. QUẢN LÝ (admin) & CÁC TRANG HỢP LỆ: CHO PHÉP HIỂN THỊ
   // --------------------------------------------------------------------------
   return <>{children}</>;
 }

@@ -14,6 +14,7 @@ interface AuthContextType {
   user: AuthUser | null;
   isAdmin: boolean;
   isSupervisor: boolean;
+  isSale: boolean;
   isReceptionist: boolean;
   isStaffOnly: boolean;
   isSupervisorOrAdmin: boolean;
@@ -33,6 +34,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   isAdmin: false,
   isSupervisor: false,
+  isSale: false,
   isReceptionist: false,
   isStaffOnly: false,
   isSupervisorOrAdmin: false,
@@ -68,14 +70,15 @@ export function AuthProvider({
   const isLoggedIn = !!user;
   const isAdmin = user?.role === 'admin';
   const isSupervisor = user?.role === 'supervisor';
+  const isSale = user?.role === 'sale';
   const isReceptionist = user?.role === 'receptionist';
   const isStaffOnly = user?.role === 'staff';
   const isSupervisorOrAdmin = isAdmin || isSupervisor;
-  const canManageBookings = isSupervisorOrAdmin;
-  const canAddGuests = isSupervisorOrAdmin || isReceptionist;
+  const canManageBookings = isSupervisorOrAdmin || isSale;
+  const canAddGuests = isSupervisorOrAdmin || isReceptionist || isSale;
   const canAccessDashboard = isAdmin;
-  const canAccessArchive = isAdmin;
-  const canAccessCms = isSupervisorOrAdmin;
+  const canAccessArchive = isAdmin || isSale;
+  const canAccessCms = isSupervisorOrAdmin || isSale;
   const canAccessChat = !!user;
 
   const openLoginModal = () => {
@@ -105,6 +108,12 @@ export function AuthProvider({
         // If staff logs in, direct to /nv/chat
         if (res.user.role === 'staff') {
           window.location.href = '/nv/chat';
+        } else if (res.user.role === 'sale') {
+          if (window.location.pathname.startsWith('/dashboard')) {
+            window.location.href = '/';
+          } else {
+            window.location.reload();
+          }
         } else if (res.user.role === 'receptionist') {
           if (
             window.location.pathname.startsWith('/dashboard') ||

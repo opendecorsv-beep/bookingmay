@@ -57,7 +57,7 @@ interface ReceiptScannerModalProps {
 export default function ReceiptScannerModal({
   isOpen,
   onClose,
-  defaultPercent = 2,
+  defaultPercent = 1,
   onApplyResult
 }: ReceiptScannerModalProps) {
   const [activeTab, setActiveTab] = useState<'upload' | 'text'>('upload');
@@ -640,24 +640,9 @@ export default function ReceiptScannerModal({
                   +{commissionReward.toLocaleString('vi-VN')} đ
                 </div>
                 <div className="flex items-center gap-1 mt-1">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedPercent(2)}
-                    className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                      selectedPercent === 2 ? 'bg-amber-600 text-white' : 'bg-white border text-slate-600'
-                    }`}
-                  >
-                    2% (T2-T5)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedPercent(1)}
-                    className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                      selectedPercent === 1 ? 'bg-amber-600 text-white' : 'bg-white border text-slate-600'
-                    }`}
-                  >
-                    1% (T6-CN)
-                  </button>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-600 text-white">
+                    1% Cố Định (Tất Cả Các Ngày)
+                  </span>
                 </div>
               </div>
             </div>
