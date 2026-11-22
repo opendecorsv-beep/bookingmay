@@ -230,7 +230,7 @@ export function AuthProvider({
               </div>
               <p>• <strong>Lễ Tân (nhiletan / nhuletan):</strong> Đón tiếp & thêm khách tại Lễ Tân, Sơ đồ bàn.</p>
               <p>• <strong>Sale Mây (salemay):</strong> Thêm tiệc, điều chỉnh tiệc các thứ bình thường (chặn xem Dashboard).</p>
-              <p>• <strong>Giám Sát (gshuy / gsmai / gstien / gslananh):</strong> Điều hành ca trực & CMS thưởng.</p>
+              <p>• <strong>Giám Sát (gshuy / gstien / gslananh):</strong> Điều hành ca trực & CMS thưởng.</p>
               <p>• <strong>Nhân Viên (nhanvien):</strong> Tham gia Chat VIP trực ca.</p>
               <p>• <strong>Quản Lý (maybmt):</strong> Toàn quyền quản trị hệ thống.</p>
             </div>

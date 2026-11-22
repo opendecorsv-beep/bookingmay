@@ -207,7 +207,7 @@ export default function StaffAccessGuard({ children }: { children: React.ReactNo
                     <UserCheck className="w-3.5 h-3.5 text-blue-600" />
                     <span>Giám Sát Ca</span>
                   </div>
-                  <div className="text-[10px] text-blue-700 font-mono mt-0.5">gshuy / gsmai / gstien</div>
+                  <div className="text-[10px] text-blue-700 font-mono mt-0.5">gshuy / gstien / gslananh</div>
                 </button>
 
                 <button

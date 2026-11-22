@@ -263,7 +263,7 @@ export interface CommissionEntry {
   tableOrRoom?: string; // Bàn / phòng phục vụ (vd: "Mây 102", "Bàn 14")
   note?: string; // Ghi chú thêm
   createdByName: string; // "Giám Sát Huy", "Giám Sát Mai", "Giám Sát Tiến", "Quản Lý Mây"
-  createdById: string; // "gshuy", "gsmai", "gstien", "maybmt"
+  createdById: string; // "gshuy", "gstien", "gslananh", "maybmt"
   createdAt: string; // ISO string
 }
 
@@ -352,7 +352,6 @@ export interface AuthUser {
 export const KNOWN_ACCOUNTS: Record<string, { pass: string; name: string; role: UserRole }> = {
   maybmt: { pass: '1122334455', name: 'Quản Lý Mây', role: 'admin' },
   gshuy: { pass: 'huy135', name: 'Giám Sát Huy (Lê Nguyễn Anh Huy)', role: 'supervisor' },
-  gsmai: { pass: 'mai123', name: 'Giám Sát Mai (Nguyễn Thị Thanh Mai)', role: 'supervisor' },
   gstien: { pass: 'tien246', name: 'Giám Sát Tiến (Đồng Văn Tiến)', role: 'supervisor' },
   gslananh: { pass: 'maybmt2026', name: 'Giám Sát Lan Anh (Nguyễn Thị Lan Anh)', role: 'supervisor' },
   salemay: { pass: 'salebooking2026', name: 'Sale Mây', role: 'sale' },
